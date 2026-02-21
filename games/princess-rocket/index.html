@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Princess Rocket Adventure!</title>
+    <style>
+        /* Basic Setup */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0b001e; /* Deep Space Blue */
+            font-family: 'Comic Sans MS', 'Chalkboard SE', cursive;
+            touch-action: none; /* Prevents zooming/scrolling while playing */
+        }
+
+        #game-stage {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: radial-gradient(circle at bottom, #1b2735 0%, #090a0f 100%);
+        }
+
+        /* The Rocket */
+        #rocket {
+            position: absolute;
+            font-size: 70px;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 100;
+            transition: transform 0.1s ease-out;
+            filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.5));
+        }
+
+        /* Floating Items (Princesses/Kings) */
+        .character {
+            position: absolute;
+            font-size: 60px;
+            user-select: none;
+            cursor: pointer;
+            z-index: 50;
+        }
+
+        /* Scoreboard */
+        #ui {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: #ff69b4; /* Pink */
+            font-size: 30px;
+            font-weight: bold;
+            text-shadow: 2px 2px #fff;
+            z-index: 200;
+            pointer-events: none;
+        }
+
+        /* Background Stars */
+        .star {
+            position: absolute;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.5;
+            animation: twinkle 2s infinite ease-in-out;
+        }
+
+        @keyframes twinkle {
+            0%, 100% { opacity: 0.3; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        /* Sparkle Effect when catching */
+        .sparkle {
+            position: absolute;
+            color: gold;
+            font-size: 30px;
+            animation: burst 0.5s forwards;
+        }
+
+        @keyframes burst {
+            0% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(3) translateY(-50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-stage">
+    <div id="ui">Rescued: <span id="score">0</span></div>
+    <div id="rocket">🚀</div>
+</div>
+
+<script>
+    const stage = document.getElementById('game-stage');
+    const rocket = document.getElementById('rocket');
+    const scoreDisplay = document.getElementById('score');
+    let score = 0;
+
+    // 1. Create moving stars for a space feel
+    for (let i = 0; i < 40; i++) {
+        const star = document.createElement('div');
+        star.className = 'star';
+        const size = Math.random() * 4 + 2;
+        star.style.width = size + 'px';
+        star.style.height = size + 'px';
+        star.style.left = Math.random() * 100 + 'vw';
+        star.style.top = Math.random() * 100 + 'vh';
+        star.style.animationDelay = Math.random() * 2 + 's';
+        stage.appendChild(star);
+    }
+
+    // 2. Rocket follows Finger/Mouse
+    function moveRocket(x, y) {
+        // Center the rocket on the touch point
+        const rx = x - 40;
+        const ry = y - 40;
+        rocket.style.left = rx + 'px';
+        rocket.style.top = ry + 'px';
+    }
+
+    stage.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        moveRocket(touch.clientX, touch.clientY);
+    }, { passive: false });
+
+    stage.addEventListener('mousemove', (e) => {
+        moveRocket(e.clientX, e.clientY);
+    });
+
+    // 3. Spawn Princesses and Kings
+    const royals = ['👸', '👸', '🤴', '👸', '✨'];
+
+    function spawnRoyal() {
+        const char = document.createElement('div');
+        char.className = 'character';
+        char.innerHTML = royals[Math.floor(Math.random() * royals.length)];
+        
+        const startX = Math.random() * (window.innerWidth - 60);
+        char.style.left = startX + 'px';
+        char.style.top = '-80px';
+        stage.appendChild(char);
+
+        // Movement Logic
+        let currentY = -80;
+        const speed = 2 + Math.random() * 3;
+
+        const fallInterval = setInterval(() => {
+            currentY += speed;
+            char.style.top = currentY + 'px';
+
+            // Collision Detection (Rocket catching the Royal)
+            const rRect = rocket.getBoundingClientRect();
+            const cRect = char.getBoundingClientRect();
+
+            if (!(rRect.right < cRect.left || 
+                rRect.left > cRect.right || 
+                rRect.bottom < cRect.top || 
+                rRect.top > cRect.bottom)) {
+                
+                // Success! Catch effect
+                score++;
+                scoreDisplay.innerText = score;
+                createSparkle(cRect.left, cRect.top);
+                char.remove();
+                clearInterval(fallInterval);
+            }
+
+            // Remove if it falls off screen
+            if (currentY > window.innerHeight) {
+                char.remove();
+                clearInterval(fallInterval);
+            }
+        }, 16);
+    }
+
+    function createSparkle(x, y) {
+        const s = document.createElement('div');
+        s.className = 'sparkle';
+        s.innerHTML = '⭐';
+        s.style.left = x + 'px';
+        s.style.top = y + 'px';
+        stage.appendChild(s);
+        setTimeout(() => s.remove(), 500);
+    }
+
+    // Spawn a new person every 1.5 seconds
+    setInterval(spawnRoyal, 1500);
+
+    // Initial Rocket Position
+    rocket.style.left = (window.innerWidth / 2 - 40) + 'px';
+    rocket.style.top = (window.innerHeight - 150) + 'px';
+
+</script>
+</body>
+</html>

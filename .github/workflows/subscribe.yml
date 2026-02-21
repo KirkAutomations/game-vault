@@ -1,0 +1,33 @@
+name: Add Subscriber
+on:
+  repository_dispatch:
+    types: [new-subscriber]
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: data
+      - name: Add email
+        run: |
+          EMAIL="${{ github.event.client_payload.email }}"
+          if [[ ! "$EMAIL" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$ ]]; then
+            echo "Invalid email"; exit 0
+          fi
+          touch subscribers.json
+          [ ! -s subscribers.json ] && echo '[]' > subscribers.json
+          if jq -e --arg e "$EMAIL" '[.[] | select(.email == $e)] | length > 0' subscribers.json 2>/dev/null | grep -q true; then
+            echo "Duplicate"; exit 0
+          fi
+          jq --arg e "$EMAIL" --arg t "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '. += [{"email":$e,"subscribed_at":$t}]' subscribers.json > tmp.json
+          mv tmp.json subscribers.json
+          git config user.name "Game Vault Bot"
+          git config user.email "bot@gamevault.dev"
+          git add subscribers.json
+          git commit -m "New subscriber" || exit 0
+          git push

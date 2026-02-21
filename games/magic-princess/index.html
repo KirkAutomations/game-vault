@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Magic Princess Evolution</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #ff9a9e, #fad0c4);
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            touch-action: none;
+            user-select: none;
+            transition: background 2s;
+        }
+
+        #game-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        .princess {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: clamp(100px, 25vw, 180px);
+            cursor: pointer;
+            transition: all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 10;
+        }
+
+        .princess.level-up {
+            transform: translateX(-50%) scale(2) rotate(360deg);
+        }
+
+        .sparkle {
+            position: absolute;
+            pointer-events: none;
+            animation: fly 1.2s forwards;
+            font-size: 30px;
+            z-index: 5;
+        }
+
+        @keyframes fly {
+            0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+            100% { transform: translate(var(--x), var(--y)) rotate(360deg) scale(0); opacity: 0; }
+        }
+
+        .item {
+            position: absolute;
+            font-size: 60px;
+            cursor: pointer;
+            z-index: 8;
+            filter: drop-shadow(0 0 10px white);
+        }
+
+        .ui {
+            position: absolute;
+            top: 30px;
+            width: 100%;
+            text-align: center;
+            pointer-events: none;
+        }
+
+        .score-board {
+            background: rgba(255, 255, 255, 0.6);
+            backdrop-filter: blur(5px);
+            border-radius: 50px;
+            padding: 10px 25px;
+            display: inline-block;
+            font-size: 24px;
+            font-weight: bold;
+            color: #d81b60;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .floating-score {
+            position: absolute;
+            color: #fff;
+            font-weight: bold;
+            font-size: 45px;
+            text-shadow: 2px 2px 5px #ff69b4;
+            animation: floatUp 1s forwards;
+            pointer-events: none;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-120px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="ui">
+        <div class="score-board">✨ Magic: <span id="score">0</span></div>
+    </div>
+    <div class="princess" id="princess" onclick="princessTap()">👸</div>
+</div>
+
+<script>
+    const container = document.getElementById('game-container');
+    const princessEl = document.getElementById('princess');
+    const scoreEl = document.getElementById('score');
+    
+    // Load score or start at 0
+    let score = parseInt(localStorage.getItem('princessScore')) || 0;
+    scoreEl.innerText = score;
+
+    const sparkles = ['✨', '⭐', '🌸', '💖', '💎', '🌈', '🍭'];
+    
+    // Character Evolution Map
+    const evolutions = [
+        { min: 0, char: '👸', bg: 'linear-gradient(to bottom, #ff9a9e, #fad0c4)' },
+        { min: 10, char: '🧚', bg: 'linear-gradient(to bottom, #a1c4fd, #c2e9fb)' },
+        { min: 25, char: '🧜‍♀️', bg: 'linear-gradient(to bottom, #84fab0, #8fd3f4)' },
+        { min: 50, char: '👑', bg: 'linear-gradient(to bottom, #f6d365, #fda085)' },
+        { min: 100, char: '🦄', bg: 'linear-gradient(to bottom, #e14fad, #f9d423)' }
+    ];
+
+    function updateCharacter() {
+        let current = evolutions[0];
+        for (let evo of evolutions) {
+            if (score >= evo.min) {
+                current = evo;
+            }
+        }
+        
+        // Change background and character if leveled up
+        document.body.style.background = current.bg;
+        if (princessEl.innerHTML !== current.char) {
+            princessEl.innerHTML = current.char;
+            levelUpEffect();
+        }
+    }
+
+    function addScore(points, x, y) {
+        score += points;
+        scoreEl.innerText = score;
+        localStorage.setItem('princessScore', score);
+        
+        const num = document.createElement('div');
+        num.className = 'floating-score';
+        num.style.left = x + 'px';
+        num.style.top = y + 'px';
+        num.innerText = '+' + points;
+        container.appendChild(num);
+        setTimeout(() => num.remove(), 1000);
+        
+        updateCharacter();
+    }
+
+    function princessTap() {
+        createMagic(window.innerWidth/2, window.innerHeight - 100, 15);
+        playNote(440);
+    }
+
+    // Touch support for magic wand effect
+    container.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        if(e.target === container) {
+            createMagic(touch.pageX, touch.pageY, 8);
+            playNote(600 + Math.random() * 200);
+        }
+    }, {passive: false});
+
+    container.addEventListener('mousedown', (e) => {
+        if(e.target === container) {
+            createMagic(e.pageX, e.pageY, 8);
+            playNote(600 + Math.random() * 200);
+        }
+    });
+
+    function createMagic(x, y, count) {
+        for (let i = 0; i < count; i++) {
+            const span = document.createElement('span');
+            span.className = 'sparkle';
+            span.innerHTML = sparkles[Math.floor(Math.random() * sparkles.length)];
+            const moveX = (Math.random() - 0.5) * 350;
+            const moveY = (Math.random() - 0.5) * 350;
+            span.style.left = x + 'px';
+            span.style.top = y + 'px';
+            span.style.setProperty('--x', `${moveX}px`);
+            span.style.setProperty('--y', `${moveY}px`);
+            container.appendChild(span);
+            setTimeout(() => span.remove(), 1200);
+        }
+    }
+
+    function levelUpEffect() {
+        princessEl.classList.add('level-up');
+        createMagic(window.innerWidth/2, window.innerHeight/2, 50);
+        playNote(523); playNote(659); playNote(783);
+        setTimeout(() => princessEl.classList.remove('level-up'), 1000);
+    }
+
+    function spawnItem() {
+        const item = document.createElement('div');
+        item.className = 'item';
+        // Change items based on score
+        const icons = score > 50 ? ['💎', '🌈', '🍭'] : ['👑', '💍', '⭐'];
+        item.innerHTML = icons[Math.floor(Math.random() * icons.length)];
+        
+        item.style.left = (Math.random() * (window.innerWidth - 80) + 40) + 'px';
+        item.style.top = '-80px';
+        container.appendChild(item);
+
+        let pos = -80;
+        let speed = 2.5 + (score / 100); 
+        const fall = setInterval(() => {
+            pos += speed;
+            item.style.top = pos + 'px';
+            if (pos > window.innerHeight) {
+                clearInterval(fall);
+                item.remove();
+            }
+        }, 20);
+
+        const collect = (e) => {
+            e.preventDefault();
+            addScore(1, parseInt(item.style.left), pos);
+            createMagic(parseInt(item.style.left), pos, 12);
+            clearInterval(fall);
+            item.remove();
+            playNote(800 + Math.random() * 200);
+        };
+
+        item.onmousedown = item.ontouchstart = collect;
+    }
+
+    // Spawn an item every 2 seconds
+    setInterval(spawnItem, 2000);
+    updateCharacter();
+
+    function playNote(freq) {
+        try {
+            const context = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = context.createOscillator();
+            const gain = context.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, context.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq/4, context.currentTime + 0.4);
+            gain.gain.setValueAtTime(0.05, context.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, context.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(context.destination);
+            osc.start();
+            osc.stop(context.currentTime + 0.4);
+        } catch(e) {}
+    }
+</script>
+</body>
+</html>
