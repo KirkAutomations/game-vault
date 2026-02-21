@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game Vault</title>
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/subscribe.css">
 </head>
 <body>
   <header>
@@ -51,10 +52,21 @@
         <p>Action-Adventure</p>
       </a>
     </section>
+
+    <section class="subscribe-section">
+      <h2>🔔 Stay in the Loop</h2>
+      <p>Get notified when we add new games to the vault.</p>
+      <form class="subscribe-form" action="https://formspree.io/f/YOUR_FORM_ID" method="POST">
+        <input type="email" name="email" placeholder="your@email.com" required>
+        <button type="submit">Subscribe</button>
+      </form>
+      <p class="subscribe-success">✅ You're subscribed! We'll let you know when new games drop.</p>
+    </section>
   </main>
 
   <footer>
     <p>&copy; 2026 Game Vault</p>
   </footer>
+  <script src="js/subscribe.js"></script>
 </body>
 </html>
