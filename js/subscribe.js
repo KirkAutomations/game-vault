@@ -1,48 +1,38 @@
-// Subscribe form handler
-document.addEventListener('DOMContentLoaded', function () {
-  document.querySelectorAll('.subscribe-form').forEach(function (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var email = form.querySelector('input[type="email"]').value;
-      var btn = form.querySelector('button');
-      btn.textContent = 'Subscribing...';
-      btn.disabled = true;
+// Subscribe form — submits email to Google Forms, saves to Google Sheets
+document.addEventListener("DOMContentLoaded", () => {
+  const form = document.getElementById("subscribe-form");
+  if (!form) return;
 
-      fetch(form.action, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({ email: email })
-      }).then(function (r) {
-        if (r.ok) {
-          var msg = form.parentElement.querySelector('.subscribe-success');
-          if (msg) { msg.style.display = 'block'; }
-          form.style.display = 'none';
-          // Hide toast after success
-          var toast = form.closest('.subscribe-toast');
-          if (toast) { setTimeout(function () { toast.classList.add('hidden'); }, 3000); }
-          localStorage.setItem('gv-subscribed', '1');
-        } else {
-          btn.textContent = 'Try Again';
-          btn.disabled = false;
-        }
-      }).catch(function () {
-        btn.textContent = 'Try Again';
-        btn.disabled = false;
+  const GOOGLE_FORM_URL =
+    "https://docs.google.com/forms/d/e/1FAIpQLSeTK0Q7OrI-RepR_K_V_nAKQL4mB4D-11MUpovRdWlxpu6bDA/formResponse";
+  const EMAIL_ENTRY = "entry.287932181";
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const emailInput = form.querySelector('input[name="email"]');
+    const btn = form.querySelector("button");
+    const email = emailInput.value.trim();
+    if (!email) return;
+
+    btn.textContent = "Subscribing...";
+    btn.disabled = true;
+
+    try {
+      // Submit to Google Forms via no-cors fetch (we won't get a readable response,
+      // but the data will be saved to the linked Google Sheet)
+      await fetch(GOOGLE_FORM_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: `${EMAIL_ENTRY}=${encodeURIComponent(email)}`,
       });
-    });
+
+      // Show success (no-cors means we can't check status, but submissions go through)
+      form.style.display = "none";
+      document.querySelector(".subscribe-success").style.display = "block";
+    } catch (err) {
+      btn.textContent = "Error — try again";
+      btn.disabled = false;
+    }
   });
-
-  // Show toast on game pages after 5 seconds if not already subscribed
-  var toast = document.querySelector('.subscribe-toast');
-  if (toast && !localStorage.getItem('gv-subscribed')) {
-    setTimeout(function () { toast.classList.remove('hidden'); }, 5000);
-  }
-
-  // Close toast
-  var closeBtn = document.querySelector('.close-toast');
-  if (closeBtn) {
-    closeBtn.addEventListener('click', function () {
-      document.querySelector('.subscribe-toast').classList.add('hidden');
-    });
-  }
 });
