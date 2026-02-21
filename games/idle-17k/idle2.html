@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasure Hunter's Quest</title>
+    <style>
+        /* CSS Styles */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+
+        #game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #treasure-counter {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #treasure-collected {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #health {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #game-over {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff0000;
+        }
+
+        #mode-selector {
+            margin-top: 20px;
+        }
+
+        #power-ups {
+            margin-top: 20px;
+        }
+
+        #leaderboard {
+            margin-top: 20px;
+        }
+
+        #achievements {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Treasure Hunter's Quest</h1>
+        <button id="start-button">Start Game!</button>
+        <div id="game-over"></div>
+        <div id="game-over-text"></div>
+        <div id="mode-selector">
+            <label for="mode">Game Mode:</label>
+            <select id="mode" onchange="updateGameMode(this.value)">
+                <option value="treasure-hunter">Treasure Hunter</option>
+                <option value="time-attack">Time Attack</option>
+                <option value="survival">Survival</option>
+                <option value="treasure-hunt">Treasure Hunt</option>
+            </select>
+        </div>
+        <div id="treasure-counter">
+            <p id="treasure-collected">Treasure Collected: <span id="treasure-count">0</span></p>
+        </div>
+        <div id="health">
+            <p id="health-count">Health: <span id="health-points">10</span></p>
+        </div>
+        <div id="power-ups">
+            <button id="health-potion-button">Health Potion</button>
+            <button id="treasure-boost-button">Treasure Boost</button>
+        </div>
+        <div id="leaderboard">
+            <h2>Leaderboard:</h2>
+            <ol id="leaderboard-list"></ol>
+        </div>
+        <div id="achievements">
+            <h2>Achievements:</h2>
+            <ol id="achievements-list"></ol>
+        </div>
+        <div id="obstacles"></div>
+    </div>
+
+    <script>
+        // Game Variables
+        let gameMode = "treasure-hunter";
+        let treasureCount = 0;
+        let healthPoints = 10;
+        let obstacleId;
+        let treasureTypes = ["gold", "diamond", "ruby", "emerald"];
+        let treasureValues = [10, 50, 100, 500];
+        let timeLimit = 60; // 1 minute
+        let healthPotionChance = 0.1; // 10% chance
+        let treasureBoostChance = 0.2; // 20% chance
+
+        // Function to update treasure count
+        function updateTreasureCount() {
+            treasureCount++;
+            document.getElementById("treasure-count").innerHTML = treasureCount;
+        }
+
+        // Function to update health points
+        function updateHealthPoints() {
+            healthPoints--;
+            document.getElementById("health-points").innerHTML = healthPoints;
+        }
+
+        // Function to update game over text
+        function updateGameOverText() {
+            if (healthPoints <= 0) {
+                document.getElementById("game-over").innerHTML = "You died! Game Over!";
+                document.getElementById("game-over").style.display = "block";
+            }
+        }
+
+        // Function to update leaderboard
+        function updateLeaderboard() {
+            let leaderboardList = document.getElementById("leaderboard-list");
+            leaderboardList.innerHTML = "";
+            for (let i = 0; i < 10; i++) {
+                let item = document.createElement("li");
+                item.textContent = `Player ${i+1}: ${i*100} treasure collected`;
+                leaderboardList.appendChild(item);
+            }
+        }
+
+        // Function to update achievements
+        function updateAchievements() {
+            let achievementsList = document.getElementById("achievements-list");
+            achievementsList.innerHTML = "";
+            for (let i = 0; i < 10; i++) {
+                let item = document.createElement("li");
+                item.textContent = `Achievement ${i+1}: ${i*100} treasure collected`;
+                achievementsList.appendChild(item);
+            }
+        }
+
+        // Function to start treasure collection
+        function startTreasureCollection() {
+            let treasureTypeIndex = Math.floor(Math.random() * treasureTypes.length);
+            let treasureValue = treasureValues[treasureTypeIndex];
+            updateTreasureCount();
+            document.getElementById("treasure-collected").innerHTML = `Treasure Type: ${treasureTypes[treasureTypeIndex]}, Value: ${treasureValue}`;
+        }
+
+        // Function to handle health potion button click
+        function useHealthPotion() {
+            if (Math.random() < healthPotionChance) {
+                healthPoints += 10;
+                document.getElementById("health-points").innerHTML = healthPoints;
+            }
+        }
+
+        // Function to handle treasure boost button click
+        function useTreasureBoost() {
+            if (Math.random() < treasureBoostChance) {
+                treasureCount += 100;
+                document.getElementById("treasure-count").innerHTML = treasureCount;
+            }
+        }
+
+        // Function to handle time attack game mode
+        function timeAttackGameMode() {
+            if (timeLimit < 0) {
+                document.getElementById("game-over").innerHTML = "Time's up! Game Over!";
+                document.getElementById("game-over").style.display = "block";
+            } else {
+                timeLimit--;
+                let timeText = document.getElementById("time-text");
+                timeText.textContent = `Time: ${timeLimit}`;
+                let treasureCountText = document.getElementById("treasure-count");
+                treasureCountText.textContent = treasureCount;
+                setTimeout(timeAttackGameMode, 1000);
+            }
+        }
+
+        // Function to handle survival game mode
+        function survivalGameMode() {
+            if (healthPoints <= 0) {
+                document.getElementById("game-over").innerHTML = "You died! Game Over!";
+                document.getElementById("game-over").style.display = "block";
+            } else {
+                survivalIntervalId = setInterval(survivalGameMode, 1000);
+            }
+        }
+
+        // Function to handle treasure hunt game mode
+        function treasureHuntGameMode() {
+            let x = 0;
+            let y = 0;
+            while (x <= 10 && y <= 10) {
+                let treasureCountText = document.getElementById("treasure-count");
+                let treasureValue = Math.random() * 100;
+                treasureCount += treasureValue;
+                treasureCountText.textContent = treasureCount;
+                x++;
+                y++;
+                setTimeout(treasureHuntGameMode, 100);
+            }
+        }
+
+        // Function to update game mode
+        function updateGameMode(mode) {
+            gameMode = mode;
+            document.getElementById("game-over").style.display = "none";
+            if (mode === "time-attack") {
+                document.getElementById("time-text").textContent = "Time: 60 seconds";
+            }
+            if (mode === "survival") {
+                document.getElementById("game-over").style.display = "none";
+                survivalIntervalId = setInterval(survivalGameMode, 1000);
+            }
+            if (mode === "treasure-hunt") {
+                treasureHuntGameMode();
+                document.getElementById("game-over").style.display = "none";
+            }
+        }
+
+        // Start the game
+        document.getElementById("start-button").addEventListener("click", () => {
+            document.getElementById("game-over").style.display = "none";
+            if (gameMode === "time-attack") {
+                timeAttackGameMode();
+            }
+            if (gameMode === "survival") {
+                survivalGameMode();
+            }
+            if (gameMode === "treasure-hunt") {
+                treasureHuntGameMode();
+            }
+        });
+
+        // Start the game loop
+        let treasureCollectionIntervalId = setInterval(startTreasureCollection, 1000);
+        let timeAttackIntervalId = setInterval(timeAttackGameMode, 1000);
+        let survivalIntervalId = setInterval(survivalGameMode, 1000);
+        let treasureHuntIntervalId = setInterval(treasureHuntGameMode, 100);
+
+        // Add game over text
+        let gameOverText = document.getElementById("game-over");
+        gameOverText.style.display = "block";
+
+        // Add treasure count text
+        let treasureCountText = document.getElementById("treasure-count");
+        treasureCountText.textContent = "0";
+
+        // Add health points text
+        let healthPointsText = document.getElementById("health-points");
+        healthPointsText.textContent = "10";
+
+        // Add game over text
+        let gameOverText = document.getElementById("game-over-text");
+        gameOverText.style.display = "none";
+
+        // Add game over text
+        let gameOverText = document.getElementById("game-over");
+        gameOverText.style.display = "none";
+
+        // Add time attack text
+        let timeText = document.getElementById("time-text");
+        timeText.textContent = "Time: 60 seconds";
+
+        // Add obstacles text
+        let obstaclesText = document.getElementById("obstacles");
+        obstaclesText.innerHTML = "";
+
+        // Add health potion button
+        let healthPotionButton = document.getElementById("health-potion-button");
+        healthPotionButton.addEventListener("click", useHealthPotion);
+
+        // Add treasure boost button
+        let treasureBoostButton = document.getElementById("treasure-boost-button");
+        treasureBoostButton.addEventListener("click", useTreasureBoost);
+
+        // Add leaderboard
+        let leaderboardList = document.getElementById("leaderboard-list");
+        for (let i = 0; i < 10; i++) {
+            let item = document.createElement("li");
+            item.textContent = `Player ${i+1}: ${i*100} treasure collected`;
+            leaderboardList.appendChild(item);
+        }
+
+        // Add achievements
+        let achievementsList = document.getElementById("achievements-list");
+        for (let i = 0; i < 10; i++) {
+            let item = document.createElement("li");
+            item.textContent = `Achievement ${i+1}: ${i*100} treasure collected`;
+            achievementsList.appendChild(item);
+        }
+    </script>

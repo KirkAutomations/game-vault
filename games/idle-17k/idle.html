@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Treasure Hunter's Quest</title>
+    <style>
+        /* CSS Styles */
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+
+        #game-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 80%;
+            margin: 20px auto;
+            padding: 20px;
+            border: 1px solid #333;
+            border-radius: 10px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #treasure-counter {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #treasure-collected {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #health {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        #game-over {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <h1>Treasure Hunter's Quest</h1>
+        <button id="dig-button">Dig for Treasure!</button>
+        <div id="treasure-counter">
+            <p id="treasure-collected">Treasure Collected: <span id="treasure-count">0</span></p>
+        </div>
+        <div id="health">
+            <p id="health-count">Health: <span id="health-points">10</span></p>
+        </div>
+        <div id="game-over"></div>
+    </div>
+
+    <script>
+        // JavaScript Code
+        let treasureCount = 0;
+        let healthPoints = 10;
+        let intervalId;
+
+        // Function to update treasure count
+        function updateTreasureCount() {
+            treasureCount++;
+            document.getElementById("treasure-count").innerHTML = treasureCount;
+        }
+
+        // Function to update health points
+        function updateHealthPoints() {
+            healthPoints--;
+            document.getElementById("health-points").innerHTML = healthPoints;
+        }
+
+        // Function to update game over text
+        function updateGameOverText() {
+            if (healthPoints <= 0) {
+                document.getElementById("game-over").innerHTML = "You died! Game Over!";
+                document.getElementById("game-container").style.display = "none";
+            }
+        }
+
+        // Function to handle dig button click
+        function digForTreasure() {
+            updateTreasureCount();
+            updateHealthPoints();
+            updateGameOverText();
+        }
+
+        // Function to start interval for health points
+        function startInterval() {
+            intervalId = setInterval(updateHealthPoints, 5000);
+        }
+
+        startInterval();
+
+        document.getElementById("dig-button").addEventListener("click", digForTreasure);
+    </script>
+</body>
+</html>

@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GridWars: Heroes vs Villains</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a2e;
+  color: #eee;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+h1 {
+  margin: 12px 0 4px;
+  font-size: 28px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 10px #0ff, 0 0 20px #0ff;
+  color: #0ff;
+}
+#top-bar {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+#turn-indicator {
+  font-size: 16px;
+  font-weight: bold;
+  padding: 4px 14px;
+  border-radius: 6px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+}
+#turn-indicator.hero-turn { color: #4fc3f7; border-color: #4fc3f7; }
+#turn-indicator.villain-turn { color: #ef5350; border-color: #ef5350; }
+
+#game-container {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+canvas {
+  border: 2px solid #0f3460;
+  border-radius: 4px;
+  cursor: pointer;
+  image-rendering: auto;
+}
+
+#side-panel {
+  width: 220px;
+  background: #16213e;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 13px;
+}
+#side-panel h3 {
+  color: #0ff;
+  margin-bottom: 6px;
+  font-size: 14px;
+  border-bottom: 1px solid #0f3460;
+  padding-bottom: 4px;
+}
+.unit-info { margin-bottom: 10px; }
+.unit-info .name { font-weight: bold; font-size: 14px; }
+.unit-info .hero-name { color: #4fc3f7; }
+.unit-info .villain-name { color: #ef5350; }
+.stat-bar {
+  height: 8px;
+  background: #333;
+  border-radius: 4px;
+  margin: 3px 0;
+  overflow: hidden;
+}
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+.hp-fill { background: linear-gradient(90deg, #c62828, #4caf50); }
+.stat-row { display: flex; justify-content: space-between; margin: 2px 0; }
+
+#actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+#actions button {
+  padding: 5px 10px;
+  border: 1px solid #0f3460;
+  background: #16213e;
+  color: #eee;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.15s;
+}
+#actions button:hover { background: #1a3a6e; border-color: #4fc3f7; }
+#actions button.active { background: #0f3460; border-color: #0ff; color: #0ff; }
+#actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+#log {
+  width: 220px;
+  max-height: 180px;
+  overflow-y: auto;
+  background: #0d1117;
+  border: 1px solid #0f3460;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 11px;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+#log .log-hero { color: #4fc3f7; }
+#log .log-villain { color: #ef5350; }
+#log .log-dmg { color: #ffa726; }
+#log .log-heal { color: #66bb6a; }
+#log .log-special { color: #ce93d8; }
+#log .log-system { color: #888; }
+
+#bottom-bar {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+}
+
+#game-over-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 100;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+#game-over-overlay.show { display: flex; }
+#game-over-overlay h2 {
+  font-size: 42px;
+  margin-bottom: 16px;
+  text-shadow: 0 0 20px currentColor;
+}
+#game-over-overlay .win { color: #4fc3f7; }
+#game-over-overlay .lose { color: #ef5350; }
+#game-over-overlay button {
+  padding: 10px 30px;
+  font-size: 18px;
+  border: 2px solid #0ff;
+  background: #16213e;
+  color: #0ff;
+  border-radius: 8px;
+  cursor: pointer;
+  margin-top: 10px;
+}
+#game-over-overlay button:hover { background: #1a3a6e; }
+
+#help-text {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+  text-align: center;
+}
+</style>
+</head>
+<body>
+<h1>GRIDWARS: HEROES VS VILLAINS</h1>
+<div id="top-bar">
+  <div id="turn-indicator" class="hero-turn">Your Turn</div>
+  <span id="turn-count">Turn 1</span>
+</div>
+<div id="game-container">
+  <canvas id="grid" width="640" height="640"></canvas>
+  <div>
+    <div id="side-panel">
+      <h3>Unit Info</h3>
+      <div id="unit-details">Select a unit</div>
+      <div id="actions"></div>
+      <button id="end-turn-btn" onclick="endPlayerTurn()" style="margin-top:10px;width:100%;padding:7px;border:2px solid #0f3460;background:#16213e;color:#ff9800;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;transition:all 0.15s;display:none;">End Turn</button>
+    </div>
+    <div id="log"></div>
+  </div>
+</div>
+<div id="help-text">Click a hero to select · Choose action · Click target tile</div>
+<div id="bottom-bar">GridWars v1.0 — Turn-based Tactics</div>
+
+<div id="game-over-overlay">
+  <h2 id="game-over-text"></h2>
+  <p id="game-over-sub"></p>
+  <button onclick="restartGame()">Play Again</button>
+</div>
+
+<script>
+// ==================== CONSTANTS ====================
+const COLS = 10, ROWS = 10, TILE = 64;
+const canvas = document.getElementById('grid');
+const ctx = canvas.getContext('2d');
+
+// Terrain types
+const TERRAIN = {
+  FLOOR: 0,
+  COVER_LOW: 1,   // +1 defense
+  COVER_HIGH: 2,  // +2 defense
+  WATER: 3,       // slows movement
+  WALL: 4         // impassable
+};
+
+const TERRAIN_COLORS = {
+  [TERRAIN.FLOOR]: '#2d2d44',
+  [TERRAIN.COVER_LOW]: '#3d5a3d',
+  [TERRAIN.COVER_HIGH]: '#5a5a3d',
+  [TERRAIN.WATER]: '#1a3a5a',
+  [TERRAIN.WALL]: '#1a1a1a'
+};
+
+const TERRAIN_LABELS = {
+  [TERRAIN.FLOOR]: '',
+  [TERRAIN.COVER_LOW]: 'Low Cover',
+  [TERRAIN.COVER_HIGH]: 'High Cover',
+  [TERRAIN.WATER]: 'Water',
+  [TERRAIN.WALL]: 'Wall'
+};
+
+// ==================== GAME STATE ====================
+let grid = [];
+let units = [];
+let selectedUnit = null;
+let currentAction = null; // 'move', 'attack', 'special'
+let highlightedTiles = [];
+let isPlayerTurn = true;
+let turnNumber = 1;
+let animQueue = [];
+let animating = false;
+let floatingTexts = [];
+let gameOver = false;
+let hoveredTile = null;
+
+// ==================== UNIT DEFINITIONS ====================
+function createUnit(template, x, y, team) {
+  return {
+    ...template,
+    x, y, team,
+    currentHp: template.maxHp,
+    hasMoved: false,
+    hasAttacked: false,
+    hasSpecial: false,
+    specialCooldown: 0,
+    alive: true,
+    flashTimer: 0,
+    flashColor: null,
+    defenseBonus: 0,
+    defenseBonusTurns: 0,
+    poisonTurns: 0,
+    poisonDmg: 0
+  };
+}
+
+const HERO_TEMPLATES = [
+  {
+    name: 'Knight', emoji: '🛡️', maxHp: 120, attack: 18, defense: 4,
+    moveRange: 3, attackRange: 1, specialName: 'Shield Wall',
+    specialDesc: 'Gains +5 defense for 2 turns',
+    specialCooldownMax: 3, specialRange: 0,
+    useSpecial(unit, target, game) {
+      unit.defenseBonus = (unit.defenseBonus || 0) + 5;
+      unit.defenseBonusTurns = 2;
+      addLog(`${unit.name} raises Shield Wall! (+5 DEF)`, 'special');
+      addFloatingText(unit.x, unit.y, 'SHIELD!', '#ce93d8');
+    }
+  },
+  {
+    name: 'Ranger', emoji: '🏹', maxHp: 80, attack: 22, defense: 1,
+    moveRange: 4, attackRange: 4, specialName: 'Snipe',
+    specialDesc: 'Double damage, range 5',
+    specialCooldownMax: 3, specialRange: 5,
+    useSpecial(unit, target, game) {
+      let dmg = calcDamage(unit, target, 2.0);
+      target.currentHp -= dmg;
+      addLog(`${unit.name} snipes ${target.name} for ${dmg} dmg!`, 'special');
+      addFloatingText(target.x, target.y, `-${dmg}`, '#ffa726');
+      flashUnit(target, '#ff0000');
+      checkDeath(target);
+    }
+  },
+  {
+    name: 'Mage', emoji: '🔮', maxHp: 70, attack: 26, defense: 0,
+    moveRange: 3, attackRange: 3, specialName: 'Fireball',
+    specialDesc: 'AoE damage in 1-tile radius',
+    specialCooldownMax: 4, specialRange: 3,
+    useSpecial(unit, target, game) {
+      let targets = units.filter(u => u.alive && u.team !== unit.team &&
+        Math.abs(u.x - target.x) + Math.abs(u.y - target.y) <= 1);
+      // Also hit the target tile if there is a unit there
+      targets.forEach(t => {
+        let dmg = calcDamage(unit, t, 1.2);
+        t.currentHp -= dmg;
+        addLog(`Fireball hits ${t.name} for ${dmg}!`, 'special');
+        addFloatingText(t.x, t.y, `-${dmg}`, '#ff6600');
+        flashUnit(t, '#ff4400');
+        checkDeath(t);
+      });
+      if (targets.length === 0) {
+        addLog('Fireball hits empty ground.', 'system');
+      }
+      addFloatingText(target.x, target.y, '🔥', '#ff6600');
+    }
+  },
+  {
+    name: 'Cleric', emoji: '✨', maxHp: 90, attack: 12, defense: 2,
+    moveRange: 3, attackRange: 2, specialName: 'Heal',
+    specialDesc: 'Restore 35 HP to ally',
+    specialCooldownMax: 2, specialRange: 3,
+    useSpecial(unit, target, game) {
+      let heal = Math.min(35, target.maxHp - target.currentHp);
+      target.currentHp += heal;
+      addLog(`${unit.name} heals ${target.name} for ${heal} HP!`, 'heal');
+      addFloatingText(target.x, target.y, `+${heal}`, '#66bb6a');
+      flashUnit(target, '#00ff00');
+    }
+  }
+];
+
+const VILLAIN_TEMPLATES = [
+  {
+    name: 'Orc Brute', emoji: '👹', maxHp: 110, attack: 20, defense: 3,
+    moveRange: 3, attackRange: 1, specialName: 'Smash',
+    specialDesc: 'Heavy hit for 1.5x damage',
+    specialCooldownMax: 3, specialRange: 1,
+    useSpecial(unit, target) {
+      let dmg = calcDamage(unit, target, 1.5);
+      target.currentHp -= dmg;
+      addLog(`${unit.name} SMASHES ${target.name} for ${dmg}!`, 'special');
+      addFloatingText(target.x, target.y, `-${dmg}`, '#ffa726');
+      flashUnit(target, '#ff0000');
+      checkDeath(target);
+    }
+  },
+  {
+    name: 'Dark Archer', emoji: '🏴', maxHp: 70, attack: 20, defense: 1,
+    moveRange: 3, attackRange: 4, specialName: 'Poison Arrow',
+    specialDesc: 'Poisons for 8 dmg/turn for 2 turns',
+    specialCooldownMax: 3, specialRange: 4,
+    useSpecial(unit, target) {
+      let dmg = calcDamage(unit, target, 0.8);
+      target.currentHp -= dmg;
+      target.poisonTurns = 2;
+      target.poisonDmg = 8;
+      addLog(`${unit.name} poisons ${target.name}! (${dmg} + poison)`, 'special');
+      addFloatingText(target.x, target.y, `POISON`, '#9c27b0');
+      flashUnit(target, '#9c27b0');
+      checkDeath(target);
+    }
+  },
+  {
+    name: 'Necromancer', emoji: '💀', maxHp: 65, attack: 24, defense: 0,
+    moveRange: 2, attackRange: 3, specialName: 'Drain Life',
+    specialDesc: 'Steals 15 HP from target',
+    specialCooldownMax: 3, specialRange: 3,
+    useSpecial(unit, target) {
+      let dmg = Math.min(15, target.currentHp);
+      target.currentHp -= dmg;
+      let heal = Math.min(dmg, unit.maxHp - unit.currentHp);
+      unit.currentHp += heal;
+      addLog(`${unit.name} drains ${dmg} HP from ${target.name}!`, 'special');
+      addFloatingText(target.x, target.y, `-${dmg}`, '#ffa726');
+      addFloatingText(unit.x, unit.y, `+${heal}`, '#66bb6a');
+      flashUnit(target, '#9c27b0');
+      checkDeath(target);
+    }
+  },
+  {
+    name: 'Shadow', emoji: '👤', maxHp: 75, attack: 22, defense: 1,
+    moveRange: 5, attackRange: 1, specialName: 'Backstab',
+    specialDesc: '2x damage if flanking',
+    specialCooldownMax: 2, specialRange: 1,
+    useSpecial(unit, target) {
+      // Check if any ally is adjacent to target (flanking)
+      let flanking = units.some(u => u.alive && u.team === unit.team && u !== unit &&
+        Math.abs(u.x - target.x) + Math.abs(u.y - target.y) <= 1);
+      let mult = flanking ? 2.0 : 1.2;
+      let dmg = calcDamage(unit, target, mult);
+      target.currentHp -= dmg;
+      addLog(`${unit.name} backstabs ${target.name} for ${dmg}!${flanking ? ' (flanking!)' : ''}`, 'special');
+      addFloatingText(target.x, target.y, `-${dmg}`, '#ffa726');
+      flashUnit(target, '#ff0000');
+      checkDeath(target);
+    }
+  }
+];
+
+// ==================== MAP GENERATION ====================
+function generateMap() {
+  grid = [];
+  for (let y = 0; y < ROWS; y++) {
+    grid[y] = [];
+    for (let x = 0; x < COLS; x++) {
+      grid[y][x] = TERRAIN.FLOOR;
+    }
+  }
+  // Add walls (central obstacles)
+  const wallPatterns = [
+    [4,3],[5,3],[4,6],[5,6],
+    [2,4],[2,5],[7,4],[7,5]
+  ];
+  wallPatterns.forEach(([x,y]) => grid[y][x] = TERRAIN.WALL);
+
+  // Add cover
+  const lowCover = [[1,2],[8,2],[1,7],[8,7],[3,4],[6,5],[4,1],[5,8]];
+  lowCover.forEach(([x,y]) => grid[y][x] = TERRAIN.COVER_LOW);
+
+  const highCover = [[3,2],[6,7],[3,5],[6,4]];
+  highCover.forEach(([x,y]) => grid[y][x] = TERRAIN.COVER_HIGH);
+
+  // Add water
+  const water = [[4,4],[5,5],[4,5],[5,4]];
+  water.forEach(([x,y]) => grid[y][x] = TERRAIN.WATER);
+}
+
+// ==================== UNIT PLACEMENT ====================
+function placeUnits() {
+  units = [];
+  // Heroes on left
+  HERO_TEMPLATES.forEach((t, i) => {
+    units.push(createUnit(t, 0, 1 + i * 2, 'hero'));
+  });
+  // Villains on right
+  VILLAIN_TEMPLATES.forEach((t, i) => {
+    units.push(createUnit(t, 9, 1 + i * 2, 'villain'));
+  });
+}
+
+// ==================== COMBAT SYSTEM ====================
+function getCoverBonus(unit) {
+  let terrain = grid[unit.y][unit.x];
+  if (terrain === TERRAIN.COVER_LOW) return 1;
+  if (terrain === TERRAIN.COVER_HIGH) return 2;
+  return 0;
+}
+
+function calcDamage(attacker, defender, multiplier = 1.0) {
+  let baseDmg = attacker.attack * multiplier;
+  let def = defender.defense + getCoverBonus(defender) + (defender.defenseBonus || 0);
+  let dmg = Math.max(1, Math.round(baseDmg - def + (Math.random() * 6 - 3)));
+  return dmg;
+}
+
+function checkDeath(unit) {
+  if (unit.currentHp <= 0) {
+    unit.currentHp = 0;
+    unit.alive = false;
+    addLog(`${unit.name} has been defeated!`, unit.team === 'hero' ? 'villain' : 'hero');
+    checkGameOver();
+  }
+}
+
+function checkGameOver() {
+  let heroesAlive = units.filter(u => u.team === 'hero' && u.alive).length;
+  let villainsAlive = units.filter(u => u.team === 'villain' && u.alive).length;
+  if (heroesAlive === 0) {
+    gameOver = true;
+    setTimeout(() => showGameOver(false), 600);
+  } else if (villainsAlive === 0) {
+    gameOver = true;
+    setTimeout(() => showGameOver(true), 600);
+  }
+}
+
+function showGameOver(playerWon) {
+  let overlay = document.getElementById('game-over-overlay');
+  let text = document.getElementById('game-over-text');
+  let sub = document.getElementById('game-over-sub');
+  overlay.classList.add('show');
+  if (playerWon) {
+    text.className = 'win';
+    text.textContent = 'VICTORY!';
+    sub.textContent = `The heroes triumph in ${turnNumber} turns!`;
+  } else {
+    text.className = 'lose';
+    text.textContent = 'DEFEAT';
+    sub.textContent = 'The villains have won...';
+  }
+}
+
+// ==================== PATHFINDING ====================
+function getReachableTiles(unit, range) {
+  // Dijkstra's algorithm for correct weighted pathfinding (water costs 2)
+  let dist = {};
+  let startKey = `${unit.x},${unit.y}`;
+  dist[startKey] = 0;
+  let queue = [{x: unit.x, y: unit.y, cost: 0}];
+  let result = [];
+
+  while (queue.length > 0) {
+    // Find min-cost entry (simple priority queue)
+    let minIdx = 0;
+    for (let i = 1; i < queue.length; i++) {
+      if (queue[i].cost < queue[minIdx].cost) minIdx = i;
+    }
+    let {x, y, cost} = queue.splice(minIdx, 1)[0];
+
+    if (cost > (dist[`${x},${y}`] ?? Infinity)) continue;
+    if (cost > 0) result.push({x, y});
+    if (cost >= range) continue;
+
+    for (let [dx, dy] of [[0,1],[0,-1],[1,0],[-1,0]]) {
+      let nx = x + dx, ny = y + dy;
+      if (nx < 0 || nx >= COLS || ny < 0 || ny >= ROWS) continue;
+      if (grid[ny][nx] === TERRAIN.WALL) continue;
+      if (units.some(u => u.alive && u.x === nx && u.y === ny)) continue;
+      let moveCost = grid[ny][nx] === TERRAIN.WATER ? 2 : 1;
+      let newCost = cost + moveCost;
+      let key = `${nx},${ny}`;
+      if (newCost <= range && newCost < (dist[key] ?? Infinity)) {
+        dist[key] = newCost;
+        queue.push({x: nx, y: ny, cost: newCost});
+      }
+    }
+  }
+  return result;
+}
+
+function getTilesInRange(cx, cy, range) {
+  let result = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (Math.abs(x - cx) + Math.abs(y - cy) <= range && (x !== cx || y !== cy)) {
+        result.push({x, y});
+      }
+    }
+  }
+  return result;
+}
+
+function hasLineOfSight(x1, y1, x2, y2) {
+  // Simple Bresenham check — walls block LoS
+  let dx = Math.abs(x2 - x1), dy = Math.abs(y2 - y1);
+  let sx = x1 < x2 ? 1 : -1, sy = y1 < y2 ? 1 : -1;
+  let err = dx - dy;
+  let cx = x1, cy = y1;
+  while (cx !== x2 || cy !== y2) {
+    let e2 = 2 * err;
+    if (e2 > -dy) { err -= dy; cx += sx; }
+    if (e2 < dx) { err += dx; cy += sy; }
+    if (cx === x2 && cy === y2) break;
+    if (grid[cy] && grid[cy][cx] === TERRAIN.WALL) return false;
+  }
+  return true;
+}
+
+// ==================== RENDERING ====================
+function drawGrid() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw tiles
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      let terrain = grid[y][x];
+      ctx.fillStyle = TERRAIN_COLORS[terrain];
+      ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+
+      // Grid lines
+      ctx.strokeStyle = '#3a3a5a';
+      ctx.lineWidth = 0.5;
+      ctx.strokeRect(x * TILE, y * TILE, TILE, TILE);
+
+      // Terrain decorations
+      if (terrain === TERRAIN.COVER_LOW) {
+        ctx.fillStyle = '#5a8a5a';
+        ctx.fillRect(x * TILE + 8, y * TILE + 40, 48, 16);
+        ctx.fillRect(x * TILE + 14, y * TILE + 32, 36, 8);
+      } else if (terrain === TERRAIN.COVER_HIGH) {
+        ctx.fillStyle = '#8a8a4a';
+        ctx.fillRect(x * TILE + 8, y * TILE + 20, 48, 36);
+        ctx.fillRect(x * TILE + 14, y * TILE + 12, 36, 8);
+      } else if (terrain === TERRAIN.WALL) {
+        ctx.fillStyle = '#333';
+        ctx.fillRect(x * TILE + 2, y * TILE + 2, 60, 60);
+        ctx.fillStyle = '#444';
+        ctx.fillRect(x * TILE + 6, y * TILE + 6, 24, 24);
+        ctx.fillRect(x * TILE + 34, y * TILE + 6, 24, 24);
+        ctx.fillRect(x * TILE + 6, y * TILE + 34, 24, 24);
+        ctx.fillRect(x * TILE + 34, y * TILE + 34, 24, 24);
+      } else if (terrain === TERRAIN.WATER) {
+        ctx.fillStyle = '#2255aa';
+        ctx.globalAlpha = 0.3;
+        let waveOffset = Math.sin(Date.now() / 500 + x + y) * 3;
+        ctx.fillRect(x * TILE + 4, y * TILE + 20 + waveOffset, 56, 6);
+        ctx.fillRect(x * TILE + 4, y * TILE + 36 + waveOffset, 56, 6);
+        ctx.globalAlpha = 1;
+      }
+    }
+  }
+
+  // Draw highlighted tiles
+  highlightedTiles.forEach(t => {
+    ctx.fillStyle = t.color || 'rgba(0,255,255,0.2)';
+    ctx.fillRect(t.x * TILE, t.y * TILE, TILE, TILE);
+    ctx.strokeStyle = t.border || 'rgba(0,255,255,0.5)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(t.x * TILE + 1, t.y * TILE + 1, TILE - 2, TILE - 2);
+  });
+
+  // Draw hovered tile info
+  if (hoveredTile) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(hoveredTile.x * TILE + 1, hoveredTile.y * TILE + 1, TILE - 2, TILE - 2);
+  }
+
+  // Draw units
+  units.forEach(u => {
+    if (!u.alive) return;
+    let px = u.x * TILE, py = u.y * TILE;
+
+    // Flash effect
+    if (u.flashTimer > 0) {
+      ctx.fillStyle = u.flashColor;
+      ctx.globalAlpha = u.flashTimer / 15;
+      ctx.fillRect(px, py, TILE, TILE);
+      ctx.globalAlpha = 1;
+      u.flashTimer--;
+    }
+
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(px + TILE/2, py + TILE - 6, 20, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Unit body (colored circle)
+    ctx.fillStyle = u.team === 'hero' ? '#1565c0' : '#b71c1c';
+    ctx.beginPath();
+    ctx.arc(px + TILE/2, py + TILE/2 - 2, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = u.team === 'hero' ? '#42a5f5' : '#ef5350';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Emoji
+    ctx.font = '26px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(u.emoji, px + TILE/2, py + TILE/2 - 2);
+
+    // HP bar background
+    ctx.fillStyle = '#333';
+    ctx.fillRect(px + 8, py + TILE - 12, 48, 6);
+    // HP bar fill
+    let hpPct = u.currentHp / u.maxHp;
+    let hpColor = hpPct > 0.6 ? '#4caf50' : hpPct > 0.3 ? '#ff9800' : '#f44336';
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(px + 8, py + TILE - 12, 48 * hpPct, 6);
+
+    // Selection ring
+    if (selectedUnit === u) {
+      ctx.strokeStyle = '#0ff';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(px + TILE/2, py + TILE/2 - 2, 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    // Status indicators
+    let indicators = [];
+    if (u.defenseBonus > 0) indicators.push('🛡️');
+    if (u.poisonTurns > 0) indicators.push('☠️');
+    if (indicators.length > 0) {
+      ctx.font = '14px serif';
+      ctx.fillText(indicators.join(''), px + TILE - 14, py + 12);
+    }
+  });
+
+  // Draw floating texts
+  floatingTexts = floatingTexts.filter(ft => {
+    ft.life--;
+    ft.oy -= 1.2;
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.globalAlpha = Math.min(1, ft.life / 15);
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.text, ft.x * TILE + TILE/2, ft.y * TILE + TILE/2 + ft.oy);
+    ctx.globalAlpha = 1;
+    return ft.life > 0;
+  });
+}
+
+function addFloatingText(x, y, text, color) {
+  floatingTexts.push({x, y, text, color, life: 40, oy: 0});
+}
+
+function flashUnit(unit, color) {
+  unit.flashTimer = 15;
+  unit.flashColor = color;
+}
+
+// ==================== UI ====================
+function updateUI() {
+  // Turn indicator
+  let ti = document.getElementById('turn-indicator');
+  ti.textContent = isPlayerTurn ? 'Your Turn' : 'Enemy Turn';
+  ti.className = isPlayerTurn ? 'hero-turn' : 'villain-turn';
+  document.getElementById('turn-count').textContent = `Turn ${turnNumber}`;
+
+  // Unit details
+  let detailsDiv = document.getElementById('unit-details');
+  let actionsDiv = document.getElementById('actions');
+
+  if (selectedUnit) {
+    let u = selectedUnit;
+    let coverBonus = getCoverBonus(u);
+    let totalDef = u.defense + coverBonus + (u.defenseBonus || 0);
+    let terrainName = TERRAIN_LABELS[grid[u.y][u.x]];
+
+    detailsDiv.innerHTML = `
+      <div class="unit-info">
+        <div class="name ${u.team === 'hero' ? 'hero-name' : 'villain-name'}">
+          ${u.emoji} ${u.name}
+        </div>
+        <div class="stat-row"><span>HP</span><span>${u.currentHp}/${u.maxHp}</span></div>
+        <div class="stat-bar"><div class="stat-bar-fill" style="width:${(u.currentHp/u.maxHp)*100}%;background:${u.currentHp/u.maxHp > 0.6 ? '#4caf50' : u.currentHp/u.maxHp > 0.3 ? '#ff9800' : '#f44336'}"></div></div>
+        <div class="stat-row"><span>ATK</span><span>${u.attack}</span></div>
+        <div class="stat-row"><span>DEF</span><span>${totalDef}${coverBonus ? ` (+${coverBonus} cover)` : ''}${u.defenseBonus ? ` (+${u.defenseBonus} buff)` : ''}</span></div>
+        <div class="stat-row"><span>Move</span><span>${u.moveRange}</span></div>
+        <div class="stat-row"><span>Range</span><span>${u.attackRange}</span></div>
+        ${terrainName ? `<div class="stat-row"><span>Terrain</span><span>${terrainName}</span></div>` : ''}
+        <div class="stat-row"><span>Special</span><span>${u.specialName}${u.specialCooldown > 0 ? ` (${u.specialCooldown}t)` : ''}</span></div>
+        <div style="font-size:11px;color:#888;margin-top:4px">${u.specialDesc}</div>
+      </div>
+    `;
+
+    if (isPlayerTurn && u.team === 'hero' && u.alive) {
+      actionsDiv.innerHTML = `
+        <button id="btn-move" ${u.hasMoved ? 'disabled' : ''} onclick="setAction('move')">Move</button>
+        <button id="btn-attack" ${u.hasAttacked ? 'disabled' : ''} onclick="setAction('attack')">Attack</button>
+        <button id="btn-special" ${u.hasSpecial || u.specialCooldown > 0 ? 'disabled' : ''} onclick="setAction('special')">${u.specialName}</button>
+        <button onclick="endUnitTurn()">Wait</button>
+      `;
+      // Highlight active
+      if (currentAction) {
+        let btn = document.getElementById(`btn-${currentAction}`);
+        if (btn) btn.classList.add('active');
+      }
+    } else {
+      actionsDiv.innerHTML = '';
+    }
+  } else {
+    detailsDiv.innerHTML = 'Select a unit';
+    actionsDiv.innerHTML = '';
+  }
+
+  // Always show/hide the dedicated End Turn button
+  let endTurnBtn = document.getElementById('end-turn-btn');
+  endTurnBtn.style.display = isPlayerTurn ? 'block' : 'none';
+}
+
+function addLog(msg, type = 'system') {
+  let log = document.getElementById('log');
+  let div = document.createElement('div');
+  div.className = `log-${type}`;
+  div.textContent = msg;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+// ==================== INPUT HANDLING ====================
+function setAction(action) {
+  if (!selectedUnit || !isPlayerTurn) return;
+  currentAction = action;
+  highlightedTiles = [];
+
+  if (action === 'move' && !selectedUnit.hasMoved) {
+    let tiles = getReachableTiles(selectedUnit, selectedUnit.moveRange);
+    highlightedTiles = tiles.map(t => ({...t, color: 'rgba(0,255,255,0.15)', border: 'rgba(0,255,255,0.4)'}));
+  } else if (action === 'attack' && !selectedUnit.hasAttacked) {
+    let tiles = getTilesInRange(selectedUnit.x, selectedUnit.y, selectedUnit.attackRange);
+    tiles = tiles.filter(t => hasLineOfSight(selectedUnit.x, selectedUnit.y, t.x, t.y));
+    highlightedTiles = tiles.map(t => {
+      let hasEnemy = units.some(u => u.alive && u.team === 'villain' && u.x === t.x && u.y === t.y);
+      return {...t,
+        color: hasEnemy ? 'rgba(255,0,0,0.2)' : 'rgba(255,100,0,0.1)',
+        border: hasEnemy ? 'rgba(255,0,0,0.5)' : 'rgba(255,100,0,0.2)'
+      };
+    });
+  } else if (action === 'special' && !selectedUnit.hasSpecial && selectedUnit.specialCooldown === 0) {
+    if (selectedUnit.specialRange === 0) {
+      // Self-target
+      highlightedTiles = [{x: selectedUnit.x, y: selectedUnit.y, color: 'rgba(200,100,255,0.3)', border: 'rgba(200,100,255,0.6)'}];
+    } else {
+      let tiles = getTilesInRange(selectedUnit.x, selectedUnit.y, selectedUnit.specialRange);
+      tiles = tiles.filter(t => hasLineOfSight(selectedUnit.x, selectedUnit.y, t.x, t.y));
+      // For Cleric heal: highlight allies. For others: highlight enemies.
+      let isHeal = selectedUnit.name === 'Cleric';
+      highlightedTiles = tiles.map(t => {
+        let hasTarget = units.some(u => u.alive &&
+          (isHeal ? u.team === 'hero' : u.team === 'villain') &&
+          u.x === t.x && u.y === t.y);
+        return {...t,
+          color: hasTarget ? 'rgba(200,100,255,0.25)' : 'rgba(200,100,255,0.08)',
+          border: hasTarget ? 'rgba(200,100,255,0.6)' : 'rgba(200,100,255,0.15)'
+        };
+      });
+    }
+  }
+  updateUI();
+}
+
+canvas.addEventListener('click', e => {
+  if (gameOver || animating || !isPlayerTurn) return;
+  let rect = canvas.getBoundingClientRect();
+  let mx = Math.floor((e.clientX - rect.left) / TILE);
+  let my = Math.floor((e.clientY - rect.top) / TILE);
+  if (mx < 0 || mx >= COLS || my < 0 || my >= ROWS) return;
+
+  handleClick(mx, my);
+});
+
+canvas.addEventListener('mousemove', e => {
+  let rect = canvas.getBoundingClientRect();
+  let mx = Math.floor((e.clientX - rect.left) / TILE);
+  let my = Math.floor((e.clientY - rect.top) / TILE);
+  if (mx >= 0 && mx < COLS && my >= 0 && my < ROWS) {
+    hoveredTile = {x: mx, y: my};
+  } else {
+    hoveredTile = null;
+  }
+});
+
+function handleClick(x, y) {
+  let clickedUnit = units.find(u => u.alive && u.x === x && u.y === y);
+
+  if (currentAction === 'move' && selectedUnit && !selectedUnit.hasMoved) {
+    let valid = highlightedTiles.find(t => t.x === x && t.y === y);
+    if (valid) {
+      selectedUnit.x = x;
+      selectedUnit.y = y;
+      selectedUnit.hasMoved = true;
+      addLog(`${selectedUnit.name} moves to (${x},${y})`, 'hero');
+      currentAction = null;
+      highlightedTiles = [];
+      updateUI();
+      return;
+    }
+  }
+
+  if (currentAction === 'attack' && selectedUnit && !selectedUnit.hasAttacked) {
+    let valid = highlightedTiles.find(t => t.x === x && t.y === y);
+    let target = units.find(u => u.alive && u.team === 'villain' && u.x === x && u.y === y);
+    if (valid && target) {
+      let dmg = calcDamage(selectedUnit, target);
+      target.currentHp -= dmg;
+      selectedUnit.hasAttacked = true;
+      addLog(`${selectedUnit.name} attacks ${target.name} for ${dmg} dmg!`, 'dmg');
+      addFloatingText(target.x, target.y, `-${dmg}`, '#ffa726');
+      flashUnit(target, '#ff0000');
+      checkDeath(target);
+      currentAction = null;
+      highlightedTiles = [];
+      updateUI();
+      return;
+    }
+  }
+
+  if (currentAction === 'special' && selectedUnit && !selectedUnit.hasSpecial && selectedUnit.specialCooldown === 0) {
+    let valid = highlightedTiles.find(t => t.x === x && t.y === y);
+    if (valid) {
+      // Self-target specials
+      if (selectedUnit.specialRange === 0) {
+        selectedUnit.useSpecial(selectedUnit, selectedUnit);
+        selectedUnit.hasSpecial = true;
+        selectedUnit.specialCooldown = selectedUnit.specialCooldownMax;
+        currentAction = null;
+        highlightedTiles = [];
+        updateUI();
+        return;
+      }
+      // Target specials
+      let isHeal = selectedUnit.name === 'Cleric';
+      let target = units.find(u => u.alive &&
+        (isHeal ? u.team === 'hero' : u.team === 'villain') &&
+        u.x === x && u.y === y);
+      // For Mage fireball, allow targeting empty ground
+      if (selectedUnit.name === 'Mage') {
+        selectedUnit.useSpecial(selectedUnit, {x, y});
+        selectedUnit.hasSpecial = true;
+        selectedUnit.specialCooldown = selectedUnit.specialCooldownMax;
+        currentAction = null;
+        highlightedTiles = [];
+        updateUI();
+        return;
+      }
+      if (target) {
+        selectedUnit.useSpecial(selectedUnit, target);
+        selectedUnit.hasSpecial = true;
+        selectedUnit.specialCooldown = selectedUnit.specialCooldownMax;
+        currentAction = null;
+        highlightedTiles = [];
+        updateUI();
+        return;
+      }
+    }
+  }
+
+  // Select/deselect unit
+  if (clickedUnit && clickedUnit.team === 'hero') {
+    selectedUnit = clickedUnit;
+    currentAction = null;
+    highlightedTiles = [];
+  } else if (!currentAction) {
+    // Allow inspecting enemy units
+    if (clickedUnit && clickedUnit.team === 'villain') {
+      selectedUnit = clickedUnit;
+      currentAction = null;
+      highlightedTiles = [];
+    } else {
+      selectedUnit = null;
+      highlightedTiles = [];
+    }
+  }
+  updateUI();
+}
+
+function endUnitTurn() {
+  if (!selectedUnit) return;
+  selectedUnit.hasMoved = true;
+  selectedUnit.hasAttacked = true;
+  selectedUnit.hasSpecial = true;
+  selectedUnit = null;
+  currentAction = null;
+  highlightedTiles = [];
+
+  // Auto-end turn if all heroes have acted
+  let heroesLeft = units.filter(u => u.team === 'hero' && u.alive &&
+    (!u.hasMoved || !u.hasAttacked || (!u.hasSpecial && u.specialCooldown === 0)));
+  if (heroesLeft.length === 0) {
+    endPlayerTurn();
+  } else {
+    updateUI();
+  }
+}
+
+function endPlayerTurn() {
+  if (!isPlayerTurn || gameOver) return;
+  selectedUnit = null;
+  currentAction = null;
+  highlightedTiles = [];
+  isPlayerTurn = false;
+  updateUI();
+  addLog('--- Enemy Turn ---', 'system');
+  setTimeout(runEnemyTurn, 600);
+}
+
+// ==================== ENEMY AI ====================
+function runEnemyTurn() {
+  if (gameOver) return;
+  animating = true;
+  let enemies = units.filter(u => u.team === 'villain' && u.alive);
+  let actionIndex = 0;
+
+  function nextAction() {
+    if (actionIndex >= enemies.length || gameOver) {
+      finishEnemyTurn();
+      return;
+    }
+    let enemy = enemies[actionIndex];
+    actionIndex++;
+    doEnemyAction(enemy, () => setTimeout(nextAction, 400));
+  }
+  nextAction();
+}
+
+function doEnemyAction(enemy, callback) {
+  let heroes = units.filter(u => u.team === 'hero' && u.alive);
+  if (heroes.length === 0) { callback(); return; }
+
+  // Find closest hero
+  let closest = null, closestDist = 999;
+  heroes.forEach(h => {
+    let d = Math.abs(h.x - enemy.x) + Math.abs(h.y - enemy.y);
+    if (d < closestDist) { closestDist = d; closest = h; }
+  });
+
+  // Find weakest hero in range
+  let weakestInRange = null, lowestHp = 999;
+  heroes.forEach(h => {
+    let d = Math.abs(h.x - enemy.x) + Math.abs(h.y - enemy.y);
+    if (d <= enemy.attackRange && hasLineOfSight(enemy.x, enemy.y, h.x, h.y)) {
+      if (h.currentHp < lowestHp) { lowestHp = h.currentHp; weakestInRange = h; }
+    }
+  });
+
+  // Try special ability first
+  if (enemy.specialCooldown === 0 && weakestInRange && enemy.specialRange >= 1) {
+    let d = Math.abs(weakestInRange.x - enemy.x) + Math.abs(weakestInRange.y - enemy.y);
+    if (d <= enemy.specialRange && hasLineOfSight(enemy.x, enemy.y, weakestInRange.x, weakestInRange.y)) {
+      enemy.useSpecial(enemy, weakestInRange);
+      enemy.specialCooldown = enemy.specialCooldownMax;
+      callback();
+      return;
+    }
+  }
+
+  // Attack if in range
+  if (weakestInRange) {
+    let dmg = calcDamage(enemy, weakestInRange);
+    weakestInRange.currentHp -= dmg;
+    addLog(`${enemy.name} attacks ${weakestInRange.name} for ${dmg}!`, 'dmg');
+    addFloatingText(weakestInRange.x, weakestInRange.y, `-${dmg}`, '#ffa726');
+    flashUnit(weakestInRange, '#ff0000');
+    checkDeath(weakestInRange);
+    callback();
+    return;
+  }
+
+  // Move towards closest hero
+  let moveTiles = getReachableTiles(enemy, enemy.moveRange);
+  if (moveTiles.length > 0 && closest) {
+    // Prefer tiles that get us in attack range with cover
+    let bestTile = null, bestScore = -999;
+    moveTiles.forEach(t => {
+      let distToTarget = Math.abs(t.x - closest.x) + Math.abs(t.y - closest.y);
+      let score = -distToTarget * 10;
+      // Bonus for cover
+      if (grid[t.y][t.x] === TERRAIN.COVER_LOW) score += 5;
+      if (grid[t.y][t.x] === TERRAIN.COVER_HIGH) score += 10;
+      // Bonus for being in attack range
+      if (distToTarget <= enemy.attackRange) score += 20;
+      if (score > bestScore) { bestScore = score; bestTile = t; }
+    });
+
+    if (bestTile) {
+      enemy.x = bestTile.x;
+      enemy.y = bestTile.y;
+      addLog(`${enemy.name} moves to (${bestTile.x},${bestTile.y})`, 'villain');
+
+      // Check if can attack after moving
+      let targetAfterMove = null;
+      heroes.forEach(h => {
+        if (!h.alive) return;
+        let d = Math.abs(h.x - enemy.x) + Math.abs(h.y - enemy.y);
+        if (d <= enemy.attackRange && hasLineOfSight(enemy.x, enemy.y, h.x, h.y)) {
+          if (!targetAfterMove || h.currentHp < targetAfterMove.currentHp) {
+            targetAfterMove = h;
+          }
+        }
+      });
+      if (targetAfterMove) {
+        let dmg = calcDamage(enemy, targetAfterMove);
+        targetAfterMove.currentHp -= dmg;
+        addLog(`${enemy.name} attacks ${targetAfterMove.name} for ${dmg}!`, 'dmg');
+        addFloatingText(targetAfterMove.x, targetAfterMove.y, `-${dmg}`, '#ffa726');
+        flashUnit(targetAfterMove, '#ff0000');
+        checkDeath(targetAfterMove);
+      }
+    }
+  }
+  callback();
+}
+
+function finishEnemyTurn() {
+  animating = false;
+
+  // Tick status effects (even if game is over, for visual consistency)
+  units.forEach(u => {
+    if (!u.alive) return;
+    if (u.poisonTurns > 0) {
+      u.currentHp -= u.poisonDmg;
+      addLog(`${u.name} takes ${u.poisonDmg} poison damage!`, 'dmg');
+      addFloatingText(u.x, u.y, `-${u.poisonDmg}`, '#9c27b0');
+      u.poisonTurns--;
+      checkDeath(u);
+    }
+    if (u.defenseBonusTurns > 0) {
+      u.defenseBonusTurns--;
+      if (u.defenseBonusTurns === 0) {
+        u.defenseBonus = 0;
+        addLog(`${u.name}'s Shield Wall fades.`, 'system');
+      }
+    }
+  });
+
+  // Reduce cooldowns
+  units.forEach(u => {
+    if (u.specialCooldown > 0) u.specialCooldown--;
+  });
+
+  if (gameOver) return;
+
+  // Reset hero actions
+  units.filter(u => u.team === 'hero' && u.alive).forEach(u => {
+    u.hasMoved = false;
+    u.hasAttacked = false;
+    u.hasSpecial = false;
+  });
+
+  turnNumber++;
+  isPlayerTurn = true;
+  selectedUnit = null;
+  addLog(`--- Turn ${turnNumber} ---`, 'system');
+  updateUI();
+}
+
+// ==================== GAME LOOP ====================
+function gameLoop() {
+  drawGrid();
+  requestAnimationFrame(gameLoop);
+}
+
+function restartGame() {
+  document.getElementById('game-over-overlay').classList.remove('show');
+  document.getElementById('log').innerHTML = '';
+  gameOver = false;
+  turnNumber = 1;
+  isPlayerTurn = true;
+  selectedUnit = null;
+  currentAction = null;
+  highlightedTiles = [];
+  floatingTexts = [];
+  animating = false;
+  generateMap();
+  placeUnits();
+  addLog('=== GridWars Begins! ===', 'system');
+  addLog('Select a hero and choose an action.', 'system');
+  updateUI();
+}
+
+// ==================== INIT ====================
+generateMap();
+placeUnits();
+addLog('=== GridWars Begins! ===', 'system');
+addLog('Select a hero and choose an action.', 'system');
+updateUI();
+gameLoop();
+</script>
+</body>
+</html>

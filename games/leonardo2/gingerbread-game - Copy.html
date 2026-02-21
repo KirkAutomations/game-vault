@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gingerbread World</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: #3d1f0a;
+    color: #fff;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3 { font-family: 'Fredoka One', cursive; }
+
+  /* ── Header ── */
+  #header {
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+    padding: 12px 20px;
+    text-align: center;
+    border-bottom: 4px solid #D2691E;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+    position: sticky; top: 0; z-index: 100;
+  }
+  #header h1 { font-size: 28px; color: #FFE4B5; text-shadow: 2px 2px #5a2d0c; }
+  #currency-bar {
+    display: flex; justify-content: center; gap: 30px;
+    margin-top: 6px; font-size: 16px; font-weight: 700;
+  }
+  .currency-item { display: flex; align-items: center; gap: 6px; }
+
+  /* ── Navigation ── */
+  #nav {
+    display: flex; justify-content: center; gap: 6px;
+    background: #5a2d0c; padding: 8px; flex-wrap: wrap;
+    border-bottom: 3px solid #D2691E;
+  }
+  .nav-btn {
+    background: #8B4513; color: #FFE4B5; border: 2px solid #D2691E;
+    padding: 8px 18px; border-radius: 20px; cursor: pointer;
+    font-family: 'Fredoka One', cursive; font-size: 14px;
+    transition: all 0.2s;
+  }
+  .nav-btn:hover { background: #A0522D; transform: scale(1.05); }
+  .nav-btn.active { background: #D2691E; color: #fff; box-shadow: 0 0 10px rgba(210,105,30,0.6); }
+
+  /* ── Game Panels ── */
+  .game-panel {
+    display: none; padding: 20px; max-width: 900px; margin: 0 auto;
+    animation: fadeIn 0.3s;
+  }
+  .game-panel.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .panel-title {
+    text-align: center; font-size: 24px; color: #FFE4B5;
+    margin-bottom: 16px; text-shadow: 2px 2px #3d1f0a;
+  }
+
+  /* ── Idle Game ── */
+  #idle-game { text-align: center; }
+  #cookie-area {
+    position: relative; display: inline-block; margin: 20px 0;
+  }
+  #big-cookie {
+    width: 200px; height: 200px; font-size: 140px; cursor: pointer;
+    transition: transform 0.1s; user-select: none;
+    filter: drop-shadow(0 6px 12px rgba(0,0,0,0.5));
+    animation: bob 2s ease-in-out infinite;
+  }
+  #big-cookie:active { transform: scale(0.9); }
+  @keyframes bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+
+  .click-float {
+    position: absolute; font-weight: 700; color: #FFD700;
+    pointer-events: none; font-size: 20px;
+    animation: floatUp 0.8s forwards;
+  }
+  @keyframes floatUp { to { transform: translateY(-80px); opacity: 0; } }
+
+  #idle-stats { font-size: 18px; margin: 10px 0; color: #FFE4B5; }
+
+  #upgrades {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px; margin-top: 20px;
+  }
+  .upgrade-card {
+    background: linear-gradient(135deg, #6b3410, #8B4513);
+    border: 2px solid #D2691E; border-radius: 12px;
+    padding: 14px; cursor: pointer; transition: all 0.2s;
+    text-align: left;
+  }
+  .upgrade-card:hover { transform: translateY(-3px); box-shadow: 0 6px 15px rgba(0,0,0,0.4); }
+  .upgrade-card.disabled { opacity: 0.5; cursor: not-allowed; }
+  .upgrade-card h3 { color: #FFD700; font-size: 15px; margin-bottom: 4px; }
+  .upgrade-card p { font-size: 12px; color: #ddd; }
+  .upgrade-card .cost { color: #FFA500; font-weight: 700; margin-top: 6px; font-size: 14px; }
+  .upgrade-card .owned { color: #90EE90; font-size: 12px; }
+
+  /* ── Puzzle Game ── */
+  #puzzle-game { text-align: center; }
+  #puzzle-grid {
+    display: inline-grid; gap: 3px;
+    background: #5a2d0c; padding: 6px; border-radius: 12px;
+    border: 3px solid #D2691E;
+  }
+  .puzzle-tile {
+    width: 90px; height: 90px; display: flex; align-items: center;
+    justify-content: center; font-size: 32px; font-weight: 700;
+    background: linear-gradient(135deg, #CD853F, #DEB887);
+    color: #5a2d0c; border-radius: 8px; cursor: pointer;
+    transition: all 0.15s; user-select: none;
+  }
+  .puzzle-tile:hover { transform: scale(1.05); }
+  .puzzle-tile.empty { background: transparent; cursor: default; }
+  .puzzle-tile.empty:hover { transform: none; }
+  #puzzle-info { margin: 14px 0; font-size: 16px; color: #FFE4B5; }
+
+  /* ── Hide & Seek ── */
+  #hideseek-game { text-align: center; }
+  #hideseek-scene {
+    position: relative; width: 100%; max-width: 700px;
+    height: 420px; margin: 16px auto;
+    background: linear-gradient(180deg, #87CEEB 0%, #98FB98 70%, #8B4513 100%);
+    border-radius: 16px; border: 3px solid #D2691E;
+    overflow: hidden; cursor: crosshair;
+  }
+  .hs-object {
+    position: absolute; font-size: 30px; cursor: pointer;
+    transition: all 0.3s; user-select: none;
+    filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.3));
+  }
+  .hs-object:hover { transform: scale(1.15); }
+  .hs-object.found {
+    filter: brightness(1.5) drop-shadow(0 0 10px gold);
+    animation: foundPop 0.5s;
+  }
+  @keyframes foundPop { 0% { transform: scale(1); } 50% { transform: scale(1.5); } 100% { transform: scale(1.1); } }
+
+  .hs-decor { position: absolute; font-size: 40px; user-select: none; pointer-events: none; }
+  #hideseek-hud {
+    display: flex; justify-content: center; gap: 30px;
+    margin: 12px 0; font-size: 16px; color: #FFE4B5;
+  }
+  #hs-target-list {
+    display: flex; justify-content: center; gap: 10px; flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  .hs-target-item {
+    background: #6b3410; padding: 6px 14px; border-radius: 20px;
+    font-size: 18px; border: 2px solid #D2691E;
+  }
+  .hs-target-item.found { opacity: 0.4; text-decoration: line-through; }
+
+  /* ── Memory Game ── */
+  #memory-game { text-align: center; }
+  #memory-grid {
+    display: inline-grid; gap: 10px;
+    grid-template-columns: repeat(4, 90px);
+    margin: 16px 0;
+  }
+  .mem-card {
+    width: 90px; height: 90px; perspective: 600px; cursor: pointer;
+  }
+  .mem-card-inner {
+    position: relative; width: 100%; height: 100%;
+    transition: transform 0.4s; transform-style: preserve-3d;
+  }
+  .mem-card.flipped .mem-card-inner { transform: rotateY(180deg); }
+  .mem-card-front, .mem-card-back {
+    position: absolute; width: 100%; height: 100%;
+    backface-visibility: hidden; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+  }
+  .mem-card-front {
+    background: linear-gradient(135deg, #CD853F, #DEB887);
+    color: #5a2d0c; font-size: 28px;
+    border: 2px solid #D2691E;
+  }
+  .mem-card-back {
+    background: linear-gradient(135deg, #8B4513, #A0522D);
+    transform: rotateY(180deg);
+    border: 2px solid #D2691E;
+  }
+  .mem-card.matched .mem-card-inner { transform: rotateY(180deg); }
+  .mem-card.matched { cursor: default; opacity: 0.7; }
+  #memory-info { margin: 14px 0; font-size: 16px; color: #FFE4B5; }
+
+  /* ── Catch Game ── */
+  #catch-game { text-align: center; }
+  #catch-area {
+    position: relative; width: 100%; max-width: 700px;
+    height: 400px; margin: 16px auto;
+    background: linear-gradient(180deg, #1a0a2e 0%, #2d1b4e 50%, #44266a 100%);
+    border-radius: 16px; border: 3px solid #D2691E;
+    overflow: hidden; cursor: none;
+  }
+  .falling-item {
+    position: absolute; font-size: 32px;
+    animation: fall linear forwards; user-select: none; pointer-events: none;
+  }
+  @keyframes fall { from { top: -40px; } to { top: 420px; } }
+  #catch-basket {
+    position: absolute; bottom: 10px; width: 60px; height: 40px;
+    font-size: 36px; text-align: center; line-height: 40px;
+    user-select: none; pointer-events: none;
+    transition: left 0.05s;
+  }
+  #catch-hud { margin: 12px 0; font-size: 16px; color: #FFE4B5; }
+
+  /* ── Buttons ── */
+  .game-btn {
+    background: linear-gradient(135deg, #D2691E, #FF8C00);
+    color: #fff; border: none; padding: 10px 24px;
+    border-radius: 25px; font-family: 'Fredoka One', cursive;
+    font-size: 16px; cursor: pointer; transition: all 0.2s;
+    margin: 6px;
+  }
+  .game-btn:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(210,105,30,0.5); }
+
+  /* ── Reward popup ── */
+  #reward-popup {
+    display: none; position: fixed; top: 50%; left: 50%;
+    transform: translate(-50%, -50%); background: linear-gradient(135deg, #8B4513, #A0522D);
+    border: 3px solid #FFD700; border-radius: 16px; padding: 30px;
+    z-index: 200; text-align: center; animation: popIn 0.3s;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+  }
+  #reward-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.6); z-index: 199;
+  }
+  @keyframes popIn { from { transform: translate(-50%,-50%) scale(0.5); opacity:0; } to { transform: translate(-50%,-50%) scale(1); opacity:1; } }
+
+  /* ── Stars ── */
+  .star-burst {
+    position: fixed; pointer-events: none; z-index: 300;
+    font-size: 24px; animation: starFly 1s forwards;
+  }
+  @keyframes starFly {
+    0% { opacity: 1; transform: scale(1) translate(0,0); }
+    100% { opacity: 0; transform: scale(0) translate(var(--tx), var(--ty)); }
+  }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <h1>🍪 Gingerbread World 🍪</h1>
+  <div id="currency-bar">
+    <div class="currency-item">🍪 <span id="cookie-count">0</span></div>
+    <div class="currency-item">⭐ <span id="star-count">0</span></div>
+    <div class="currency-item">🍪/s <span id="cps-display">0</span></div>
+  </div>
+</div>
+
+<div id="nav">
+  <button class="nav-btn active" data-panel="idle-game">🏠 Bakery</button>
+  <button class="nav-btn" data-panel="puzzle-game">🧩 Puzzle</button>
+  <button class="nav-btn" data-panel="hideseek-game">🔍 Hide & Seek</button>
+  <button class="nav-btn" data-panel="memory-game">🃏 Memory</button>
+  <button class="nav-btn" data-panel="catch-game">🧺 Catch</button>
+</div>
+
+<!-- ═══ IDLE GAME ═══ -->
+<div id="idle-game" class="game-panel active">
+  <h2 class="panel-title">🏠 Gingerbread Bakery</h2>
+  <div id="idle-stats">
+    Click power: <span id="click-power">1</span> | Per second: <span id="per-second">0</span>
+  </div>
+  <div id="cookie-area">
+    <div id="big-cookie">🍪</div>
+  </div>
+  <h3 style="color:#FFD700; margin:10px 0;">Upgrades</h3>
+  <div id="upgrades"></div>
+</div>
+
+<!-- ═══ PUZZLE ═══ -->
+<div id="puzzle-game" class="game-panel">
+  <h2 class="panel-title">🧩 Gingerbread Puzzle</h2>
+  <p id="puzzle-info">Moves: <span id="puzzle-moves">0</span> | Best: <span id="puzzle-best">—</span></p>
+  <div id="puzzle-grid"></div>
+  <br>
+  <button class="game-btn" onclick="puzzleInit()">New Puzzle</button>
+  <p style="margin-top:10px;color:#ddd;font-size:13px;">Slide tiles to arrange them 1–8. Reward: ⭐ stars based on moves!</p>
+</div>
+
+<!-- ═══ HIDE & SEEK ═══ -->
+<div id="hideseek-game" class="game-panel">
+  <h2 class="panel-title">🔍 Gingerbread Hide & Seek</h2>
+  <div id="hideseek-hud">
+    <span>Found: <span id="hs-found">0</span>/<span id="hs-total">0</span></span>
+    <span>Time: <span id="hs-timer">0</span>s</span>
+    <span>Round: <span id="hs-round">1</span></span>
+  </div>
+  <div id="hs-target-list"></div>
+  <div id="hideseek-scene"></div>
+  <button class="game-btn" onclick="hideseekInit()">New Round</button>
+  <p style="margin-top:10px;color:#ddd;font-size:13px;">Find the hidden gingerbread friends! Faster = more stars!</p>
+</div>
+
+<!-- ═══ MEMORY ═══ -->
+<div id="memory-game" class="game-panel">
+  <h2 class="panel-title">🃏 Gingerbread Memory</h2>
+  <p id="memory-info">Pairs: <span id="mem-pairs">0</span>/<span id="mem-total">0</span> | Flips: <span id="mem-flips">0</span></p>
+  <div id="memory-grid"></div>
+  <br>
+  <button class="game-btn" onclick="memoryInit()">New Game</button>
+  <p style="margin-top:10px;color:#ddd;font-size:13px;">Match pairs of gingerbread treats! Fewer flips = more stars!</p>
+</div>
+
+<!-- ═══ CATCH ═══ -->
+<div id="catch-game" class="game-panel">
+  <h2 class="panel-title">🧺 Gingerbread Catch</h2>
+  <div id="catch-hud">
+    Score: <span id="catch-score">0</span> | Lives: <span id="catch-lives">3</span> | Time: <span id="catch-time">30</span>s
+  </div>
+  <div id="catch-area">
+    <div id="catch-basket">🧺</div>
+  </div>
+  <button class="game-btn" onclick="catchStart()">Start!</button>
+  <p style="margin-top:10px;color:#ddd;font-size:13px;">Move mouse to catch falling cookies! Avoid the bad ones!</p>
+</div>
+
+<!-- ═══ REWARD POPUP ═══ -->
+<div id="reward-overlay" onclick="closeReward()"></div>
+<div id="reward-popup">
+  <h2 style="color:#FFD700;" id="reward-title">🎉 Great Job!</h2>
+  <p id="reward-text" style="margin:12px 0;font-size:18px;"></p>
+  <button class="game-btn" onclick="closeReward()">Collect!</button>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+//  GLOBAL STATE
+// ═══════════════════════════════════════════
+const state = {
+  cookies: 0,
+  stars: 0,
+  clickPower: 1,
+  cps: 0, // cookies per second
+  upgrades: {},
+  puzzleBest: Infinity,
+  hsRound: 1,
+};
+
+function save() {
+  try { localStorage.setItem('gingerbread-save', JSON.stringify(state)); } catch(e) {}
+}
+function load() {
+  try {
+    const s = localStorage.getItem('gingerbread-save');
+    if (s) Object.assign(state, JSON.parse(s));
+  } catch(e) {}
+}
+load();
+
+function updateUI() {
+  document.getElementById('cookie-count').textContent = formatNum(Math.floor(state.cookies));
+  document.getElementById('star-count').textContent = state.stars;
+  document.getElementById('cps-display').textContent = formatNum(state.cps);
+  document.getElementById('click-power').textContent = formatNum(state.clickPower);
+  document.getElementById('per-second').textContent = formatNum(state.cps);
+}
+
+function formatNum(n) {
+  if (n >= 1e9) return (n/1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+  return Math.floor(n).toString();
+}
+
+function addCookies(n) { state.cookies += n; updateUI(); }
+function addStars(n) {
+  state.stars += n;
+  updateUI();
+  save();
+}
+
+function showReward(title, text, starReward, cookieReward) {
+  document.getElementById('reward-title').textContent = title;
+  let msg = text;
+  if (starReward) msg += `\n⭐ +${starReward} stars`;
+  if (cookieReward) msg += `\n🍪 +${cookieReward} cookies`;
+  document.getElementById('reward-text').textContent = msg;
+  document.getElementById('reward-popup').style.display = 'block';
+  document.getElementById('reward-overlay').style.display = 'block';
+  if (starReward) addStars(starReward);
+  if (cookieReward) addCookies(cookieReward);
+  burstStars();
+}
+
+function closeReward() {
+  document.getElementById('reward-popup').style.display = 'none';
+  document.getElementById('reward-overlay').style.display = 'none';
+}
+
+function burstStars() {
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement('div');
+    s.className = 'star-burst';
+    s.textContent = '⭐';
+    s.style.left = `${50 + (Math.random()-0.5)*30}%`;
+    s.style.top = `${50 + (Math.random()-0.5)*30}%`;
+    s.style.setProperty('--tx', `${(Math.random()-0.5)*200}px`);
+    s.style.setProperty('--ty', `${(Math.random()-0.5)*200}px`);
+    document.body.appendChild(s);
+    setTimeout(() => s.remove(), 1000);
+  }
+}
+
+// ═══ NAVIGATION ═══
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.game-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(btn.dataset.panel).classList.add('active');
+  });
+});
+
+// ═══════════════════════════════════════════
+//  IDLE GAME
+// ═══════════════════════════════════════════
+const upgradeDefs = [
+  { id:'cursor',    name:'Ginger Cursor',    emoji:'👆', desc:'Auto-clicks once per second', baseCost:15,    cps:1,    click:0 },
+  { id:'oven',      name:'Magic Oven',       emoji:'🔥', desc:'+5 cookies/sec',             baseCost:100,   cps:5,    click:0 },
+  { id:'roller',    name:'Rolling Pin',      emoji:'🪵', desc:'+2 click power',             baseCost:50,    cps:0,    click:2 },
+  { id:'sprinkles', name:'Sprinkle Machine', emoji:'✨', desc:'+20 cookies/sec',            baseCost:500,   cps:20,   click:0 },
+  { id:'frosting',  name:'Frosting Factory', emoji:'🏭', desc:'+50 cookies/sec',            baseCost:2000,  cps:50,   click:0 },
+  { id:'grandma',   name:'Grandma Baker',    emoji:'👵', desc:'+100 cookies/sec',           baseCost:7500,  cps:100,  click:0 },
+  { id:'doubleclick', name:'Double Icing',   emoji:'🍰', desc:'+10 click power',            baseCost:1000,  cps:0,    click:10 },
+  { id:'farm',      name:'Ginger Farm',      emoji:'🌾', desc:'+250 cookies/sec',           baseCost:25000, cps:250,  click:0 },
+  { id:'wizard',    name:'Cookie Wizard',    emoji:'🧙', desc:'+1000 cookies/sec',          baseCost:100000,cps:1000, click:0 },
+];
+
+function getUpgradeCost(def) {
+  const owned = state.upgrades[def.id] || 0;
+  return Math.floor(def.baseCost * Math.pow(1.15, owned));
+}
+
+function recalcCPS() {
+  let cps = 0, cp = 1;
+  upgradeDefs.forEach(d => {
+    const owned = state.upgrades[d.id] || 0;
+    cps += d.cps * owned;
+    cp += d.click * owned;
+  });
+  state.cps = cps;
+  state.clickPower = cp;
+}
+
+function renderUpgrades() {
+  const container = document.getElementById('upgrades');
+  container.innerHTML = '';
+  upgradeDefs.forEach(def => {
+    const cost = getUpgradeCost(def);
+    const owned = state.upgrades[def.id] || 0;
+    const canAfford = state.cookies >= cost;
+    const card = document.createElement('div');
+    card.className = 'upgrade-card' + (canAfford ? '' : ' disabled');
+    card.innerHTML = `
+      <h3>${def.emoji} ${def.name}</h3>
+      <p>${def.desc}</p>
+      <div class="cost">🍪 ${formatNum(cost)}</div>
+      <div class="owned">Owned: ${owned}</div>
+    `;
+    card.addEventListener('click', () => {
+      const currentCost = getUpgradeCost(def);
+      if (state.cookies >= currentCost) {
+        state.cookies -= currentCost;
+        state.upgrades[def.id] = (state.upgrades[def.id] || 0) + 1;
+        recalcCPS();
+        updateUI();
+        renderUpgrades();
+        save();
+      }
+    });
+    container.appendChild(card);
+  });
+}
+
+// Big cookie click
+document.getElementById('big-cookie').addEventListener('click', (e) => {
+  addCookies(state.clickPower);
+  // float text
+  const area = document.getElementById('cookie-area');
+  const f = document.createElement('div');
+  f.className = 'click-float';
+  f.textContent = '+' + formatNum(state.clickPower);
+  f.style.left = (e.offsetX - 20) + 'px';
+  f.style.top = (e.offsetY - 20) + 'px';
+  area.appendChild(f);
+  setTimeout(() => f.remove(), 800);
+  renderUpgrades();
+});
+
+// CPS tick
+setInterval(() => {
+  if (state.cps > 0) {
+    addCookies(state.cps / 10);
+    renderUpgrades();
+  }
+}, 100);
+
+// Auto-save
+setInterval(save, 5000);
+
+recalcCPS();
+updateUI();
+renderUpgrades();
+
+// ═══════════════════════════════════════════
+//  PUZZLE GAME (Sliding Puzzle)
+// ═══════════════════════════════════════════
+let puzzleTiles = [];
+let puzzleMoves = 0;
+const puzzleSize = 3;
+
+function puzzleInit() {
+  puzzleMoves = 0;
+  document.getElementById('puzzle-moves').textContent = '0';
+  document.getElementById('puzzle-best').textContent = state.puzzleBest < Infinity ? state.puzzleBest : '—';
+
+  // Create solved state [1,2,3,4,5,6,7,8,0]
+  puzzleTiles = [];
+  for (let i = 1; i < puzzleSize * puzzleSize; i++) puzzleTiles.push(i);
+  puzzleTiles.push(0);
+
+  // Shuffle with valid moves
+  for (let i = 0; i < 200; i++) {
+    const emptyIdx = puzzleTiles.indexOf(0);
+    const neighbors = getNeighbors(emptyIdx);
+    const pick = neighbors[Math.floor(Math.random() * neighbors.length)];
+    [puzzleTiles[emptyIdx], puzzleTiles[pick]] = [puzzleTiles[pick], puzzleTiles[emptyIdx]];
+  }
+  renderPuzzle();
+}
+
+function getNeighbors(idx) {
+  const row = Math.floor(idx / puzzleSize), col = idx % puzzleSize;
+  const n = [];
+  if (row > 0) n.push(idx - puzzleSize);
+  if (row < puzzleSize - 1) n.push(idx + puzzleSize);
+  if (col > 0) n.push(idx - 1);
+  if (col < puzzleSize - 1) n.push(idx + 1);
+  return n;
+}
+
+function renderPuzzle() {
+  const grid = document.getElementById('puzzle-grid');
+  grid.style.gridTemplateColumns = `repeat(${puzzleSize}, 90px)`;
+  grid.innerHTML = '';
+  puzzleTiles.forEach((val, idx) => {
+    const tile = document.createElement('div');
+    tile.className = 'puzzle-tile' + (val === 0 ? ' empty' : '');
+    tile.textContent = val || '';
+    if (val !== 0) {
+      const emojis = ['🍪','⭐','🎄','🎁','❄️','🧁','🍬','🎀'];
+      tile.textContent = emojis[val - 1] || val;
+    }
+    tile.addEventListener('click', () => puzzleClick(idx));
+    grid.appendChild(tile);
+  });
+}
+
+function puzzleClick(idx) {
+  const emptyIdx = puzzleTiles.indexOf(0);
+  if (!getNeighbors(emptyIdx).includes(idx)) return;
+  [puzzleTiles[emptyIdx], puzzleTiles[idx]] = [puzzleTiles[idx], puzzleTiles[emptyIdx]];
+  puzzleMoves++;
+  document.getElementById('puzzle-moves').textContent = puzzleMoves;
+  renderPuzzle();
+
+  // Check win
+  let won = true;
+  for (let i = 0; i < puzzleTiles.length - 1; i++) {
+    if (puzzleTiles[i] !== i + 1) { won = false; break; }
+  }
+  if (won) {
+    if (puzzleMoves < state.puzzleBest) state.puzzleBest = puzzleMoves;
+    const stars = puzzleMoves <= 20 ? 5 : puzzleMoves <= 40 ? 3 : 1;
+    const cookies = Math.max(10, 100 - puzzleMoves);
+    showReward('🧩 Puzzle Complete!', `Solved in ${puzzleMoves} moves!`, stars, cookies);
+  }
+}
+
+puzzleInit();
+
+// ═══════════════════════════════════════════
+//  HIDE & SEEK
+// ═══════════════════════════════════════════
+let hsTargets = [];
+let hsFound = 0;
+let hsTimerVal = 0;
+let hsInterval = null;
+
+const hsCharacters = ['🧑‍🍳','👶','🐱','🐶','🐸','🦊','🐰','🐻','🐼','🦁','🐮','🐷','🐵','🦄','🐲','👻','🤖','🎅'];
+const hsDecorItems = ['🌳','🏠','🌲','🪨','🌻','🌸','🍄','🪵','⛪','🏰','🌿','🪴','🌾','🪺','🏕️'];
+
+function hideseekInit() {
+  if (hsInterval) clearInterval(hsInterval);
+  const scene = document.getElementById('hideseek-scene');
+  scene.innerHTML = '';
+
+  // Pick targets
+  const count = Math.min(3 + state.hsRound, 8);
+  const shuffled = [...hsCharacters].sort(() => Math.random() - 0.5);
+  hsTargets = shuffled.slice(0, count);
+  hsFound = 0;
+  hsTimerVal = 0;
+
+  document.getElementById('hs-found').textContent = '0';
+  document.getElementById('hs-total').textContent = count;
+  document.getElementById('hs-timer').textContent = '0';
+  document.getElementById('hs-round').textContent = state.hsRound;
+
+  // Render target list
+  const list = document.getElementById('hs-target-list');
+  list.innerHTML = '';
+  hsTargets.forEach((ch, i) => {
+    const item = document.createElement('span');
+    item.className = 'hs-target-item';
+    item.id = 'hs-item-' + i;
+    item.textContent = ch;
+    list.appendChild(item);
+  });
+
+  // Place decor
+  for (let i = 0; i < 20; i++) {
+    const d = document.createElement('div');
+    d.className = 'hs-decor';
+    d.textContent = hsDecorItems[Math.floor(Math.random() * hsDecorItems.length)];
+    d.style.left = Math.random() * 90 + '%';
+    d.style.top = (20 + Math.random() * 70) + '%';
+    d.style.fontSize = (30 + Math.random() * 30) + 'px';
+    d.style.opacity = 0.5 + Math.random() * 0.5;
+    scene.appendChild(d);
+  }
+
+  // Place targets (hidden among decor)
+  hsTargets.forEach((ch, i) => {
+    const el = document.createElement('div');
+    el.className = 'hs-object';
+    el.textContent = ch;
+    el.dataset.idx = i;
+    el.style.left = (5 + Math.random() * 85) + '%';
+    el.style.top = (10 + Math.random() * 75) + '%';
+    // make them a bit camouflaged
+    el.style.fontSize = (22 + Math.random() * 12) + 'px';
+    el.style.opacity = 0.55 + Math.random() * 0.3;
+    el.addEventListener('click', () => hideseekFind(el, i));
+    scene.appendChild(el);
+  });
+
+  // Timer
+  hsInterval = setInterval(() => {
+    hsTimerVal++;
+    document.getElementById('hs-timer').textContent = hsTimerVal;
+  }, 1000);
+}
+
+function hideseekFind(el, idx) {
+  if (el.classList.contains('found')) return;
+  el.classList.add('found');
+  el.style.opacity = 1;
+  document.getElementById('hs-item-' + idx).classList.add('found');
+  hsFound++;
+  document.getElementById('hs-found').textContent = hsFound;
+
+  if (hsFound >= hsTargets.length) {
+    clearInterval(hsInterval);
+    state.hsRound++;
+    const stars = hsTimerVal <= 10 ? 5 : hsTimerVal <= 20 ? 3 : hsTimerVal <= 40 ? 2 : 1;
+    const cookies = Math.max(20, 150 - hsTimerVal * 2);
+    showReward('🔍 All Found!', `Found ${hsTargets.length} friends in ${hsTimerVal}s!`, stars, cookies);
+  }
+}
+
+hideseekInit();
+
+// ═══════════════════════════════════════════
+//  MEMORY CARD GAME
+// ═══════════════════════════════════════════
+let memCards = [];
+let memFlipped = [];
+let memMatched = 0;
+let memFlipCount = 0;
+let memLocked = false;
+
+const memEmojis = ['🍪','🧁','🎄','🍬','⭐','🎁','❄️','🍰','🧇','🍩','🎀','🍫'];
+
+function memoryInit() {
+  const pairCount = 6;
+  const picked = [...memEmojis].sort(() => Math.random() - 0.5).slice(0, pairCount);
+  memCards = [...picked, ...picked].sort(() => Math.random() - 0.5);
+  memFlipped = [];
+  memMatched = 0;
+  memFlipCount = 0;
+  memLocked = false;
+
+  document.getElementById('mem-pairs').textContent = '0';
+  document.getElementById('mem-total').textContent = pairCount;
+  document.getElementById('mem-flips').textContent = '0';
+
+  const grid = document.getElementById('memory-grid');
+  grid.style.gridTemplateColumns = `repeat(4, 90px)`;
+  grid.innerHTML = '';
+
+  memCards.forEach((emoji, i) => {
+    const card = document.createElement('div');
+    card.className = 'mem-card';
+    card.dataset.idx = i;
+    card.innerHTML = `
+      <div class="mem-card-inner">
+        <div class="mem-card-back">🍪</div>
+        <div class="mem-card-front">${emoji}</div>
+      </div>
+    `;
+    card.addEventListener('click', () => memFlip(card, i));
+    grid.appendChild(card);
+  });
+}
+
+function memFlip(card, idx) {
+  if (memLocked || card.classList.contains('flipped') || card.classList.contains('matched')) return;
+  card.classList.add('flipped');
+  memFlipped.push({ card, idx });
+  memFlipCount++;
+  document.getElementById('mem-flips').textContent = memFlipCount;
+
+  if (memFlipped.length === 2) {
+    memLocked = true;
+    const [a, b] = memFlipped;
+    if (memCards[a.idx] === memCards[b.idx]) {
+      a.card.classList.add('matched');
+      b.card.classList.add('matched');
+      memMatched++;
+      document.getElementById('mem-pairs').textContent = memMatched;
+      memFlipped = [];
+      memLocked = false;
+
+      if (memMatched === memCards.length / 2) {
+        const stars = memFlipCount <= 14 ? 5 : memFlipCount <= 20 ? 3 : memFlipCount <= 30 ? 2 : 1;
+        const cookies = Math.max(10, 120 - memFlipCount * 2);
+        setTimeout(() => showReward('🃏 Memory Master!', `Matched all in ${memFlipCount} flips!`, stars, cookies), 400);
+      }
+    } else {
+      setTimeout(() => {
+        a.card.classList.remove('flipped');
+        b.card.classList.remove('flipped');
+        memFlipped = [];
+        memLocked = false;
+      }, 700);
+    }
+  }
+}
+
+memoryInit();
+
+// ═══════════════════════════════════════════
+//  CATCH GAME
+// ═══════════════════════════════════════════
+let catchScore = 0;
+let catchLives = 3;
+let catchTime = 30;
+let catchRunning = false;
+let catchInterval = null;
+let catchSpawnInterval = null;
+
+const catchGood = ['🍪','🧁','🍰','🍬','⭐','🎁'];
+const catchBad = ['💣','🦠','🌶️','☠️'];
+
+function catchStart() {
+  catchScore = 0;
+  catchLives = 3;
+  catchTime = 30;
+  catchRunning = true;
+  document.getElementById('catch-score').textContent = '0';
+  document.getElementById('catch-lives').textContent = '3';
+  document.getElementById('catch-time').textContent = '30';
+
+  const area = document.getElementById('catch-area');
+  // Remove old items
+  area.querySelectorAll('.falling-item').forEach(el => el.remove());
+
+  if (catchInterval) clearInterval(catchInterval);
+  if (catchSpawnInterval) clearInterval(catchSpawnInterval);
+
+  // Timer
+  catchInterval = setInterval(() => {
+    catchTime--;
+    document.getElementById('catch-time').textContent = catchTime;
+    if (catchTime <= 0 || catchLives <= 0) {
+      catchEnd();
+    }
+  }, 1000);
+
+  // Spawn items
+  catchSpawnInterval = setInterval(() => {
+    if (!catchRunning) return;
+    spawnCatchItem();
+  }, 600);
+}
+
+function spawnCatchItem() {
+  const area = document.getElementById('catch-area');
+  const isBad = Math.random() < 0.25;
+  const pool = isBad ? catchBad : catchGood;
+  const emoji = pool[Math.floor(Math.random() * pool.length)];
+
+  const item = document.createElement('div');
+  item.className = 'falling-item';
+  item.textContent = emoji;
+  item.dataset.bad = isBad ? '1' : '0';
+  item.style.left = (5 + Math.random() * 85) + '%';
+  item.style.animationDuration = (2 + Math.random() * 2) + 's';
+  area.appendChild(item);
+
+  item.addEventListener('animationend', () => item.remove());
+}
+
+// Basket movement
+const catchArea = document.getElementById('catch-area');
+catchArea.addEventListener('mousemove', (e) => {
+  if (!catchRunning) return;
+  const rect = catchArea.getBoundingClientRect();
+  const x = e.clientX - rect.left - 30;
+  document.getElementById('catch-basket').style.left = Math.max(0, Math.min(x, rect.width - 60)) + 'px';
+});
+
+// Collision detection
+setInterval(() => {
+  if (!catchRunning) return;
+  const basket = document.getElementById('catch-basket');
+  const bRect = basket.getBoundingClientRect();
+
+  document.querySelectorAll('.falling-item').forEach(item => {
+    const iRect = item.getBoundingClientRect();
+    if (
+      iRect.bottom >= bRect.top &&
+      iRect.top <= bRect.bottom &&
+      iRect.right >= bRect.left &&
+      iRect.left <= bRect.right
+    ) {
+      if (item.dataset.bad === '1') {
+        catchLives--;
+        document.getElementById('catch-lives').textContent = catchLives;
+        item.remove();
+        if (catchLives <= 0) catchEnd();
+      } else {
+        catchScore++;
+        document.getElementById('catch-score').textContent = catchScore;
+        item.remove();
+      }
+    }
+  });
+}, 50);
+
+function catchEnd() {
+  catchRunning = false;
+  clearInterval(catchInterval);
+  clearInterval(catchSpawnInterval);
+  document.getElementById('catch-area').querySelectorAll('.falling-item').forEach(el => el.remove());
+  const stars = catchScore >= 30 ? 5 : catchScore >= 20 ? 3 : catchScore >= 10 ? 2 : 1;
+  const cookies = catchScore * 5;
+  showReward('🧺 Catch Over!', `Caught ${catchScore} treats!`, stars, cookies);
+}
+
+</script>
+</body>
+</html>

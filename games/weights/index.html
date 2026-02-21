@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Iron Idle - Weightlifting Tycoon</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0f0f1a;
+    --panel: #1a1a2e;
+    --panel-light: #22223a;
+    --accent: #e94560;
+    --accent2: #0f3460;
+    --gold: #f5c518;
+    --silver: #c0c0c0;
+    --text: #eee;
+    --text-dim: #888;
+    --green: #4ecca3;
+    --red: #e94560;
+    --orange: #f39c12;
+    --purple: #9b59b6;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Header */
+  header {
+    background: linear-gradient(135deg, var(--panel) 0%, var(--accent2) 100%);
+    padding: 12px 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--accent);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  header h1 {
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .stats-bar {
+    display: flex;
+    gap: 18px;
+    font-size: 0.85rem;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .stat .label { color: var(--text-dim); }
+  .stat .value { font-weight: bold; color: var(--gold); font-size: 0.95rem; }
+
+  /* Tabs nav */
+  .tab-nav {
+    display: flex;
+    background: var(--panel);
+    border-bottom: 1px solid #2a2a4a;
+  }
+
+  .tab-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-dim);
+    font-size: 0.9rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s;
+    border-bottom: 3px solid transparent;
+    text-align: center;
+  }
+
+  .tab-btn:hover { color: var(--text); background: rgba(255,255,255,0.03); }
+  .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); background: rgba(245,197,24,0.05); }
+
+  /* Main layout */
+  .game-container {
+    display: grid;
+    grid-template-columns: 300px 1fr 320px;
+    gap: 0;
+    min-height: calc(100vh - 110px);
+  }
+
+  /* Panels */
+  .panel {
+    background: var(--panel);
+    padding: 16px;
+    border-right: 1px solid #2a2a4a;
+    overflow-y: auto;
+    max-height: calc(100vh - 110px);
+  }
+
+  .panel:last-child {
+    border-right: none;
+    border-left: 1px solid #2a2a4a;
+  }
+
+  .panel h2 {
+    font-size: 1rem;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #2a2a4a;
+    color: var(--gold);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* Weight / food / equip cards */
+  .item-card {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #2a2a4a;
+    transition: all 0.2s;
+    cursor: default;
+  }
+
+  .item-card.locked {
+    opacity: 0.35;
+    filter: grayscale(0.8);
+  }
+
+  .item-card:not(.locked):hover {
+    border-color: var(--accent);
+    transform: translateX(2px);
+  }
+
+  .item-card .ic-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+
+  .item-card .ic-name {
+    font-weight: bold;
+    font-size: 0.92rem;
+  }
+
+  .item-card .ic-icon { font-size: 1.3rem; }
+
+  .item-card .ic-desc {
+    font-size: 0.76rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .item-card .ic-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.78rem;
+    margin-bottom: 6px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .item-card .ic-stats span { color: var(--green); }
+  .item-card .ic-stats .xp-stat { color: var(--orange); }
+
+  .item-card .ic-owned {
+    font-size: 0.73rem;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+
+  .buy-btn {
+    width: 100%;
+    padding: 8px;
+    border: none;
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 0.83rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    background: linear-gradient(135deg, var(--accent2), #1a5276);
+    color: var(--text);
+  }
+
+  .buy-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #1a5276, var(--accent));
+    transform: scale(1.02);
+  }
+
+  .buy-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  .buy-btn.food-btn {
+    background: linear-gradient(135deg, #1a5220, #2d8a4e);
+  }
+  .buy-btn.food-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #2d8a4e, #4ecca3);
+  }
+
+  .buy-btn.equip-btn {
+    background: linear-gradient(135deg, #5b2c6f, #8e44ad);
+  }
+  .buy-btn.equip-btn:hover:not(:disabled) {
+    background: linear-gradient(135deg, #8e44ad, #bb8fce);
+  }
+
+  .buy-btn.equipped {
+    background: linear-gradient(135deg, #1e8449, #27ae60);
+    cursor: default;
+  }
+
+  /* Center - Gym floor */
+  .gym-floor {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    overflow-y: auto;
+    max-height: calc(100vh - 110px);
+  }
+
+  /* Lifter character */
+  .lifter-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .lifter {
+    font-size: 72px;
+    line-height: 1;
+    transition: transform 0.15s;
+    user-select: none;
+  }
+
+  .lifter.lifting {
+    animation: liftPulse 0.3s ease;
+  }
+
+  @keyframes liftPulse {
+    0% { transform: scaleY(1); }
+    40% { transform: scaleY(0.88) scaleX(1.12); }
+    100% { transform: scaleY(1); }
+  }
+
+  .lift-btn {
+    margin-top: 10px;
+    padding: 14px 44px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #c0392b);
+    color: white;
+    cursor: pointer;
+    transition: all 0.1s;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+  }
+
+  .lift-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px rgba(233, 69, 96, 0.6);
+  }
+
+  .lift-btn:active { transform: scale(0.95); }
+
+  /* XP bar */
+  .xp-section {
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 16px;
+  }
+
+  .xp-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.82rem;
+    margin-bottom: 3px;
+  }
+
+  .xp-bar-bg {
+    width: 100%;
+    height: 22px;
+    background: #1a1a2e;
+    border-radius: 11px;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+    position: relative;
+  }
+
+  .xp-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent2), var(--green));
+    transition: width 0.3s;
+    border-radius: 11px;
+  }
+
+  .xp-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.7rem;
+    font-weight: bold;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+  }
+
+  /* Equipped items display */
+  .equipped-section {
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 16px;
+  }
+
+  .equipped-section h3 {
+    font-size: 0.85rem;
+    color: var(--purple);
+    margin-bottom: 8px;
+    text-align: center;
+  }
+
+  .equip-slots {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .equip-slot {
+    background: var(--panel-light);
+    border: 2px solid #2a2a4a;
+    border-radius: 10px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 120px;
+    transition: all 0.2s;
+  }
+
+  .equip-slot.filled {
+    border-color: var(--purple);
+    box-shadow: 0 0 10px rgba(155, 89, 182, 0.2);
+  }
+
+  .equip-slot .es-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  .equip-slot .es-icon {
+    font-size: 1.8rem;
+    margin-bottom: 2px;
+  }
+
+  .equip-slot .es-name {
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+
+  .equip-slot .es-bonus {
+    font-size: 0.68rem;
+    color: var(--green);
+  }
+
+  /* Food stomach bar */
+  .stomach-section {
+    width: 100%;
+    max-width: 500px;
+    margin-bottom: 16px;
+  }
+
+  .stomach-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    margin-bottom: 3px;
+    color: var(--orange);
+  }
+
+  .stomach-bar-bg {
+    width: 100%;
+    height: 14px;
+    background: #1a1a2e;
+    border-radius: 7px;
+    overflow: hidden;
+    border: 1px solid #2a2a4a;
+  }
+
+  .stomach-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--orange), #e67e22);
+    transition: width 0.3s;
+    border-radius: 7px;
+  }
+
+  /* Eating animation */
+  .eat-float {
+    position: fixed;
+    font-size: 1.5rem;
+    pointer-events: none;
+    z-index: 200;
+    animation: eatFloat 1.2s ease-out forwards;
+  }
+
+  @keyframes eatFloat {
+    0% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+    50% { transform: translateY(-40px) scale(1.3) rotate(15deg); }
+    100% { opacity: 0; transform: translateY(-90px) scale(0.5) rotate(-10deg); }
+  }
+
+  /* Level up flash */
+  .level-up-flash {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle, rgba(245,197,24,0.15) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 250;
+    animation: lvlFlash 0.6s ease-out forwards;
+  }
+
+  @keyframes lvlFlash {
+    0% { opacity: 1; }
+    100% { opacity: 0; }
+  }
+
+  /* Active weights on the gym floor */
+  .floor-weights {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .floor-item {
+    background: var(--panel-light);
+    border: 1px solid #2a2a4a;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    transition: all 0.2s;
+  }
+
+  .floor-item .fi-icon { font-size: 2rem; margin-bottom: 3px; }
+  .floor-item .fi-name { font-size: 0.75rem; font-weight: bold; margin-bottom: 2px; }
+  .floor-item .fi-rate { font-size: 0.7rem; color: var(--green); }
+  .floor-item .fi-count { font-size: 0.68rem; color: var(--text-dim); }
+
+  /* Floating numbers */
+  .float-number {
+    position: fixed;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--gold);
+    pointer-events: none;
+    z-index: 200;
+    animation: floatUp 1s ease-out forwards;
+    text-shadow: 0 0 8px rgba(245, 197, 24, 0.6);
+  }
+
+  .float-number.xp-float {
+    color: var(--orange);
+    text-shadow: 0 0 8px rgba(243, 156, 18, 0.6);
+  }
+
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0) scale(1); }
+    100% { opacity: 0; transform: translateY(-80px) scale(1.3); }
+  }
+
+  /* Right panel - upgrades & prestige */
+  .upgrade-card {
+    background: var(--panel-light);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+    border: 1px solid #2a2a4a;
+    transition: border-color 0.2s;
+  }
+
+  .upgrade-card:hover { border-color: var(--green); }
+
+  .upgrade-card .uc-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .upgrade-card .uc-name { font-weight: bold; font-size: 0.88rem; }
+  .upgrade-card .uc-level { font-size: 0.78rem; color: var(--gold); }
+
+  .upgrade-card .uc-desc {
+    font-size: 0.73rem;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+
+  /* Prestige section */
+  .prestige-box {
+    background: linear-gradient(135deg, #2c1654, #1a1a2e);
+    border: 1px solid #6c3483;
+    border-radius: 10px;
+    padding: 14px;
+    margin-top: 12px;
+    text-align: center;
+  }
+
+  .prestige-box h3 { color: #bb8fce; margin-bottom: 6px; font-size: 0.95rem; }
+  .prestige-box p { font-size: 0.75rem; color: var(--text-dim); margin-bottom: 8px; }
+
+  .prestige-btn {
+    padding: 10px 24px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 0.88rem;
+    cursor: pointer;
+    background: linear-gradient(135deg, #6c3483, #9b59b6);
+    color: white;
+    transition: all 0.2s;
+  }
+
+  .prestige-btn:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(155, 89, 182, 0.5);
+  }
+
+  .prestige-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  /* Milestone banner */
+  .milestone-popup {
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    background: linear-gradient(135deg, var(--gold), #d4a017);
+    color: #1a1a2e;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 1.05rem;
+    z-index: 300;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s;
+    box-shadow: 0 4px 20px rgba(245, 197, 24, 0.5);
+    text-align: center;
+    max-width: 90vw;
+  }
+
+  .milestone-popup.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Level reward popup */
+  .level-reward {
+    position: fixed;
+    top: 130px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-10px);
+    background: linear-gradient(135deg, #1a5276, var(--accent2));
+    color: var(--text);
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    z-index: 299;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.4s;
+    border: 1px solid var(--green);
+    text-align: center;
+    max-width: 90vw;
+  }
+
+  .level-reward.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* Log */
+  .log-area { margin-top: 14px; }
+  .log-area h3 { font-size: 0.82rem; color: var(--text-dim); margin-bottom: 6px; }
+
+  .log-entries {
+    max-height: 130px;
+    overflow-y: auto;
+    font-size: 0.7rem;
+    color: var(--text-dim);
+  }
+
+  .log-entries div {
+    padding: 2px 0;
+    border-bottom: 1px solid #1a1a2e;
+  }
+
+  /* Responsive */
+  @media (max-width: 1000px) {
+    .game-container { grid-template-columns: 1fr; }
+    .panel { max-height: none; border: none; border-bottom: 1px solid #2a2a4a; }
+    .gym-floor { max-height: none; }
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a5a; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>IRON IDLE</h1>
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="label">Gains:</span>
+      <span class="value" id="gains">0</span>
+    </div>
+    <div class="stat">
+      <span class="label">Per Click:</span>
+      <span class="value" id="perClick">1</span>
+    </div>
+    <div class="stat">
+      <span class="label">Per Sec:</span>
+      <span class="value" id="perSec">0</span>
+    </div>
+    <div class="stat">
+      <span class="label">STR:</span>
+      <span class="value" id="strStat">1</span>
+    </div>
+    <div class="stat">
+      <span class="label">Prestige:</span>
+      <span class="value" id="prestigeLvl">0</span>
+    </div>
+  </div>
+</header>
+
+<div class="tab-nav">
+  <button class="tab-btn active" data-tab="weights">🏋️ Weights</button>
+  <button class="tab-btn" data-tab="food">🍗 Food</button>
+  <button class="tab-btn" data-tab="equip">⚔️ Equip</button>
+</div>
+
+<div class="milestone-popup" id="milestone"></div>
+<div class="level-reward" id="levelReward"></div>
+
+<div class="game-container">
+  <!-- Left: Shop Panel with tabs -->
+  <div class="panel" id="shopPanel">
+    <!-- Weights Tab -->
+    <div class="tab-content active" id="tab-weights">
+      <h2>Weight Shop</h2>
+      <div id="shopList"></div>
+    </div>
+    <!-- Food Tab -->
+    <div class="tab-content" id="tab-food">
+      <h2>🍗 Food Court</h2>
+      <p style="font-size:0.75rem;color:var(--text-dim);margin-bottom:12px;">Eat food to gain XP and level up! Higher level = stronger lifter + new equipment unlocks.</p>
+      <div id="foodList"></div>
+    </div>
+    <!-- Equip Tab -->
+    <div class="tab-content" id="tab-equip">
+      <h2>⚔️ Equipment</h2>
+      <p style="font-size:0.75rem;color:var(--text-dim);margin-bottom:12px;">Equip gear in each slot to boost your click power and idle gains. Unlocks with level!</p>
+      <div id="equipList"></div>
+    </div>
+  </div>
+
+  <!-- Center: Gym Floor -->
+  <div class="gym-floor">
+    <div class="xp-section">
+      <div class="xp-label">
+        <span>Level <strong id="levelNum">1</strong> <span id="levelTitle" style="color:var(--text-dim);font-size:0.75rem;"></span></span>
+        <span><span id="xpCur">0</span> / <span id="xpMax">100</span> XP</span>
+      </div>
+      <div class="xp-bar-bg">
+        <div class="xp-bar-fill" id="xpBar" style="width:0%"></div>
+        <div class="xp-bar-text" id="xpBarText">0%</div>
+      </div>
+    </div>
+
+    <div class="stomach-section">
+      <div class="stomach-label">
+        <span>🍽️ Stomach</span>
+        <span id="stomachText">0 / 100</span>
+      </div>
+      <div class="stomach-bar-bg">
+        <div class="stomach-bar-fill" id="stomachBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- Equipped items -->
+    <div class="equipped-section">
+      <h3>⚔️ Equipped Gear</h3>
+      <div class="equip-slots" id="equipSlots"></div>
+    </div>
+
+    <div class="lifter-area">
+      <div class="lifter" id="lifter">🏋️</div>
+      <button class="lift-btn" id="liftBtn">LIFT!</button>
+    </div>
+
+    <h2 style="color:var(--text-dim);margin-bottom:10px;font-size:0.85rem;">Your Gym Equipment</h2>
+    <div class="floor-weights" id="floorWeights"></div>
+  </div>
+
+  <!-- Right: Upgrades & Prestige -->
+  <div class="panel">
+    <h2>Upgrades</h2>
+    <div id="upgradeList"></div>
+
+    <div class="prestige-box">
+      <h3>Prestige</h3>
+      <p>Reset gains, equipment & food for a permanent multiplier. Requires 1M+ total gains.</p>
+      <p style="color:#bb8fce;font-size:0.82rem;">Bonus: x<span id="prestigeMultPreview">1</span></p>
+      <button class="prestige-btn" id="prestigeBtn" disabled>Prestige Reset</button>
+    </div>
+
+    <div class="log-area">
+      <h3>Activity Log</h3>
+      <div class="log-entries" id="logEntries"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ GAME STATE ============
+const state = {
+  gains: 0,
+  totalGains: 0,
+  clickPower: 1,
+  level: 1,
+  xp: 0,
+  xpToLevel: 100,
+  prestige: 0,
+  prestigeMult: 1,
+  owned: {},          // weightId -> count
+  upgradeLevels: {},  // upgradeId -> level
+  // NEW: food
+  stomach: 0,         // current food in stomach
+  stomachMax: 100,    // max stomach capacity
+  totalFoodEaten: 0,
+  // NEW: equipment
+  equipped: {         // slotName -> equipId or null
+    hands: null,
+    body: null,
+    legs: null,
+    head: null,
+  },
+  unlockedEquip: {},  // equipId -> true (purchased)
+};
+
+// ============ LEVEL TITLES ============
+const levelTitles = [
+  '', 'Newbie', 'Beginner', 'Gym Rat', 'Regular', 'Dedicated',
+  'Strong', 'Powerful', 'Beast', 'Elite', 'Champion',
+  'Titan', 'Legend', 'Mythic', 'Demigod', 'God of Iron',
+  'Cosmic Lifter', 'Universal Force', 'Infinity Gains', 'Omega Lifter', 'BEYOND'
+];
+
+function getLevelTitle(lvl) {
+  if (lvl >= levelTitles.length) return levelTitles[levelTitles.length - 1];
+  return levelTitles[lvl] || '';
+}
+
+// ============ WEIGHT DEFINITIONS ============
+const weights = [
+  { id: 'rubber_band',    name: 'Resistance Band',  icon: '🟡', desc: 'Barely a workout, but it adds up.',  baseCost: 10,      baseGps: 0.5,    unlockAt: 0 },
+  { id: 'dumbbell_5',     name: '5lb Dumbbell',      icon: '🔩', desc: 'Everyone starts somewhere.',        baseCost: 50,      baseGps: 2,      unlockAt: 0 },
+  { id: 'dumbbell_25',    name: '25lb Dumbbell',     icon: '💪', desc: "Now we're talking.",                 baseCost: 250,     baseGps: 8,      unlockAt: 100 },
+  { id: 'kettlebell',     name: 'Kettlebell',        icon: '🔔', desc: 'Swing it like you mean it.',        baseCost: 1000,    baseGps: 30,     unlockAt: 500 },
+  { id: 'barbell',        name: 'Barbell',           icon: '🏋️', desc: 'The classic iron bar.',             baseCost: 4000,    baseGps: 100,    unlockAt: 2000 },
+  { id: 'plate_45',       name: '45lb Plate',        icon: '⚫', desc: "Stack 'em up.",                     baseCost: 15000,   baseGps: 350,    unlockAt: 8000 },
+  { id: 'squat_rack',     name: 'Squat Rack',        icon: '🏗️', desc: 'Never skip leg day.',               baseCost: 50000,   baseGps: 1200,   unlockAt: 30000 },
+  { id: 'bench_press',    name: 'Bench Press',       icon: '🛋️', desc: 'King of upper body.',               baseCost: 200000,  baseGps: 4500,   unlockAt: 100000 },
+  { id: 'cable_machine',  name: 'Cable Machine',     icon: '⚙️', desc: 'Infinite exercise variety.',        baseCost: 750000,  baseGps: 15000,  unlockAt: 400000 },
+  { id: 'smith_machine',  name: 'Smith Machine',     icon: '🔧', desc: 'Guided gains.',                    baseCost: 2500000, baseGps: 50000,  unlockAt: 1500000 },
+  { id: 'leg_press',      name: 'Leg Press',         icon: '🦵', desc: 'Push the world away.',              baseCost: 8e6,     baseGps: 160000, unlockAt: 5e6 },
+  { id: 'power_rack',     name: 'Power Rack',        icon: '🏰', desc: 'The ultimate home gym.',            baseCost: 25e6,    baseGps: 500000, unlockAt: 15e6 },
+  { id: 'atlas_stone',    name: 'Atlas Stone',       icon: '🪨', desc: 'Feel like a strongman.',            baseCost: 80e6,    baseGps: 1.5e6,  unlockAt: 50e6 },
+  { id: 'golden_barbell', name: 'Golden Barbell',    icon: '✨', desc: 'Forged from pure dedication.',      baseCost: 300e6,   baseGps: 5e6,    unlockAt: 150e6 },
+  { id: 'cosmic_dumbbell',name: 'Cosmic Dumbbell',   icon: '🌌', desc: 'Harness the gravity of stars.',     baseCost: 1e9,     baseGps: 18e6,   unlockAt: 500e6 },
+];
+
+// ============ FOOD DEFINITIONS ============
+const foods = [
+  { id: 'banana',       name: 'Banana',             icon: '🍌', desc: 'Quick energy snack.',            cost: 15,      xp: 20,     fill: 5,   unlockLevel: 1 },
+  { id: 'egg',          name: 'Hard Boiled Egg',    icon: '🥚', desc: 'Pure protein.',                  cost: 40,      xp: 50,     fill: 8,   unlockLevel: 1 },
+  { id: 'chicken',      name: 'Chicken Breast',     icon: '🍗', desc: 'The bodybuilder classic.',       cost: 120,     xp: 150,    fill: 15,  unlockLevel: 2 },
+  { id: 'rice_bowl',    name: 'Rice & Beans',       icon: '🍚', desc: 'Carbs and protein combo.',       cost: 300,     xp: 400,    fill: 20,  unlockLevel: 3 },
+  { id: 'steak',        name: 'Steak',              icon: '🥩', desc: 'Red meat for real gains.',       cost: 800,     xp: 1000,   fill: 25,  unlockLevel: 4 },
+  { id: 'protein_shake',name: 'Mega Protein Shake', icon: '🥤', desc: '50g protein in one sip.',       cost: 2000,    xp: 2800,   fill: 15,  unlockLevel: 5 },
+  { id: 'sushi',        name: 'Sushi Platter',      icon: '🍣', desc: 'Lean fish and rice.',            cost: 5000,    xp: 7000,   fill: 30,  unlockLevel: 6 },
+  { id: 'pasta',        name: 'Protein Pasta',      icon: '🍝', desc: 'Carb loading for big lifts.',   cost: 12000,   xp: 18000,  fill: 35,  unlockLevel: 7 },
+  { id: 'lobster',      name: 'Lobster Dinner',     icon: '🦞', desc: 'Eating like a king.',            cost: 30000,   xp: 50000,  fill: 30,  unlockLevel: 8 },
+  { id: 'buffet',       name: 'All-You-Can-Eat',    icon: '🍱', desc: 'The ultimate cheat meal.',       cost: 80000,   xp: 140000, fill: 50,  unlockLevel: 9 },
+  { id: 'golden_meal',  name: 'Golden Feast',       icon: '👑', desc: 'Food fit for champions.',        cost: 250000,  xp: 500000, fill: 40,  unlockLevel: 11 },
+  { id: 'cosmic_fruit', name: 'Cosmic Superfruit',  icon: '🌟', desc: 'Grown in zero gravity.',         cost: 1e6,     xp: 2e6,    fill: 35,  unlockLevel: 13 },
+  { id: 'divine_nectar',name: 'Divine Nectar',      icon: '⚡', desc: 'Drink of the gods.',             cost: 5e6,     xp: 10e6,   fill: 30,  unlockLevel: 15 },
+];
+
+// ============ EQUIPMENT DEFINITIONS ============
+const equipment = [
+  // Hands
+  { id: 'grip_gloves',    name: 'Grip Gloves',       icon: '🧤', slot: 'hands', desc: 'Better grip, better reps.',       cost: 100,     clickBonus: 3,    gpsBonus: 0,     unlockLevel: 1 },
+  { id: 'wrist_wraps',    name: 'Wrist Wraps',       icon: '🎀', slot: 'hands', desc: 'Protect those wrists.',           cost: 800,     clickBonus: 15,   gpsBonus: 2,     unlockLevel: 3 },
+  { id: 'lifting_hooks',  name: 'Lifting Hooks',     icon: '🪝', slot: 'hands', desc: 'Never lose your grip.',           cost: 5000,    clickBonus: 80,   gpsBonus: 10,    unlockLevel: 5 },
+  { id: 'power_grips',    name: 'Power Grips',       icon: '✊', slot: 'hands', desc: 'Crush anything you grab.',        cost: 40000,   clickBonus: 400,  gpsBonus: 50,    unlockLevel: 8 },
+  { id: 'titan_gauntlets', name: 'Titan Gauntlets',  icon: '🦾', slot: 'hands', desc: 'Hands of a titan.',               cost: 500000,  clickBonus: 3000, gpsBonus: 500,   unlockLevel: 12 },
+  { id: 'cosmic_gloves',  name: 'Cosmic Grips',      icon: '🌌', slot: 'hands', desc: 'Channel stellar energy.',         cost: 5e6,     clickBonus: 25000,gpsBonus: 5000,  unlockLevel: 16 },
+
+  // Body
+  { id: 'tank_top',       name: 'Gym Tank Top',      icon: '👕', slot: 'body',  desc: 'Look the part.',                  cost: 150,     clickBonus: 0,    gpsBonus: 1,     unlockLevel: 1 },
+  { id: 'compression',    name: 'Compression Shirt', icon: '🦺', slot: 'body',  desc: 'Muscle support.',                 cost: 1200,    clickBonus: 5,    gpsBonus: 8,     unlockLevel: 3 },
+  { id: 'weight_vest',    name: 'Weight Vest',       icon: '🎽', slot: 'body',  desc: 'Train harder, lift heavier.',     cost: 8000,    clickBonus: 30,   gpsBonus: 40,    unlockLevel: 6 },
+  { id: 'iron_armor',     name: 'Iron Armor',        icon: '🛡️', slot: 'body',  desc: 'Built like a tank.',              cost: 60000,   clickBonus: 200,  gpsBonus: 200,   unlockLevel: 9 },
+  { id: 'titan_plate',    name: 'Titan Chestplate',  icon: '⚔️', slot: 'body',  desc: 'Legendary body armor.',           cost: 800000,  clickBonus: 2000, gpsBonus: 2000,  unlockLevel: 13 },
+  { id: 'cosmic_suit',    name: 'Cosmic Suit',       icon: '🪐', slot: 'body',  desc: 'Woven from dark matter.',         cost: 8e6,     clickBonus: 20000,gpsBonus: 20000, unlockLevel: 17 },
+
+  // Legs
+  { id: 'gym_shorts',     name: 'Gym Shorts',        icon: '🩳', slot: 'legs',  desc: 'Freedom of movement.',            cost: 80,      clickBonus: 1,    gpsBonus: 0.5,   unlockLevel: 1 },
+  { id: 'knee_sleeves',   name: 'Knee Sleeves',      icon: '🦿', slot: 'legs',  desc: 'Protect those knees.',            cost: 600,     clickBonus: 8,    gpsBonus: 5,     unlockLevel: 2 },
+  { id: 'squat_shoes',    name: 'Squat Shoes',       icon: '👟', slot: 'legs',  desc: 'Better base for heavy squats.',   cost: 4000,    clickBonus: 50,   gpsBonus: 25,    unlockLevel: 5 },
+  { id: 'power_tights',   name: 'Power Tights',      icon: '🦵', slot: 'legs',  desc: 'Legs of steel.',                  cost: 30000,   clickBonus: 250,  gpsBonus: 120,   unlockLevel: 8 },
+  { id: 'titan_greaves',  name: 'Titan Greaves',     icon: '🏛️', slot: 'legs',  desc: 'Walk with the weight of the world.', cost: 400000, clickBonus: 1500, gpsBonus: 800, unlockLevel: 11 },
+  { id: 'cosmic_boots',   name: 'Cosmic Boots',      icon: '🚀', slot: 'legs',  desc: 'Defy gravity itself.',            cost: 4e6,     clickBonus: 12000,gpsBonus: 6000,  unlockLevel: 15 },
+
+  // Head
+  { id: 'headband',       name: 'Sweat Headband',    icon: '🤙', slot: 'head',  desc: 'Keep sweat out of your eyes.',    cost: 50,      clickBonus: 2,    gpsBonus: 0,     unlockLevel: 1 },
+  { id: 'cap',            name: 'Gym Cap',           icon: '🧢', slot: 'head',  desc: 'Focus mode activated.',           cost: 500,     clickBonus: 10,   gpsBonus: 3,     unlockLevel: 2 },
+  { id: 'warrior_helm',   name: 'Warrior Helmet',    icon: '⛑️', slot: 'head',  desc: 'Nothing can stop you.',           cost: 3000,    clickBonus: 40,   gpsBonus: 20,    unlockLevel: 4 },
+  { id: 'iron_crown',     name: 'Iron Crown',        icon: '👑', slot: 'head',  desc: 'The king of the gym.',            cost: 25000,   clickBonus: 200,  gpsBonus: 100,   unlockLevel: 7 },
+  { id: 'titan_helm',     name: 'Titan Helm',        icon: '🗿', slot: 'head',  desc: 'Head of an ancient titan.',       cost: 300000,  clickBonus: 1200, gpsBonus: 600,   unlockLevel: 10 },
+  { id: 'cosmic_crown',   name: 'Cosmic Crown',      icon: '💫', slot: 'head',  desc: 'Crown of the universe.',          cost: 3e6,     clickBonus: 10000,gpsBonus: 4000,  unlockLevel: 14 },
+];
+
+// ============ UPGRADE DEFINITIONS ============
+const upgrades = [
+  { id: 'protein',    name: 'Protein Powder',     icon: '🥤', desc: 'x2 click power.',                baseCost: 100,    effect: 'clickMult',   value: 2,    maxLevel: 10 },
+  { id: 'creatine',   name: 'Creatine',           icon: '💊', desc: '+50% gains per second.',          baseCost: 500,    effect: 'gpsMult',     value: 1.5,  maxLevel: 10 },
+  { id: 'preworkout',  name: 'Pre-Workout',       icon: '⚡', desc: '+10 click power.',                baseCost: 200,    effect: 'clickFlat',   value: 10,   maxLevel: 20 },
+  { id: 'trainer',    name: 'Personal Trainer',    icon: '👨‍🏫', desc: 'x2 gains per second.',          baseCost: 5000,   effect: 'gpsMult',     value: 2,    maxLevel: 8 },
+  { id: 'gym_music',  name: 'Gym Playlist',        icon: '🎵', desc: '+25% everything.',               baseCost: 2000,   effect: 'allMult',     value: 1.25, maxLevel: 10 },
+  { id: 'chalk',      name: 'Lifting Chalk',       icon: '🤍', desc: '+100 click power.',              baseCost: 10000,  effect: 'clickFlat',   value: 100,  maxLevel: 15 },
+  { id: 'belt',       name: 'Lifting Belt',        icon: '🟤', desc: 'x3 gains per second.',           baseCost: 50000,  effect: 'gpsMult',     value: 3,    maxLevel: 5 },
+  { id: 'steroids',   name: '"Supplements"',       icon: '💉', desc: 'x5 click power. No questions.',  baseCost: 200000, effect: 'clickMult',   value: 5,    maxLevel: 3 },
+  { id: 'big_stomach',name: 'Iron Stomach',        icon: '🫃', desc: '+50 stomach capacity.',          baseCost: 300,    effect: 'stomachUp',   value: 50,   maxLevel: 20 },
+  { id: 'metabolism', name: 'Fast Metabolism',      icon: '🔥', desc: 'Digest 50% faster.',             baseCost: 1000,   effect: 'digestSpeed', value: 1.5,  maxLevel: 8 },
+];
+
+// ============ HELPERS ============
+function fmt(n) {
+  if (n < 1000) return Math.floor(n).toLocaleString();
+  const units = ['', 'K', 'M', 'B', 'T', 'Qa', 'Qi', 'Sx', 'Sp', 'Oc'];
+  let u = 0;
+  while (n >= 1000 && u < units.length - 1) { n /= 1000; u++; }
+  return n.toFixed(u > 0 ? 2 : 0) + units[u];
+}
+
+function weightCost(w) {
+  const owned = state.owned[w.id] || 0;
+  return Math.floor(w.baseCost * Math.pow(1.12, owned));
+}
+
+function upgradeCost(u) {
+  const lvl = state.upgradeLevels[u.id] || 0;
+  return Math.floor(u.baseCost * Math.pow(2.5, lvl));
+}
+
+function getStomachMax() {
+  let base = 100;
+  const lvl = state.upgradeLevels['big_stomach'] || 0;
+  base += 50 * lvl;
+  base += state.level * 10; // level also increases stomach
+  return base;
+}
+
+function getDigestRate() {
+  let rate = 2; // base: 2 fullness per second
+  const lvl = state.upgradeLevels['metabolism'] || 0;
+  rate *= Math.pow(1.5, lvl);
+  return rate;
+}
+
+function getEquipBonus(type) {
+  // type: 'click' or 'gps'
+  let total = 0;
+  for (const slotName of Object.keys(state.equipped)) {
+    const eqId = state.equipped[slotName];
+    if (!eqId) continue;
+    const eq = equipment.find(e => e.id === eqId);
+    if (!eq) continue;
+    if (type === 'click') total += eq.clickBonus;
+    if (type === 'gps') total += eq.gpsBonus;
+  }
+  return total;
+}
+
+function calcClickPower() {
+  let base = 1;
+  let mult = 1;
+
+  // Upgrade flat + mult
+  for (const u of upgrades) {
+    const lvl = state.upgradeLevels[u.id] || 0;
+    if (lvl === 0) continue;
+    if (u.effect === 'clickFlat') base += u.value * lvl;
+    if (u.effect === 'clickMult') mult *= Math.pow(u.value, lvl);
+    if (u.effect === 'allMult') mult *= Math.pow(u.value, lvl);
+  }
+
+  // Equipment bonus
+  base += getEquipBonus('click');
+
+  // Level bonus: +5% per level
+  mult *= (1 + (state.level - 1) * 0.05);
+
+  return base * mult * state.prestigeMult;
+}
+
+function calcGPS() {
+  let base = 0;
+  for (const w of weights) {
+    const owned = state.owned[w.id] || 0;
+    if (owned > 0) base += w.baseGps * owned;
+  }
+
+  // Equipment GPS bonus
+  base += getEquipBonus('gps');
+
+  let mult = 1;
+  for (const u of upgrades) {
+    const lvl = state.upgradeLevels[u.id] || 0;
+    if (lvl === 0) continue;
+    if (u.effect === 'gpsMult') mult *= Math.pow(u.value, lvl);
+    if (u.effect === 'allMult') mult *= Math.pow(u.value, lvl);
+  }
+
+  // Level bonus: +5% per level
+  mult *= (1 + (state.level - 1) * 0.05);
+
+  return base * mult * state.prestigeMult;
+}
+
+function getSTR() {
+  return state.level + Math.floor(state.prestige * 5);
+}
+
+function addLog(msg) {
+  const el = document.getElementById('logEntries');
+  const d = document.createElement('div');
+  d.textContent = msg;
+  el.prepend(d);
+  while (el.children.length > 50) el.lastChild.remove();
+}
+
+let milestoneTimer = null;
+function showMilestone(text) {
+  const el = document.getElementById('milestone');
+  el.textContent = text;
+  el.classList.add('show');
+  clearTimeout(milestoneTimer);
+  milestoneTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+let rewardTimer = null;
+function showLevelReward(text) {
+  const el = document.getElementById('levelReward');
+  el.innerHTML = text;
+  el.classList.add('show');
+  clearTimeout(rewardTimer);
+  rewardTimer = setTimeout(() => el.classList.remove('show'), 3500);
+
+  // Flash effect
+  const flash = document.createElement('div');
+  flash.className = 'level-up-flash';
+  document.body.appendChild(flash);
+  setTimeout(() => flash.remove(), 700);
+}
+
+const milestones = [100, 1000, 10000, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
+let nextMilestone = 0;
+
+function checkMilestones() {
+  while (nextMilestone < milestones.length && state.totalGains >= milestones[nextMilestone]) {
+    showMilestone(`🏆 ${fmt(milestones[nextMilestone])} Total Gains!`);
+    addLog(`Milestone: ${fmt(milestones[nextMilestone])} total gains!`);
+    nextMilestone++;
+  }
+}
+
+// ============ FLOAT NUMBERS ============
+function spawnFloat(x, y, text, cssClass) {
+  const el = document.createElement('div');
+  el.className = 'float-number' + (cssClass ? ' ' + cssClass : '');
+  el.textContent = text;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+function spawnEatFloat(x, y, icon) {
+  const el = document.createElement('div');
+  el.className = 'eat-float';
+  el.textContent = icon;
+  el.style.left = x + 'px';
+  el.style.top = y + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1200);
+}
+
+// ============ TABS ============
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ============ RENDER: SHOP ============
+function renderShop() {
+  const container = document.getElementById('shopList');
+  container.innerHTML = '';
+  for (const w of weights) {
+    const owned = state.owned[w.id] || 0;
+    const cost = weightCost(w);
+    const locked = state.totalGains < w.unlockAt && owned === 0;
+    const canBuy = state.gains >= cost && !locked;
+
+    const card = document.createElement('div');
+    card.className = 'item-card' + (locked ? ' locked' : '');
+    card.innerHTML = `
+      <div class="ic-header">
+        <span class="ic-name">${locked ? '???' : w.name}</span>
+        <span class="ic-icon">${locked ? '🔒' : w.icon}</span>
+      </div>
+      <div class="ic-desc">${locked ? `Unlock at ${fmt(w.unlockAt)} total gains` : w.desc}</div>
+      <div class="ic-stats">
+        <span>+${fmt(w.baseGps * state.prestigeMult)}/s each</span>
+      </div>
+      <div class="ic-owned">Owned: ${owned}</div>
+      <button class="buy-btn" ${canBuy ? '' : 'disabled'}>${locked ? 'Locked' : `Buy - ${fmt(cost)} gains`}</button>
+    `;
+    if (canBuy) card.querySelector('.buy-btn').addEventListener('click', () => buyWeight(w));
+    container.appendChild(card);
+  }
+}
+
+// ============ RENDER: FOOD ============
+function renderFood() {
+  const container = document.getElementById('foodList');
+  container.innerHTML = '';
+  for (const f of foods) {
+    const locked = state.level < f.unlockLevel;
+    const stomachMax = getStomachMax();
+    const canEat = state.gains >= f.cost && !locked && (state.stomach + f.fill <= stomachMax);
+
+    const card = document.createElement('div');
+    card.className = 'item-card' + (locked ? ' locked' : '');
+    card.innerHTML = `
+      <div class="ic-header">
+        <span class="ic-name">${locked ? '???' : f.name}</span>
+        <span class="ic-icon">${locked ? '🔒' : f.icon}</span>
+      </div>
+      <div class="ic-desc">${locked ? `Unlock at Level ${f.unlockLevel}` : f.desc}</div>
+      <div class="ic-stats">
+        <span class="xp-stat">+${fmt(f.xp)} XP</span>
+        <span>🍽️ ${f.fill} fullness</span>
+      </div>
+      <button class="buy-btn food-btn" ${canEat ? '' : 'disabled'}>
+        ${locked ? 'Locked' : state.stomach + f.fill > stomachMax ? 'Too Full!' : `Eat - ${fmt(f.cost)} gains`}
+      </button>
+    `;
+    if (canEat) card.querySelector('.buy-btn').addEventListener('click', (e) => eatFood(f, e));
+    container.appendChild(card);
+  }
+}
+
+// ============ RENDER: EQUIPMENT ============
+function renderEquip() {
+  const container = document.getElementById('equipList');
+  container.innerHTML = '';
+
+  const slots = ['head', 'hands', 'body', 'legs'];
+  for (const slot of slots) {
+    const slotEquip = equipment.filter(e => e.slot === slot);
+    const sectionTitle = document.createElement('h2');
+    sectionTitle.style.cssText = 'font-size:0.85rem;color:var(--purple);margin:12px 0 6px;border:none;padding:0;';
+    sectionTitle.textContent = slot.charAt(0).toUpperCase() + slot.slice(1);
+    container.appendChild(sectionTitle);
+
+    for (const eq of slotEquip) {
+      const locked = state.level < eq.unlockLevel;
+      const owned = state.unlockedEquip[eq.id] || false;
+      const isEquipped = state.equipped[slot] === eq.id;
+      const canBuy = !owned && !locked && state.gains >= eq.cost;
+      const canEquip = owned && !isEquipped;
+
+      const card = document.createElement('div');
+      card.className = 'item-card' + (locked ? ' locked' : '');
+      if (isEquipped) card.style.borderColor = '#27ae60';
+
+      let btnHtml = '';
+      if (locked) {
+        btnHtml = `<button class="buy-btn equip-btn" disabled>Unlock at Lv ${eq.unlockLevel}</button>`;
+      } else if (isEquipped) {
+        btnHtml = `<button class="buy-btn equipped">✅ Equipped</button>`;
+      } else if (owned) {
+        btnHtml = `<button class="buy-btn equip-btn">Equip</button>`;
+      } else {
+        btnHtml = `<button class="buy-btn equip-btn" ${canBuy ? '' : 'disabled'}>Buy - ${fmt(eq.cost)} gains</button>`;
+      }
+
+      card.innerHTML = `
+        <div class="ic-header">
+          <span class="ic-name">${locked ? '???' : eq.name}</span>
+          <span class="ic-icon">${locked ? '🔒' : eq.icon}</span>
+        </div>
+        <div class="ic-desc">${locked ? `Unlock at Level ${eq.unlockLevel}` : eq.desc}</div>
+        <div class="ic-stats">
+          ${eq.clickBonus > 0 ? `<span>+${fmt(eq.clickBonus)} click</span>` : ''}
+          ${eq.gpsBonus > 0 ? `<span>+${fmt(eq.gpsBonus)}/s</span>` : ''}
+        </div>
+        ${btnHtml}
+      `;
+
+      const btn = card.querySelector('.buy-btn');
+      if (canBuy) {
+        btn.addEventListener('click', () => buyEquip(eq));
+      } else if (canEquip) {
+        btn.addEventListener('click', () => equipItem(eq));
+      }
+      container.appendChild(card);
+    }
+  }
+}
+
+// ============ RENDER: EQUIP SLOTS ============
+function renderEquipSlots() {
+  const container = document.getElementById('equipSlots');
+  container.innerHTML = '';
+  const slotNames = ['head', 'hands', 'body', 'legs'];
+  const slotLabels = { head: '🗿 Head', hands: '🤲 Hands', body: '👕 Body', legs: '🦵 Legs' };
+
+  for (const slot of slotNames) {
+    const eqId = state.equipped[slot];
+    const eq = eqId ? equipment.find(e => e.id === eqId) : null;
+    const div = document.createElement('div');
+    div.className = 'equip-slot' + (eq ? ' filled' : '');
+    div.innerHTML = `
+      <div class="es-label">${slotLabels[slot]}</div>
+      <div class="es-icon">${eq ? eq.icon : '➖'}</div>
+      <div class="es-name">${eq ? eq.name : 'Empty'}</div>
+      ${eq ? `<div class="es-bonus">${eq.clickBonus > 0 ? '+' + fmt(eq.clickBonus) + ' click' : ''} ${eq.gpsBonus > 0 ? '+' + fmt(eq.gpsBonus) + '/s' : ''}</div>` : ''}
+    `;
+    container.appendChild(div);
+  }
+}
+
+// ============ RENDER: UPGRADES ============
+function renderUpgrades() {
+  const container = document.getElementById('upgradeList');
+  container.innerHTML = '';
+  for (const u of upgrades) {
+    const lvl = state.upgradeLevels[u.id] || 0;
+    const cost = upgradeCost(u);
+    const maxed = lvl >= u.maxLevel;
+    const canBuy = state.gains >= cost && !maxed;
+
+    const card = document.createElement('div');
+    card.className = 'upgrade-card';
+    card.innerHTML = `
+      <div class="uc-header">
+        <span class="uc-name">${u.icon} ${u.name}</span>
+        <span class="uc-level">${maxed ? 'MAX' : `Lv ${lvl}`}</span>
+      </div>
+      <div class="uc-desc">${u.desc}</div>
+      <button class="buy-btn" ${canBuy ? '' : 'disabled'}>${maxed ? 'Maxed Out' : `Upgrade - ${fmt(cost)}`}</button>
+    `;
+    if (canBuy) card.querySelector('.buy-btn').addEventListener('click', () => buyUpgrade(u));
+    container.appendChild(card);
+  }
+}
+
+// ============ RENDER: FLOOR ============
+function renderFloor() {
+  const container = document.getElementById('floorWeights');
+  container.innerHTML = '';
+  for (const w of weights) {
+    const owned = state.owned[w.id] || 0;
+    if (owned === 0) continue;
+    const el = document.createElement('div');
+    el.className = 'floor-item';
+    el.innerHTML = `
+      <div class="fi-icon">${w.icon}</div>
+      <div class="fi-name">${w.name}</div>
+      <div class="fi-rate">+${fmt(w.baseGps * owned * state.prestigeMult)}/s</div>
+      <div class="fi-count">x${owned}</div>
+    `;
+    container.appendChild(el);
+  }
+}
+
+// ============ RENDER: STATS ============
+function renderStats() {
+  document.getElementById('gains').textContent = fmt(state.gains);
+  document.getElementById('perClick').textContent = fmt(calcClickPower());
+  document.getElementById('perSec').textContent = fmt(calcGPS());
+  document.getElementById('strStat').textContent = getSTR();
+  document.getElementById('prestigeLvl').textContent = state.prestige;
+
+  document.getElementById('levelNum').textContent = state.level;
+  document.getElementById('levelTitle').textContent = getLevelTitle(state.level);
+  document.getElementById('xpCur').textContent = fmt(state.xp);
+  document.getElementById('xpMax').textContent = fmt(state.xpToLevel);
+  const pct = Math.min(100, (state.xp / state.xpToLevel) * 100);
+  document.getElementById('xpBar').style.width = pct + '%';
+  document.getElementById('xpBarText').textContent = Math.floor(pct) + '%';
+
+  // Stomach
+  const stomachMax = getStomachMax();
+  state.stomachMax = stomachMax;
+  document.getElementById('stomachText').textContent = `${Math.floor(state.stomach)} / ${stomachMax}`;
+  document.getElementById('stomachBar').style.width = Math.min(100, (state.stomach / stomachMax) * 100) + '%';
+
+  // Prestige
+  const canPrestige = state.totalGains >= 1e6;
+  const newMult = 1 + state.prestige + (canPrestige ? 1 : 0);
+  document.getElementById('prestigeMultPreview').textContent = canPrestige ? newMult : state.prestigeMult;
+  document.getElementById('prestigeBtn').disabled = !canPrestige;
+}
+
+// ============ ACTIONS ============
+function buyWeight(w) {
+  const cost = weightCost(w);
+  if (state.gains < cost) return;
+  state.gains -= cost;
+  state.owned[w.id] = (state.owned[w.id] || 0) + 1;
+  addLog(`Bought ${w.name} (#${state.owned[w.id]})`);
+  renderAll();
+}
+
+function buyUpgrade(u) {
+  const cost = upgradeCost(u);
+  const lvl = state.upgradeLevels[u.id] || 0;
+  if (state.gains < cost || lvl >= u.maxLevel) return;
+  state.gains -= cost;
+  state.upgradeLevels[u.id] = lvl + 1;
+  addLog(`Upgraded ${u.name} to Lv ${lvl + 1}`);
+  renderAll();
+}
+
+function eatFood(f, event) {
+  const stomachMax = getStomachMax();
+  if (state.gains < f.cost || state.stomach + f.fill > stomachMax) return;
+
+  state.gains -= f.cost;
+  state.stomach += f.fill;
+  state.totalFoodEaten++;
+  state.xp += f.xp;
+
+  // Eat animation
+  if (event) {
+    const rect = event.target.getBoundingClientRect();
+    spawnEatFloat(rect.left + rect.width / 2, rect.top - 10, f.icon);
+    spawnFloat(rect.left + rect.width / 2 + 30, rect.top - 20, '+' + fmt(f.xp) + ' XP', 'xp-float');
+  }
+
+  addLog(`Ate ${f.name} (+${fmt(f.xp)} XP)`);
+  checkLevelUp();
+  checkMilestones();
+  renderAll();
+}
+
+function buyEquip(eq) {
+  if (state.gains < eq.cost || state.unlockedEquip[eq.id]) return;
+  state.gains -= eq.cost;
+  state.unlockedEquip[eq.id] = true;
+  // Auto-equip if slot is empty or this is better
+  const currentId = state.equipped[eq.slot];
+  if (!currentId) {
+    state.equipped[eq.slot] = eq.id;
+  }
+  addLog(`Bought ${eq.name}!`);
+  renderAll();
+}
+
+function equipItem(eq) {
+  if (!state.unlockedEquip[eq.id]) return;
+  state.equipped[eq.slot] = eq.id;
+  addLog(`Equipped ${eq.name}`);
+  renderAll();
+}
+
+function doLift(e) {
+  const power = calcClickPower();
+  state.gains += power;
+  state.totalGains += power;
+
+  // Small XP from lifting (food is the main XP source)
+  const liftXp = Math.max(1, power * 0.02);
+  state.xp += liftXp;
+
+  // Float numbers
+  const rect = document.getElementById('liftBtn').getBoundingClientRect();
+  const x = rect.left + rect.width / 2 + (Math.random() - 0.5) * 60;
+  const y = rect.top - 10;
+  spawnFloat(x, y, '+' + fmt(power));
+
+  // Lift animation
+  const lifter = document.getElementById('lifter');
+  lifter.classList.remove('lifting');
+  void lifter.offsetWidth;
+  lifter.classList.add('lifting');
+
+  checkLevelUp();
+  checkMilestones();
+  renderStats();
+  // Re-render shop/food less frequently
+}
+
+function checkLevelUp() {
+  let leveled = false;
+  while (state.xp >= state.xpToLevel) {
+    state.xp -= state.xpToLevel;
+    state.level++;
+    state.xpToLevel = Math.floor(100 * Math.pow(1.6, state.level - 1));
+    leveled = true;
+
+    showMilestone(`⬆️ Level Up! Level ${state.level} - ${getLevelTitle(state.level)}`);
+    addLog(`Reached Level ${state.level} (${getLevelTitle(state.level)})!`);
+
+    // Check for new unlocks at this level
+    const newFoods = foods.filter(f => f.unlockLevel === state.level);
+    const newEquip = equipment.filter(eq => eq.unlockLevel === state.level);
+    let rewards = [];
+    if (newFoods.length > 0) rewards.push('🍗 New food: ' + newFoods.map(f => f.icon + ' ' + f.name).join(', '));
+    if (newEquip.length > 0) rewards.push('⚔️ New gear: ' + newEquip.map(e => e.icon + ' ' + e.name).join(', '));
+    rewards.push(`💪 +5% all gains (now +${(state.level - 1) * 5}%)`);
+    rewards.push(`🍽️ +10 stomach capacity`);
+
+    if (rewards.length > 0) {
+      showLevelReward(rewards.join('<br>'));
+    }
+  }
+  if (leveled) {
+    renderAll();
+  }
+}
+
+function doPrestige() {
+  if (state.totalGains < 1e6) return;
+  state.prestige++;
+  state.prestigeMult = 1 + state.prestige;
+  state.gains = 0;
+  state.totalGains = 0;
+  state.xp = 0;
+  state.level = 1;
+  state.xpToLevel = 100;
+  state.owned = {};
+  state.upgradeLevels = {};
+  state.stomach = 0;
+  state.totalFoodEaten = 0;
+  state.equipped = { hands: null, body: null, legs: null, head: null };
+  state.unlockedEquip = {};
+  nextMilestone = 0;
+  showMilestone(`✨ Prestige ${state.prestige}! x${state.prestigeMult} Multiplier`);
+  addLog(`Prestige reset! Now at x${state.prestigeMult} multiplier.`);
+  renderAll();
+}
+
+// ============ GAME LOOP ============
+function tick() {
+  // Idle gains
+  const gps = calcGPS();
+  if (gps > 0) {
+    const gain = gps / 10;
+    state.gains += gain;
+    state.totalGains += gain;
+    // Tiny idle XP
+    state.xp += gain * 0.005;
+    checkLevelUp();
+    checkMilestones();
+  }
+
+  // Digest food (stomach empties over time)
+  if (state.stomach > 0) {
+    const digestRate = getDigestRate() / 10; // per tick (100ms)
+    state.stomach = Math.max(0, state.stomach - digestRate);
+  }
+
+  renderStats();
+}
+
+function renderAll() {
+  renderShop();
+  renderFood();
+  renderEquip();
+  renderEquipSlots();
+  renderUpgrades();
+  renderFloor();
+  renderStats();
+}
+
+// ============ SAVE / LOAD ============
+function saveGame() {
+  localStorage.setItem('ironIdle2', JSON.stringify(state));
+}
+
+function loadGame() {
+  const data = localStorage.getItem('ironIdle2');
+  if (data) {
+    const saved = JSON.parse(data);
+    // Merge with defaults for new fields
+    for (const key of Object.keys(state)) {
+      if (saved[key] !== undefined) state[key] = saved[key];
+    }
+    // Ensure equipped has all slots
+    if (!state.equipped.head) state.equipped.head = state.equipped.head || null;
+    // Restore milestone pointer
+    nextMilestone = 0;
+    while (nextMilestone < milestones.length && state.totalGains >= milestones[nextMilestone]) {
+      nextMilestone++;
+    }
+  }
+}
+
+// ============ INIT ============
+loadGame();
+renderAll();
+addLog('Welcome to Iron Idle! Lift, Eat, Equip, Grow!');
+
+document.getElementById('liftBtn').addEventListener('click', doLift);
+document.getElementById('prestigeBtn').addEventListener('click', doPrestige);
+
+setInterval(tick, 100);
+setInterval(() => { renderShop(); renderFood(); renderEquip(); }, 2000);
+setInterval(renderFloor, 2000);
+setInterval(renderEquipSlots, 2000);
+setInterval(saveGame, 5000);
+</script>
+</body>
+</html>
