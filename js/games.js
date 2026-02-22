@@ -14,6 +14,7 @@ const games = [
   { title: "The Peloponnesian War", subtitle: "Real-Time Strategy", icon: "🏺", href: "games/peloponnesian-war/index.html", category: "Strategy / Educational", added: 12 },
   { title: "Math Monsters", subtitle: "Multiplication Adventure", icon: "🧮", href: "games/math-monsters/index.html", category: "Educational", added: 13 },
   { title: "ChemRogue: Elemental Ascension", subtitle: "Educational RPG", icon: "🧪", href: "games/chemrogue/index.html", category: "Educational", added: 14 },
+  { title: "Division Quest", subtitle: "Math Adventure", icon: "➗", href: "games/division-quest/index.html", category: "Educational", added: 15 },
 ];
 
 const grid = document.getElementById('game-grid');
