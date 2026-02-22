@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math Monsters — Multiplication Adventure</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e17;
+    --surface: #1a1932;
+    --card: #232146;
+    --accent: #ff8906;
+    --accent2: #e53170;
+    --green: #2cb67d;
+    --blue: #7f5af0;
+    --text: #fffffe;
+    --text-dim: #94a1b2;
+    --radius: 18px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Floating background shapes */
+  body::before, body::after {
+    content: '';
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(120px);
+    opacity: 0.15;
+    z-index: 0;
+    pointer-events: none;
+  }
+  body::before {
+    width: 500px; height: 500px;
+    background: var(--blue);
+    top: -100px; left: -100px;
+    animation: floatBg 20s ease-in-out infinite alternate;
+  }
+  body::after {
+    width: 400px; height: 400px;
+    background: var(--accent2);
+    bottom: -100px; right: -100px;
+    animation: floatBg 15s ease-in-out infinite alternate-reverse;
+  }
+
+  @keyframes floatBg {
+    to { transform: translate(80px, 60px) scale(1.2); }
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 24px 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  .header h1 {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2.2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  .header p {
+    color: var(--text-dim);
+    font-size: 0.95rem;
+    margin-top: 4px;
+  }
+
+  /* Stats bar */
+  .stats {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: var(--radius);
+    padding: 14px 10px;
+    text-align: center;
+    transition: transform 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-label { font-size: 0.72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1.2px; font-weight: 500; }
+  .stat-value {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    margin-top: 2px;
+  }
+  .stat-value.score { color: var(--accent); }
+  .stat-value.streak { color: var(--accent2); }
+  .stat-value.level { color: var(--blue); }
+  .stat-value.timer { color: var(--green); }
+
+  /* Monster */
+  .monster-area {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 16px;
+    position: relative;
+    height: 110px;
+  }
+  .monster {
+    font-size: 80px;
+    line-height: 1;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: default;
+    user-select: none;
+    filter: drop-shadow(0 8px 20px rgba(0,0,0,0.4));
+  }
+  .monster.happy { animation: bounce 0.5s ease; }
+  .monster.sad { animation: shake 0.4s ease; }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0) scale(1); }
+    40% { transform: translateY(-20px) scale(1.15); }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-12px); }
+    40% { transform: translateX(12px); }
+    60% { transform: translateX(-8px); }
+    80% { transform: translateX(8px); }
+  }
+
+  /* Combo popup */
+  .combo-popup {
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--accent);
+    opacity: 0;
+    pointer-events: none;
+    text-shadow: 0 2px 10px rgba(255,137,6,0.5);
+  }
+  .combo-popup.show {
+    animation: popUp 1s ease forwards;
+  }
+  @keyframes popUp {
+    0% { opacity: 0; transform: translateX(-50%) translateY(0) scale(0.5); }
+    30% { opacity: 1; transform: translateX(-50%) translateY(-20px) scale(1.2); }
+    100% { opacity: 0; transform: translateX(-50%) translateY(-60px) scale(0.8); }
+  }
+
+  /* XP Bar */
+  .xp-bar-container {
+    background: var(--surface);
+    border-radius: 20px;
+    height: 14px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    position: relative;
+  }
+  .xp-bar {
+    height: 100%;
+    border-radius: 20px;
+    background: linear-gradient(90deg, var(--blue), var(--accent2));
+    transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    position: relative;
+  }
+  .xp-bar::after {
+    content: '';
+    position: absolute;
+    top: 2px; left: 4px; right: 4px;
+    height: 4px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 10px;
+  }
+  .xp-label {
+    font-size: 0.7rem;
+    color: var(--text-dim);
+    text-align: right;
+    margin-top: 4px;
+    margin-bottom: 6px;
+  }
+
+  /* Question card */
+  .question-card {
+    background: var(--card);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 24px;
+    padding: 30px 24px;
+    text-align: center;
+    margin-bottom: 20px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+    position: relative;
+    overflow: hidden;
+  }
+  .question-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2), var(--blue));
+  }
+  .question-text {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    margin-bottom: 6px;
+    letter-spacing: 2px;
+  }
+  .question-hint {
+    font-size: 0.85rem;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+  }
+
+  /* Answer input */
+  .answer-area {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    align-items: center;
+  }
+  .answer-input {
+    width: 140px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2rem;
+    font-weight: 600;
+    text-align: center;
+    background: var(--surface);
+    border: 2px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 12px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.3s, box-shadow 0.3s;
+    caret-color: var(--accent);
+  }
+  .answer-input:focus {
+    border-color: var(--blue);
+    box-shadow: 0 0 0 4px rgba(127,90,240,0.2);
+  }
+  .answer-input.correct {
+    border-color: var(--green);
+    box-shadow: 0 0 0 4px rgba(44,182,125,0.25);
+  }
+  .answer-input.wrong {
+    border-color: var(--accent2);
+    box-shadow: 0 0 0 4px rgba(229,49,112,0.25);
+  }
+
+  .submit-btn {
+    width: 56px; height: 56px;
+    border-radius: 16px;
+    border: none;
+    background: linear-gradient(135deg, var(--blue), var(--accent2));
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 15px rgba(127,90,240,0.4);
+  }
+  .submit-btn:hover { transform: scale(1.08); }
+  .submit-btn:active { transform: scale(0.95); }
+
+  /* Feedback */
+  .feedback {
+    text-align: center;
+    min-height: 32px;
+    margin-bottom: 16px;
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 500;
+    transition: opacity 0.3s;
+  }
+  .feedback.correct-fb { color: var(--green); }
+  .feedback.wrong-fb { color: var(--accent2); }
+
+  /* Choices (multiple choice mode) */
+  .choices {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 10px;
+  }
+  .choice-btn {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 1.4rem;
+    font-weight: 600;
+    padding: 16px;
+    border-radius: 16px;
+    border: 2px solid rgba(255,255,255,0.1);
+    background: var(--surface);
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .choice-btn:hover {
+    border-color: var(--blue);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+  }
+  .choice-btn.selected-correct {
+    border-color: var(--green);
+    background: rgba(44,182,125,0.15);
+  }
+  .choice-btn.selected-wrong {
+    border-color: var(--accent2);
+    background: rgba(229,49,112,0.15);
+  }
+  .choice-btn.reveal-correct {
+    border-color: var(--green);
+    background: rgba(44,182,125,0.15);
+  }
+
+  /* Difficulty selector */
+  .settings {
+    margin-bottom: 20px;
+  }
+  .diff-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .diff-btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 500;
+    padding: 8px 18px;
+    border-radius: 30px;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .diff-btn:hover { border-color: var(--blue); color: var(--text); }
+  .diff-btn.active {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+    box-shadow: 0 4px 12px rgba(127,90,240,0.35);
+  }
+
+  /* Mode toggle */
+  .mode-row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+  .mode-btn {
+    font-family: 'Outfit', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    padding: 7px 16px;
+    border-radius: 30px;
+    border: 1.5px solid rgba(255,255,255,0.1);
+    background: transparent;
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .mode-btn:hover { border-color: var(--accent); color: var(--text); }
+  .mode-btn.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(255,137,6,0.35);
+  }
+
+  /* Tip card */
+  .tip-card {
+    background: linear-gradient(135deg, rgba(127,90,240,0.12), rgba(229,49,112,0.08));
+    border: 1px solid rgba(127,90,240,0.2);
+    border-radius: var(--radius);
+    padding: 16px 20px;
+    margin-top: auto;
+    margin-bottom: 12px;
+  }
+  .tip-card h3 {
+    font-family: 'Fredoka', sans-serif;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--blue);
+    margin-bottom: 6px;
+  }
+  .tip-card p {
+    font-size: 0.84rem;
+    color: var(--text-dim);
+    line-height: 1.55;
+  }
+
+  /* Particles on correct answer */
+  .particle {
+    position: fixed;
+    pointer-events: none;
+    z-index: 100;
+    font-size: 1.4rem;
+    animation: particleFly 1s ease-out forwards;
+  }
+  @keyframes particleFly {
+    0% { opacity: 1; transform: translate(0, 0) scale(1); }
+    100% { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3); }
+  }
+
+  /* Level up banner */
+  .level-up-banner {
+    position: fixed;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    font-family: 'Fredoka', sans-serif;
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 30px rgba(255,137,6,0.6);
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+  }
+  .level-up-banner.show {
+    animation: levelUp 1.5s ease forwards;
+  }
+  @keyframes levelUp {
+    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+    20% { opacity: 1; transform: translate(-50%, -50%) scale(1.3); }
+    50% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    100% { opacity: 0; transform: translate(-50%, -60%) scale(0.8); }
+  }
+
+  /* Responsive */
+  @media (max-width: 480px) {
+    .header h1 { font-size: 1.7rem; }
+    .question-text { font-size: 2.2rem; }
+    .stat-card { padding: 10px 6px; }
+    .stat-value { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <h1>🧮 Math Monsters</h1>
+    <p>Multiplication Adventure</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-label">Score</div>
+      <div class="stat-value score" id="score">0</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Streak</div>
+      <div class="stat-value streak" id="streak">0 🔥</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Level</div>
+      <div class="stat-value level" id="level">1</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best</div>
+      <div class="stat-value timer" id="best">0</div>
+    </div>
+  </div>
+
+  <div class="xp-label" id="xpLabel">0 / 50 XP to Level 2</div>
+  <div class="xp-bar-container">
+    <div class="xp-bar" id="xpBar" style="width: 0%"></div>
+  </div>
+
+  <div class="monster-area">
+    <div class="monster" id="monster">🐙</div>
+    <div class="combo-popup" id="comboPopup"></div>
+  </div>
+
+  <div class="question-card">
+    <div class="question-text" id="question">—</div>
+    <div class="question-hint" id="hint"></div>
+
+    <div id="typeArea" class="answer-area">
+      <input type="number" class="answer-input" id="answerInput" placeholder="?" autocomplete="off">
+      <button class="submit-btn" id="submitBtn" aria-label="Submit">→</button>
+    </div>
+
+    <div id="choiceArea" class="choices" style="display:none"></div>
+  </div>
+
+  <div class="feedback" id="feedback">&nbsp;</div>
+
+  <div class="settings">
+    <div class="diff-row">
+      <button class="diff-btn active" data-diff="easy">Easy (1-5)</button>
+      <button class="diff-btn" data-diff="medium">Medium (1-9)</button>
+      <button class="diff-btn" data-diff="hard">Hard (1-12)</button>
+      <button class="diff-btn" data-diff="expert">Expert (2-15)</button>
+    </div>
+    <div class="mode-row">
+      <button class="mode-btn active" data-mode="type">⌨️ Type Answer</button>
+      <button class="mode-btn" data-mode="choice">🎯 Multiple Choice</button>
+    </div>
+  </div>
+
+  <div class="tip-card" id="tipCard">
+    <h3>💡 Math Tip</h3>
+    <p id="tipText">Multiply by 9 trick: hold up both hands and lower the finger for the number you're multiplying. Fingers to the left = tens, fingers to the right = ones!</p>
+  </div>
+</div>
+
+<div class="level-up-banner" id="levelBanner">⭐ LEVEL UP! ⭐</div>
+
+<script>
+  const tips = [
+    "Multiply by 9 trick: the digits of any answer always add up to 9! (e.g. 9×3=27, 2+7=9)",
+    "Multiplying by 5? Halve the number, then multiply by 10! (e.g. 5×8 → 8÷2=4 → 4×10=40)",
+    "Any number × 1 = itself. Any number × 0 = 0. Simple but powerful!",
+    "Commutative property: 3×7 = 7×3. If you know one, you know the other!",
+    "Multiplying by 11? For single digits: just repeat the digit! (11×4 = 44)",
+    "Break it down: 7×8 = 7×(5+3) = 35+21 = 56. Decompose hard problems!",
+    "Square numbers make patterns: 1, 4, 9, 16, 25, 36, 49, 64, 81, 100, 121, 144...",
+    "Double it up: multiplying by 4 is the same as doubling twice! (4×6 → 12 → 24)",
+    "Multiplying by 8? Double three times! (8×7 → 14 → 28 → 56)",
+    "The more you practice, the faster your brain retrieves answers — like muscle memory!",
+    "Distributive trick: 12×7 = (10×7)+(2×7) = 70+14 = 84",
+    "If you know 6×6=36, then 6×7 is just 36+6=42. Build from what you know!",
+  ];
+
+  const monsters = ['🐙', '🐲', '🦊', '🐸', '🦁', '🐻', '🐼', '🦄', '🐵', '🐯', '🦖', '🐊', '🦋', '🐝'];
+  const correctPhrases = ['Awesome! 🎉', 'Brilliant! ⚡', 'Nailed it! 💪', 'Superstar! ⭐', 'On fire! 🔥', 'Perfect! ✨', 'You rock! 🎸', 'Math wizard! 🧙'];
+  const wrongPhrases = ['Almost! Try again 💪', 'Not quite — keep going!', "You'll get the next one! 🌟", 'So close! Stay focused 🎯'];
+
+  let state = {
+    score: 0,
+    streak: 0,
+    bestStreak: 0,
+    level: 1,
+    xp: 0,
+    xpNeeded: 50,
+    difficulty: 'easy',
+    mode: 'type',
+    a: 0,
+    b: 0,
+    answer: 0,
+    waiting: false,
+  };
+
+  const diffRanges = {
+    easy: [1, 5],
+    medium: [1, 9],
+    hard: [1, 12],
+    expert: [2, 15],
+  };
+
+  const $ = id => document.getElementById(id);
+
+  function rand(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function newQuestion() {
+    state.waiting = false;
+    const [min, max] = diffRanges[state.difficulty];
+    state.a = rand(min, max);
+    state.b = rand(min, max);
+    state.answer = state.a * state.b;
+
+    $('question').textContent = `${state.a} × ${state.b} = ?`;
+    $('hint').textContent = `Think: ${state.a} groups of ${state.b}`;
+    $('feedback').innerHTML = '&nbsp;';
+    $('feedback').className = 'feedback';
+
+    if (state.mode === 'type') {
+      $('typeArea').style.display = 'flex';
+      $('choiceArea').style.display = 'none';
+      const input = $('answerInput');
+      input.value = '';
+      input.className = 'answer-input';
+      input.focus();
+    } else {
+      $('typeArea').style.display = 'none';
+      $('choiceArea').style.display = 'grid';
+      renderChoices();
+    }
+  }
+
+  function renderChoices() {
+    const correct = state.answer;
+    let options = new Set([correct]);
+    while (options.size < 4) {
+      let offset = rand(-10, 10);
+      let opt = correct + offset;
+      if (opt > 0 && opt !== correct) options.add(opt);
+    }
+    let arr = [...options].sort(() => Math.random() - 0.5);
+    $('choiceArea').innerHTML = arr.map(v =>
+      `<button class="choice-btn" data-val="${v}">${v}</button>`
+    ).join('');
+
+    $('choiceArea').querySelectorAll('.choice-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (state.waiting) return;
+        checkAnswer(parseInt(btn.dataset.val), btn);
+      });
+    });
+  }
+
+  function checkAnswer(val, btnEl) {
+    state.waiting = true;
+    const correct = val === state.answer;
+
+    if (correct) {
+      state.streak++;
+      if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+
+      let points = 10 + (state.streak >= 5 ? 5 : 0) + (state.level * 2);
+      state.score += points;
+      state.xp += points;
+
+      $('feedback').textContent = correctPhrases[rand(0, correctPhrases.length - 1)];
+      $('feedback').className = 'feedback correct-fb';
+      $('monster').className = 'monster happy';
+
+      if (state.mode === 'type') {
+        $('answerInput').className = 'answer-input correct';
+      } else if (btnEl) {
+        btnEl.classList.add('selected-correct');
+      }
+
+      if (state.streak >= 3) showCombo();
+      spawnParticles();
+
+      // Level up
+      if (state.xp >= state.xpNeeded) {
+        state.xp -= state.xpNeeded;
+        state.level++;
+        state.xpNeeded = Math.floor(state.xpNeeded * 1.4);
+        $('monster').textContent = monsters[state.level % monsters.length];
+        showLevelUp();
+      }
+    } else {
+      state.streak = 0;
+      $('feedback').textContent = `${wrongPhrases[rand(0, wrongPhrases.length - 1)]} The answer was ${state.answer}`;
+      $('feedback').className = 'feedback wrong-fb';
+      $('monster').className = 'monster sad';
+
+      if (state.mode === 'type') {
+        $('answerInput').className = 'answer-input wrong';
+      } else if (btnEl) {
+        btnEl.classList.add('selected-wrong');
+        // Reveal correct
+        $('choiceArea').querySelectorAll('.choice-btn').forEach(b => {
+          if (parseInt(b.dataset.val) === state.answer) b.classList.add('reveal-correct');
+        });
+      }
+    }
+
+    updateUI();
+    setTimeout(() => {
+      $('monster').className = 'monster';
+      newQuestion();
+    }, correct ? 800 : 1800);
+  }
+
+  function updateUI() {
+    $('score').textContent = state.score;
+    $('streak').textContent = state.streak + ' 🔥';
+    $('level').textContent = state.level;
+    $('best').textContent = state.bestStreak;
+    const pct = Math.min((state.xp / state.xpNeeded) * 100, 100);
+    $('xpBar').style.width = pct + '%';
+    $('xpLabel').textContent = `${state.xp} / ${state.xpNeeded} XP to Level ${state.level + 1}`;
+  }
+
+  function showCombo() {
+    const popup = $('comboPopup');
+    popup.textContent = `${state.streak}× Combo!`;
+    popup.className = 'combo-popup';
+    void popup.offsetWidth;
+    popup.className = 'combo-popup show';
+  }
+
+  function showLevelUp() {
+    const banner = $('levelBanner');
+    banner.className = 'level-up-banner';
+    void banner.offsetWidth;
+    banner.className = 'level-up-banner show';
+  }
+
+  function spawnParticles() {
+    const emojis = ['⭐', '✨', '🌟', '💫', '🎉', '💥'];
+    for (let i = 0; i < 8; i++) {
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.textContent = emojis[rand(0, emojis.length - 1)];
+      el.style.left = `${rand(20, 80)}vw`;
+      el.style.top = `${rand(30, 60)}vh`;
+      el.style.setProperty('--dx', `${rand(-100, 100)}px`);
+      el.style.setProperty('--dy', `${rand(-150, -50)}px`);
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 1000);
+    }
+  }
+
+  function rotateTip() {
+    $('tipText').textContent = tips[rand(0, tips.length - 1)];
+  }
+
+  // Difficulty buttons
+  document.querySelectorAll('.diff-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.difficulty = btn.dataset.diff;
+      newQuestion();
+    });
+  });
+
+  // Mode buttons
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.mode = btn.dataset.mode;
+      newQuestion();
+    });
+  });
+
+  // Submit
+  $('submitBtn').addEventListener('click', () => {
+    if (state.waiting) return;
+    const val = parseInt($('answerInput').value);
+    if (isNaN(val)) return;
+    checkAnswer(val);
+  });
+
+  $('answerInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      if (state.waiting) return;
+      const val = parseInt($('answerInput').value);
+      if (isNaN(val)) return;
+      checkAnswer(val);
+    }
+  });
+
+  // Init
+  newQuestion();
+  setInterval(rotateTip, 12000);
+</script>
+</body>
+</html>

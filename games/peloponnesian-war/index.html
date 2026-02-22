@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Peloponnesian War</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#12100d;color:#c8b88a;font-family:Georgia,'Times New Roman',serif;min-height:100vh}
+
+/* ===== SCREENS ===== */
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+
+/* TITLE */
+#title-screen{flex-direction:column;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#0a0806,#1a1410 40%,#12100d)}
+#title-screen h1{font-size:2.6em;color:#c9a84c;letter-spacing:5px;text-shadow:0 0 40px rgba(201,168,76,.2)}
+#title-screen h2{font-size:1em;color:#6a5a3a;letter-spacing:8px;margin:5px 0 20px}
+.title-line{width:350px;height:1px;background:linear-gradient(90deg,transparent,#5a4a2a,transparent);margin:10px 0}
+.title-quote{max-width:550px;text-align:center;font-style:italic;color:#7a6a4a;line-height:1.6;margin:15px 0 30px;font-size:.95em}
+.title-quote span{display:block;font-style:normal;color:#5a4a3a;font-size:.85em;margin-top:6px}
+.pick-row{display:flex;gap:25px}
+.pick-btn{width:200px;padding:18px;background:#1a1712;border:2px solid #3a3020;border-radius:8px;cursor:pointer;text-align:center;transition:.2s}
+.pick-btn:hover{border-color:#c9a84c;transform:translateY(-2px);box-shadow:0 6px 20px rgba(201,168,76,.15)}
+.pick-btn h3{color:#c9a84c;font-size:1.3em;margin:6px 0}
+.pick-btn p{color:#7a6a4a;font-size:.85em;line-height:1.4}
+.pick-btn .picon{font-size:2.2em}
+
+/* LEADER SELECT */
+#leader-screen{flex-direction:column;align-items:center;justify-content:center;background:#12100d}
+#leader-screen h2{color:#c9a84c;font-size:1.6em;margin-bottom:5px}
+#leader-screen .sub{color:#6a5a3a;margin-bottom:20px;font-size:.9em;max-width:500px;text-align:center;line-height:1.5}
+.leader-row{display:flex;gap:15px;flex-wrap:wrap;justify-content:center;max-width:700px}
+.leader-btn{width:150px;padding:14px;background:#1a1712;border:2px solid #3a3020;border-radius:8px;cursor:pointer;text-align:center;transition:.2s}
+.leader-btn:hover{border-color:#c9a84c;background:#221f18}
+.leader-btn .licon{font-size:1.8em}
+.leader-btn h4{color:#c9a84c;font-size:1em;margin:4px 0}
+.leader-btn p{color:#6a5a3a;font-size:.75em;line-height:1.3}
+
+/* GAME */
+#game-screen{flex-direction:column;background:#12100d}
+
+/* Top bar */
+.top-bar{display:flex;align-items:center;padding:8px 15px;background:#161310;border-bottom:1px solid #2a2218;gap:15px;flex-wrap:wrap}
+.res{display:flex;align-items:center;gap:4px;font-size:.9em}
+.res .rv{color:#c9a84c;font-weight:700;min-width:30px}
+.res .rr{color:#5a8a5a;font-size:.8em}
+.bar-div{width:1px;height:22px;background:#2a2218}
+.yr{color:#c9a84c;font-size:.95em;margin-left:auto}
+.top-btn{background:none;border:1px solid #3a3020;color:#8a7a5a;padding:3px 10px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:.8em}
+.top-btn:hover{border-color:#c9a84c;color:#c9a84c}
+.top-btn:disabled{opacity:.4;cursor:not-allowed}
+.end-turn-btn{background:linear-gradient(180deg,#3a3020,#2a2018);border:2px solid #c9a84c;color:#c9a84c;padding:5px 18px;font-size:.9em;font-weight:700}
+.end-turn-btn:hover{background:linear-gradient(180deg,#4a4030,#3a3028)}
+
+/* Main area */
+.game-main{display:flex;flex:1;overflow:hidden}
+
+/* Map column */
+.map-col{flex:1;padding:15px;overflow-y:auto}
+.map-col h3{color:#c9a84c;font-size:1em;margin-bottom:10px;border-bottom:1px solid #2a2218;padding-bottom:5px}
+
+.city-card{background:#1a1712;border:1px solid #2a2218;border-radius:6px;padding:10px 12px;margin-bottom:8px;cursor:pointer;transition:.15s}
+.city-card:hover{border-color:#5a4a2a;background:#1e1b14}
+.city-card.selected{border-color:#c9a84c;background:#1e1b14;box-shadow:0 0 12px rgba(201,168,76,.1)}
+.city-card.friendly{border-left:3px solid #4a88cc}
+.city-card.enemy{border-left:3px solid #cc5555}
+.city-card.neutral{border-left:3px solid #8a7a5a}
+.city-top{display:flex;justify-content:space-between;align-items:center}
+.city-name{font-size:.95em;font-weight:700}
+.city-faction{font-size:.75em;padding:2px 6px;border-radius:3px}
+.city-faction.f-athens{background:rgba(74,136,204,.2);color:#6aa0dd}
+.city-faction.f-sparta{background:rgba(204,85,85,.2);color:#dd7777}
+.city-faction.f-neutral{background:rgba(138,122,90,.2);color:#aaa080}
+.city-stats{display:flex;gap:12px;margin-top:5px;font-size:.8em;color:#6a5a3a}
+.city-stats span{display:flex;align-items:center;gap:3px}
+.city-desc{font-size:.78em;color:#5a4a3a;margin-top:4px;font-style:italic}
+.city-units{margin-top:6px;display:flex;gap:5px;flex-wrap:wrap}
+.unit-badge{background:#252015;border:1px solid #3a3020;border-radius:4px;padding:2px 7px;font-size:.78em;display:flex;align-items:center;gap:3px}
+.unit-badge.player-unit{border-color:#4a6a8a;background:rgba(74,136,204,.1)}
+.unit-badge.enemy-unit{border-color:#6a3a3a;background:rgba(204,85,85,.1)}
+
+/* Right panel */
+.right-col{width:340px;border-left:1px solid #2a2218;display:flex;flex-direction:column;background:#161310}
+.panel-header{padding:10px 12px;border-bottom:1px solid #2a2218;color:#c9a84c;font-size:.95em;font-weight:700}
+.panel-body{flex:1;overflow-y:auto;padding:10px 12px}
+.panel-section{margin-bottom:12px}
+.panel-section h4{color:#8a7a5a;font-size:.82em;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px;border-bottom:1px solid #1e1b14;padding-bottom:3px}
+
+.act-btn{width:100%;padding:8px 10px;background:#1a1712;border:1px solid #3a3020;border-radius:5px;cursor:pointer;text-align:left;margin-bottom:5px;transition:.15s;font-family:inherit;font-size:.85em;color:#a89a7a}
+.act-btn:hover{border-color:#c9a84c;color:#c9a84c;background:#1e1b14}
+.act-btn:disabled{opacity:.35;cursor:not-allowed}
+.act-btn .act-cost{font-size:.75em;color:#5a4a3a;display:block;margin-top:2px}
+.act-btn.attack-btn{border-color:#5a3030}
+.act-btn.attack-btn:hover{border-color:#cc5555;color:#cc5555}
+.act-btn.diplo-btn{border-color:#3a5a3a}
+.act-btn.diplo-btn:hover{border-color:#5a9a5a;color:#5a9a5a}
+
+.sel-info{font-size:.85em;color:#6a5a3a;font-style:italic;padding:10px 0}
+
+/* Event overlay */
+.overlay-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:100}
+.overlay-bg.active{display:flex}
+.overlay-box{background:linear-gradient(180deg,#221f18,#161310);border:2px solid #c9a84c;border-radius:10px;padding:25px;max-width:520px;width:90%;text-align:center;box-shadow:0 0 60px rgba(0,0,0,.8)}
+.overlay-box h2{color:#c9a84c;font-size:1.2em;margin-bottom:10px}
+.overlay-box .ev-text{color:#9a8a6a;font-size:.92em;line-height:1.6;margin-bottom:12px}
+.ev-quote{border-left:2px solid #5a4a2a;padding:8px 14px;margin:12px 0;text-align:left;font-style:italic;color:#c9a84c;line-height:1.5;font-size:.9em}
+.ev-quote .eq-attr{display:block;font-style:normal;color:#5a4a3a;font-size:.82em;margin-top:4px}
+.ev-insight{background:rgba(50,70,50,.2);border:1px solid #3a5a3a;border-radius:5px;padding:10px;margin:10px 0;text-align:left;font-size:.82em;color:#7aaa7a;line-height:1.5}
+.ev-insight strong{color:#5a9a5a}
+.ev-choices{display:flex;gap:10px;justify-content:center;margin-top:15px;flex-wrap:wrap}
+.ev-btn{padding:9px 18px;background:#1a1712;border:1px solid #5a4a2a;color:#c9a84c;border-radius:5px;cursor:pointer;font-family:inherit;font-size:.88em;transition:.2s}
+.ev-btn:hover{border-color:#c9a84c;background:#252015}
+
+/* Toast */
+#toasts{position:fixed;top:50px;right:15px;z-index:90;display:flex;flex-direction:column;gap:6px;pointer-events:none}
+.toast{width:320px;padding:9px 12px;background:rgba(22,19,16,.95);border:1px solid #2a2218;border-left:3px solid #c9a84c;border-radius:4px;font-size:.82em;line-height:1.4;animation:fadeIn .3s}
+.toast.war{border-left-color:#cc5555}
+.toast.diplo{border-left-color:#5a9a5a}
+.toast.quote{border-left-color:#8a7acc}
+@keyframes fadeIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* Bottom bar */
+.bottom-bar{padding:6px 15px;background:#161310;border-top:1px solid #2a2218;display:flex;align-items:center;gap:15px;font-size:.8em;color:#4a3a2a}
+.bottom-bar strong{color:#6a5a3a}
+
+/* End screen */
+#end-screen{flex-direction:column;align-items:center;justify-content:center;background:rgba(10,8,6,.97)}
+#end-screen h1{font-size:2.8em;margin-bottom:15px}
+#end-screen.victory h1{color:#c9a84c}
+#end-screen.defeat h1{color:#cc5555}
+#end-screen .end-text{color:#7a6a4a;max-width:500px;text-align:center;line-height:1.6;margin-bottom:20px}
+#end-screen .ev-btn{font-size:1em;padding:12px 28px}
+
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#12100d}
+::-webkit-scrollbar-thumb{background:#2a2218;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div id="title-screen" class="screen active">
+  <div class="title-line"></div>
+  <h1>THE PELOPONNESIAN WAR</h1>
+  <h2>431 — 404 BC</h2>
+  <div class="title-line"></div>
+  <div class="title-quote">
+    "The strong do what they can and the weak suffer what they must."
+    <span>— Thucydides, The Melian Dialogue</span>
+  </div>
+  <div class="pick-row">
+    <div class="pick-btn" onclick="pickFaction('athens')">
+      <div class="picon">🦉</div>
+      <h3>ATHENS</h3>
+      <p>Masters of trade, culture, and naval power. Rule the seas.</p>
+      <p style="color:#5a8a5a;margin-top:6px;font-size:.8em">+ Gold &bull; + Navy &bull; + Diplomacy</p>
+    </div>
+    <div class="pick-btn" onclick="pickFaction('sparta')">
+      <div class="picon">🛡️</div>
+      <h3>SPARTA</h3>
+      <p>Supreme land power. Unmatched discipline and military prowess.</p>
+      <p style="color:#5a8a5a;margin-top:6px;font-size:.8em">+ Army &bull; + Manpower &bull; + Morale</p>
+    </div>
+  </div>
+</div>
+
+<!-- LEADER SELECT -->
+<div id="leader-screen" class="screen">
+  <h2>Choose Your Strategos</h2>
+  <div class="sub">Each leader embodies a different theory of power. Hawks and doves, realists and idealists — your choice shapes your strategy.</div>
+  <div class="leader-row" id="leader-row"></div>
+  <div style="margin-top:15px;max-width:450px;text-align:center">
+    <div class="ev-insight">
+      <strong>IR Realism:</strong> Leaders matter, but the anarchic structure of the international system constrains all choices. Even the wisest statesman must navigate the security dilemma.
+    </div>
+  </div>
+</div>
+
+<!-- GAME -->
+<div id="game-screen" class="screen">
+  <div class="top-bar">
+    <div class="res">🪙 <span class="rv" id="r-gold">0</span><span class="rr" id="rr-gold"></span></div>
+    <div class="res">🌾 <span class="rv" id="r-food">0</span><span class="rr" id="rr-food"></span></div>
+    <div class="res">⚔️ <span class="rv" id="r-mp">0</span><span class="rr" id="rr-mp"></span></div>
+    <div class="bar-div"></div>
+    <span id="leader-label" style="color:#c9a84c;font-size:.85em"></span>
+    <button class="top-btn" id="ability-btn" onclick="useAbility()">Ability</button>
+    <div class="bar-div"></div>
+    <button class="top-btn end-turn-btn" onclick="endTurn()">⏭ END TURN</button>
+    <span class="yr" id="yr">431 BC</span>
+  </div>
+
+  <div class="game-main">
+    <div class="map-col" id="map-col"></div>
+    <div class="right-col">
+      <div class="panel-header" id="panel-title">Select a City</div>
+      <div class="panel-body" id="panel-body">
+        <div class="sel-info">Click any city on the left to see details and available actions.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom-bar">
+    <span>Click a city → perform actions → <strong>END TURN</strong> when done</span>
+    <span style="margin-left:auto" id="turn-label">Turn 1</span>
+  </div>
+</div>
+
+<!-- END -->
+<div id="end-screen" class="screen">
+  <h1 id="end-title">VICTORY</h1>
+  <div class="end-text" id="end-text"></div>
+  <div class="title-quote" id="end-quote" style="margin-bottom:20px"></div>
+  <button class="ev-btn" onclick="location.reload()">Play Again</button>
+</div>
+
+<!-- EVENT OVERLAY -->
+<div class="overlay-bg" id="overlay">
+  <div class="overlay-box">
+    <h2 id="ov-title"></h2>
+    <div class="ev-text" id="ov-text"></div>
+    <div class="ev-quote" id="ov-quote" style="display:none">
+      <span id="ov-qtxt"></span>
+      <span class="eq-attr" id="ov-qattr"></span>
+    </div>
+    <div class="ev-insight" id="ov-insight" style="display:none"></div>
+    <div class="ev-choices" id="ov-choices"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// =====================================================================
+// DATA
+// =====================================================================
+var CITIES = [
+  {id:'athens',  name:'Athens',   startFaction:'athens', pop:80, bld:['harbor','walls','agora'], cap:true,  desc:'Heart of the Delian League. Naval and cultural superpower.'},
+  {id:'sparta',  name:'Sparta',   startFaction:'sparta', pop:60, bld:['barracks','walls'],       cap:true,  desc:'The martial city. Breeds warriors from birth.'},
+  {id:'corinth', name:'Corinth',  startFaction:'sparta', pop:45, bld:['harbor','agora'],                    desc:'Wealthy trade hub and key Spartan ally.'},
+  {id:'thebes',  name:'Thebes',   startFaction:'neutral',pop:40, bld:['barracks'],                          desc:'Powerful Boeotian city, potential kingmaker.'},
+  {id:'argos',   name:'Argos',    startFaction:'neutral',pop:35, bld:['walls'],                             desc:'Ancient rival of Sparta, leaning Athenian.'},
+  {id:'megara',  name:'Megara',   startFaction:'neutral',pop:20, bld:['agora'],                             desc:'Contested border city between Athens and Corinth.'},
+  {id:'melos',   name:'Melos',    startFaction:'neutral',pop:15, bld:['harbor'],                            desc:'Small neutral island. Famous for its defiance.'},
+  {id:'mytilene',name:'Mytilene', startFaction:'athens', pop:25, bld:['harbor'],                            desc:'Tributary island of Athens on Lesbos.'},
+  {id:'potidaea',name:'Potidaea', startFaction:'neutral',pop:20, bld:['walls'],                             desc:'Northern colony, a flashpoint of the war.'},
+  {id:'syracuse',name:'Syracuse', startFaction:'neutral',pop:55, bld:['harbor','walls','barracks'],          desc:'Mighty Sicilian city. A prize — or a grave.'},
+  {id:'corcyra', name:'Corcyra',  startFaction:'athens', pop:30, bld:['harbor'],                            desc:'Western naval ally of Athens.'},
+  {id:'pylos',   name:'Pylos',    startFaction:'neutral',pop:10, bld:[],                                    desc:'Barren coast with strategic value near Sparta.'},
+];
+
+var CONNECTIONS = {
+  athens:['corinth','megara','thebes','mytilene','melos','corcyra'],
+  sparta:['corinth','argos','pylos','melos'],
+  corinth:['athens','sparta','megara','argos','corcyra'],
+  thebes:['athens','megara','potidaea'],
+  argos:['sparta','corinth','melos'],
+  megara:['athens','corinth','thebes'],
+  melos:['athens','sparta','argos','syracuse'],
+  mytilene:['athens','potidaea'],
+  potidaea:['thebes','mytilene'],
+  syracuse:['melos','corcyra'],
+  corcyra:['athens','corinth','syracuse','pylos'],
+  pylos:['sparta','corcyra'],
+};
+
+var UNITS = {
+  hoplite:{name:'Hoplite', icon:'🛡️',atk:12,def:15,cost:{gold:60,food:30,mp:20},desc:'Heavy infantry. Strong in sieges.'},
+  peltast:{name:'Peltast', icon:'🏹',atk:10,def:6, cost:{gold:35,food:20,mp:15},desc:'Skirmishers. Cheap and fast.'},
+  cavalry:{name:'Cavalry', icon:'🐎',atk:14,def:8, cost:{gold:90,food:40,mp:15},desc:'Shock troops. Devastating charges.'},
+  trireme:{name:'Trireme', icon:'⛵',atk:18,def:10,cost:{gold:120,food:50,mp:30},desc:'Warship. Required for sea control.'},
+};
+
+var LEADERS = {
+  pericles:  {name:'Pericles',  fact:'athens',icon:'👤',desc:'+30% defense, +20% gold',      ability:'Fortify: +5 garrison all cities',atkMod:0,defMod:.3,goldMod:.2,diploMod:.1},
+  cleon:     {name:'Cleon',     fact:'athens',icon:'📢',desc:'+40% attack, -20% diplomacy',   ability:'Rally: +3 troops everywhere',    atkMod:.4,defMod:0,goldMod:0,diploMod:-.2},
+  alcibiades:{name:'Alcibiades',fact:'both',  icon:'🎭',desc:'+25% to everything',            ability:'Defect: convert a neutral city', atkMod:.25,defMod:.25,goldMod:.25,diploMod:.25},
+  nicias:    {name:'Nicias',    fact:'athens',icon:'🕊️',desc:'+20% def, peace treaties',      ability:'Peace: +150g +100f, heal all',   atkMod:-.1,defMod:.2,goldMod:.1,diploMod:.3},
+  brasidas:  {name:'Brasidas',  fact:'sparta',icon:'⚔️',desc:'+35% attack, aggressive',       ability:'Blitz: free hoplites each city', atkMod:.35,defMod:.1,goldMod:0,diploMod:0},
+  lysander:  {name:'Lysander',  fact:'sparta',icon:'⚓',desc:'+30% naval, cunning diplomat',   ability:'Fleet: free triremes at harbors', atkMod:.15,defMod:0,goldMod:.1,diploMod:.2},
+};
+
+var QUOTES = [
+  {text:"Right, as the world goes, is only in question between equals in power, while the strong do what they can and the weak suffer what they must.", attr:"Thucydides — The Melian Dialogue",on:'siege'},
+  {text:"Those who succeed best are moderate toward inferiors, make terms with superiors, and do not yield to equals.",attr:"Thucydides",on:'diplo'},
+  {text:"The nation that makes a great distinction between its scholars and its warriors will have its thinking done by cowards and its fighting done by fools.",attr:"Thucydides",on:'battle'},
+  {text:"We secure our friends not by accepting favours but by doing them.",attr:"Pericles — Funeral Oration",on:'ally'},
+  {text:"The secret of happiness is freedom, and the secret of freedom is courage.",attr:"Pericles — Funeral Oration",on:'defend'},
+  {text:"Peace is an armistice in a war that is continuously going on.",attr:"Thucydides",on:'peace'},
+  {text:"War is a stern teacher.",attr:"Thucydides",on:'loss'},
+  {text:"It is a general rule of human nature that people despise those who treat them well and look up to those who make no concessions.",attr:"Thucydides",on:'tribute'},
+  {text:"The growth of the power of Athens, and the alarm which this inspired in Sparta, made war inevitable.",attr:"Thucydides",on:'start'},
+  {text:"Men naturally despise those who court them, but respect those who do not give way to them.",attr:"Thucydides",on:'resist'},
+  {text:"Hope, danger's comforter, may be indulged in by those who have abundant resources.",attr:"Thucydides",on:'warn'},
+  {text:"In practice we always base our preparations against an enemy on the assumption that his plans are good.",attr:"Thucydides",on:'ai'},
+];
+
+var EVENTS = [
+  {id:'plague',yr:429,cond:function(g){return g.player==='athens'},name:'The Plague of Athens',
+   text:'A devastating plague sweeps through Athens behind the Long Walls. Thousands perish, including many soldiers.',
+   insight:'<strong>IR Realism:</strong> Even the mightiest power is vulnerable to internal threats. Power is never absolute — a lesson in the limits of hegemony.',
+   choices:[{label:'Quarantine the City (-100g, -40mp)',fn:function(g){g.res.gold-=100;g.res.mp-=40;toast('Plague contained at great cost','war')}},
+            {label:'Endure It (-80mp, -60f)',fn:function(g){g.res.mp-=80;g.res.food-=60;toast('The plague ravages Athens','war')}}]},
+  {id:'mytilene_revolt',yr:428,cond:function(g){return g.player==='athens'},name:'The Revolt of Mytilene',
+   text:'Your tributary Mytilene revolts! The assembly debates: Cleon demands execution of all men; Diodotus argues for mercy.',
+   insight:'<strong>IR Realism:</strong> How hegemons respond to rebellion shapes their reputation. Brutal suppression deters but breeds resentment; mercy preserves but may invite further revolt.',
+   choices:[{label:"Cleon's Way: Crush Them",fn:function(g){var c=city('mytilene');if(c){c.garrison=Math.max(3,c.garrison-5)}g.res.mp-=20;toast('Mytilene brutally suppressed','war')}},
+            {label:"Diodotus' Way: Show Mercy",fn:function(g){var c=city('mytilene');if(c)c.loyalty=70;toast('Mercy preserves some loyalty','diplo')}}]},
+  {id:'pylos',yr:425,cond:function(g){return true},name:'The Pylos Campaign',
+   text:"A daring opportunity: fortify Pylos on Sparta's coast to raid Laconian territory and shelter escaped helots.",
+   quoteIdx:4,
+   insight:"<strong>IR Realism:</strong> Strategic positioning can offset raw power. Athens' naval superiority enables asymmetric warfare against Spartan land dominance.",
+   choices:[{label:'Fortify Pylos',fn:function(g){var c=city('pylos');if(c&&g.player==='athens'){c.faction='athens';c.garrison=10;toast('Pylos secured!','war')}else{g.res.gold+=60;toast('Strategic gain','diplo')}}},
+            {label:'Focus Elsewhere (+80g)',fn:function(g){g.res.gold+=80;toast('Resources conserved','diplo')}}]},
+  {id:'peace_nicias',yr:421,cond:function(g){return true},name:'The Peace of Nicias',
+   text:'After years of exhausting war, both sides agree to a fifty-year peace. But can it hold in an anarchic world?',
+   quoteIdx:5,
+   insight:'<strong>IR Realism:</strong> Peace treaties in anarchy are only as strong as the power balance that created them. Without a world government to enforce them, treaties are merely pauses for rearmament.',
+   choices:[{label:'Accept Peace (+150g, +100f, +50mp)',fn:function(g){g.res.gold+=150;g.res.food+=100;g.res.mp+=50;toast('A fragile peace descends','diplo')}},
+            {label:'Reject — Press the Advantage',fn:function(g){g.res.mp+=30;toast('The war rages on!','war')}}]},
+  {id:'melos',yr:416,cond:function(g){return g.player==='athens'},name:'The Melian Dialogue',
+   text:'Neutral Melos refuses to submit to Athenian power. Your envoys deliver the ultimatum: submit or be destroyed. The Melians plead for justice.',
+   quoteIdx:0,
+   insight:'<strong>IR Realism:</strong> THE foundational text of IR Realism. In international anarchy, moral arguments hold no weight against raw power. Justice exists only between equals in power.',
+   choices:[{label:'Subjugate by Force',fn:function(g){var c=city('melos');if(c){c.faction='athens';c.loyalty=15;c.pop=Math.floor(c.pop*0.5)}toast('Melos conquered. Men killed, women enslaved.','war')}},
+            {label:'Accept Their Neutrality',fn:function(g){g.diploBonus+=0.1;toast('Unexpected restraint improves reputation','diplo')}}]},
+  {id:'sicily',yr:415,cond:function(g){return true},name:'The Sicilian Expedition',
+   text:'Alcibiades passionately argues for a massive expedition against Syracuse. The rewards could be immense — or the losses catastrophic.',
+   insight:'<strong>IR Realism:</strong> Imperial overstretch is the great danger of hegemonic powers. Offensive realists say maximize power; defensive realists warn that overexpansion provokes balancing coalitions and exhaustion.',
+   choices:[{label:'Launch the Expedition (Risky!)',fn:function(g){g.res.gold-=200;g.res.mp-=80;g.res.food-=100;
+     if(Math.random()<0.35){var c=city('syracuse');if(c)c.faction=g.player;toast('Syracuse falls! Costly victory!','war')}
+     else toast('DISASTER! The expedition is destroyed!','war')}},
+            {label:'Decline (+50g, stay cautious)',fn:function(g){g.res.gold+=50;toast('Prudence prevails','diplo')}}]},
+];
+
+// =====================================================================
+// STATE
+// =====================================================================
+var G = null;
+var selectedCityId = null;
+var firedEvents = {};
+var abilityCooldown = 0;
+
+function city(id){ return G ? G.cities.find(function(c){return c.id===id}) : null; }
+
+function newGame(faction, leader) {
+  G = {
+    player: faction,
+    enemy: faction==='athens'?'sparta':'athens',
+    leader: JSON.parse(JSON.stringify(leader)),
+    year: 431,
+    turn: 1,
+    res: faction==='athens' ? {gold:600,food:400,mp:200} : {gold:400,food:400,mp:350},
+    rates: {gold:0,food:0,mp:0},
+    cities: CITIES.map(function(c){return {
+      id:c.id, name:c.name, faction:c.startFaction,
+      garrison: c.cap ? 30 : (c.startFaction==='neutral' ? 8 : 18),
+      loyalty: c.startFaction==='neutral' ? 50 : 85,
+      units: [], hp: 100, pop:c.pop, bld:c.bld.slice(), cap:!!c.cap, desc:c.desc
+    }}),
+    diploBonus: 0,
+    over: false,
+  };
+  // Starting armies
+  G.cities.forEach(function(c){
+    if(c.faction===faction){
+      c.units.push({type:'hoplite',count:10});
+      if(c.bld.indexOf('harbor')>=0) c.units.push({type:'trireme',count:5});
+    } else if(c.faction===G.enemy){
+      c.units.push({type:'hoplite',count:8});
+      if(c.bld.indexOf('harbor')>=0) c.units.push({type:'trireme',count:4});
+    }
+  });
+  firedEvents = {};
+  abilityCooldown = 0;
+  selectedCityId = null;
+  calcRates();
+}
+
+function calcRates(){
+  var g=0,f=0,m=0;
+  G.cities.forEach(function(c){
+    if(c.faction!==G.player) return;
+    g += c.bld.indexOf('agora')>=0 ? 12 : 5;
+    g += c.bld.indexOf('harbor')>=0 ? 8 : 0;
+    f += 6;
+    m += Math.floor(c.pop/15);
+  });
+  if(G.leader.goldMod) g = Math.floor(g*(1+G.leader.goldMod));
+  var upkeep = 0;
+  G.cities.forEach(function(c){ c.units.forEach(function(u){ if(c.faction===G.player) upkeep += u.count; }); });
+  f -= Math.floor(upkeep * 0.5);
+  G.rates = {gold:g, food:f, mp:m};
+}
+
+// =====================================================================
+// SCREENS
+// =====================================================================
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  document.getElementById(id).classList.add('active');
+}
+
+function pickFaction(f){
+  showScreen('leader-screen');
+  var row = document.getElementById('leader-row');
+  row.innerHTML = '';
+  Object.keys(LEADERS).forEach(function(k){
+    var L = LEADERS[k];
+    if(L.fact !== f && L.fact !== 'both') return;
+    var d = document.createElement('div');
+    d.className = 'leader-btn';
+    d.innerHTML = '<div class="licon">'+L.icon+'</div><h4>'+L.name+'</h4><p>'+L.desc+'</p><p style="color:#4a6a4a;margin-top:4px;font-size:.7em">Ability: '+L.ability+'</p>';
+    d.onclick = (function(leader){
+      return function(){
+        newGame(f, leader);
+        showScreen('game-screen');
+        renderAll();
+        showQuote('start');
+      };
+    })(L);
+    row.appendChild(d);
+  });
+}
+
+// =====================================================================
+// RENDER
+// =====================================================================
+function renderAll(){
+  if(!G) return;
+  calcRates();
+  renderTopBar();
+  renderMap();
+  renderPanel();
+}
+
+function renderTopBar(){
+  document.getElementById('r-gold').textContent = Math.floor(G.res.gold);
+  document.getElementById('r-food').textContent = Math.floor(G.res.food);
+  document.getElementById('r-mp').textContent = Math.floor(G.res.mp);
+  document.getElementById('rr-gold').textContent = '('+(G.rates.gold>=0?'+':'')+G.rates.gold+')';
+  document.getElementById('rr-food').textContent = '('+(G.rates.food>=0?'+':'')+G.rates.food+')';
+  document.getElementById('rr-mp').textContent = '('+(G.rates.mp>=0?'+':'')+G.rates.mp+')';
+  document.getElementById('yr').textContent = G.year + ' BC';
+  document.getElementById('leader-label').textContent = G.leader.icon + ' ' + G.leader.name;
+  document.getElementById('turn-label').textContent = 'Turn ' + G.turn;
+  var ab = document.getElementById('ability-btn');
+  ab.textContent = abilityCooldown > 0 ? 'Ability ('+abilityCooldown+'t)' : '⚡ ' + G.leader.ability.split(':')[0];
+  ab.disabled = abilityCooldown > 0;
+}
+
+function renderMap(){
+  var col = document.getElementById('map-col');
+  var mine = G.cities.filter(function(c){return c.faction===G.player});
+  var neut = G.cities.filter(function(c){return c.faction==='neutral'});
+  var enem = G.cities.filter(function(c){return c.faction===G.enemy});
+
+  var html = '';
+  function renderGroup(title, cities){
+    if(cities.length===0) return '';
+    var h = '<h3>'+title+' ('+cities.length+')</h3>';
+    cities.forEach(function(c){
+      var sel = selectedCityId===c.id ? 'selected' : '';
+      var fc = c.faction===G.player ? 'friendly' : c.faction===G.enemy ? 'enemy' : 'neutral';
+      var fl = c.faction==='athens'?'f-athens':c.faction==='sparta'?'f-sparta':'f-neutral';
+      var flabel = c.faction==='athens'?'Athens':c.faction==='sparta'?'Sparta':'Neutral';
+      h += '<div class="city-card '+fc+' '+sel+'" onclick="selectCity(\''+c.id+'\')">';
+      h += '<div class="city-top"><span class="city-name">'+(c.cap?'★ ':'')+c.name+'</span>';
+      h += '<span class="city-faction '+fl+'">'+flabel+'</span></div>';
+      h += '<div class="city-stats"><span>🏛 Pop '+c.pop+'</span><span>⚔️ Garrison '+c.garrison+'</span><span>❤️ '+c.hp+'%</span></div>';
+      if(c.units.length > 0){
+        h += '<div class="city-units">';
+        c.units.forEach(function(u){
+          var ut = UNITS[u.type];
+          var cls = c.faction===G.player ? 'player-unit' : c.faction===G.enemy ? 'enemy-unit' : '';
+          h += '<span class="unit-badge '+cls+'">'+ut.icon+' '+ut.name+' x'+u.count+'</span>';
+        });
+        h += '</div>';
+      }
+      h += '<div class="city-desc">'+c.desc+'</div></div>';
+    });
+    return h;
+  }
+
+  html += renderGroup('🏛️ Your Cities', mine);
+  html += renderGroup('⚖️ Neutral Cities', neut);
+  html += renderGroup('⚔️ Enemy Cities', enem);
+  col.innerHTML = html;
+}
+
+function renderPanel(){
+  var title = document.getElementById('panel-title');
+  var body = document.getElementById('panel-body');
+
+  if(!selectedCityId){
+    title.textContent = 'Select a City';
+    body.innerHTML = '<div class="sel-info">Click any city on the left to see available actions.</div>';
+    return;
+  }
+
+  var c = city(selectedCityId);
+  if(!c){ selectedCityId=null; renderPanel(); return; }
+
+  var isMine = c.faction === G.player;
+  var isEnemy = c.faction === G.enemy;
+  var isNeutral = c.faction === 'neutral';
+  var fl = c.faction==='athens'?'Athenian':c.faction==='sparta'?'Spartan':'Neutral';
+
+  title.textContent = c.name + ' (' + fl + ')';
+  var h = '';
+
+  // City info
+  h += '<div class="panel-section"><h4>City Info</h4>';
+  h += '<div style="font-size:.85em;color:#7a6a4a;line-height:1.6">';
+  h += 'Population: '+c.pop+' | Garrison: '+c.garrison+' | HP: '+c.hp+'%<br>';
+  h += 'Buildings: '+(c.bld.length>0?c.bld.join(', '):'None')+(c.cap?' | ★ Capital':'');
+  h += '</div></div>';
+
+  // Units
+  if(c.units.length > 0){
+    h += '<div class="panel-section"><h4>Units Stationed</h4>';
+    c.units.forEach(function(u){
+      var ut = UNITS[u.type];
+      h += '<div style="font-size:.85em;margin:3px 0;color:#8a7a5a">'+ut.icon+' '+ut.name+' x'+u.count+' — ATK:'+ut.atk+' DEF:'+ut.def+'</div>';
+    });
+    h += '</div>';
+  }
+
+  // PLAYER CITY ACTIONS
+  if(isMine){
+    h += '<div class="panel-section"><h4>🔨 Train Units</h4>';
+    Object.keys(UNITS).forEach(function(k){
+      var ut = UNITS[k];
+      var canBuild = ut.name!=='Trireme' || c.bld.indexOf('harbor')>=0;
+      var afford = G.res.gold>=ut.cost.gold && G.res.food>=ut.cost.food && G.res.mp>=ut.cost.mp;
+      h += '<button class="act-btn" '+((!canBuild||!afford)?'disabled':'')+' onclick="trainUnit(\''+c.id+'\',\''+k+'\')">';
+      h += ut.icon+' Train '+ut.name;
+      h += '<span class="act-cost">'+ut.cost.gold+'g '+ut.cost.food+'f '+ut.cost.mp+'mp'+(!canBuild?' — needs harbor':'')+'</span>';
+      h += '</button>';
+    });
+    h += '</div>';
+
+    if(c.units.length > 0){
+      h += '<div class="panel-section"><h4>📍 Send Units To...</h4>';
+      var conns = CONNECTIONS[c.id] || [];
+      conns.forEach(function(tid){
+        var tc = city(tid);
+        if(!tc) return;
+        var isAtk = tc.faction !== G.player;
+        var fl2 = tc.faction==='athens'?'Athens':tc.faction==='sparta'?'Sparta':'Neutral';
+        h += '<button class="act-btn '+(isAtk?'attack-btn':'')+'" onclick="sendUnits(\''+c.id+'\',\''+tid+'\')">';
+        h += (isAtk?'⚔️ Attack':'📍 Move to')+' '+tc.name;
+        h += ' <span style="font-size:.75em;color:#5a4a3a">('+fl2+', garrison '+tc.garrison+')</span>';
+        h += '</button>';
+      });
+      h += '</div>';
+    }
+  }
+
+  // NEUTRAL CITY DIPLOMACY
+  if(isNeutral){
+    h += '<div class="panel-section"><h4>📜 Diplomacy</h4>';
+    h += '<div style="font-size:.82em;color:#6a5a3a;margin-bottom:6px">Loyalty: '+c.loyalty+'/100 — at 80+ they join you.</div>';
+    h += '<button class="act-btn diplo-btn" '+(G.res.gold<50?'disabled':'')+' onclick="sendEnvoy(\''+c.id+'\')">';
+    h += '🕊️ Send Envoy (+influence)<span class="act-cost">50 gold</span></button>';
+    h += '<button class="act-btn diplo-btn" onclick="demandSubmit(\''+c.id+'\')">';
+    h += '👊 Demand Submission<span class="act-cost">Requires nearby military power</span></button>';
+    h += '<div class="ev-insight" style="margin-top:8px;font-size:.78em">';
+    h += '<strong>Realism:</strong> Small states bandwagon with the stronger power. Build influence through gold (soft power) or military presence (hard power).';
+    h += '</div></div>';
+
+    // Attack option from adjacent friendly cities
+    var conns2 = CONNECTIONS[c.id] || [];
+    var friendlyConns = conns2.filter(function(cid){ var fc=city(cid); return fc && fc.faction===G.player && fc.units.length>0; });
+    if(friendlyConns.length>0){
+      h += '<div class="panel-section"><h4>⚔️ Or Conquer By Force</h4>';
+      friendlyConns.forEach(function(fid){
+        var fc = city(fid);
+        h += '<button class="act-btn attack-btn" onclick="sendUnits(\''+fid+'\',\''+c.id+'\')">⚔️ Attack from '+fc.name+'</button>';
+      });
+      h += '</div>';
+    }
+  }
+
+  // ENEMY CITY
+  if(isEnemy){
+    h += '<div class="panel-section"><h4>⚔️ Enemy Territory</h4>';
+    h += '<div style="font-size:.85em;color:#7a5a5a;line-height:1.5">Send units from an adjacent friendly city to attack.</div>';
+    var conns3 = CONNECTIONS[c.id] || [];
+    var friendlyConns2 = conns3.filter(function(cid){ var fc=city(cid); return fc && fc.faction===G.player && fc.units.length>0; });
+    if(friendlyConns2.length>0){
+      h += '<div style="margin-top:6px">';
+      friendlyConns2.forEach(function(fid){
+        var fc = city(fid);
+        h += '<button class="act-btn attack-btn" onclick="sendUnits(\''+fid+'\',\''+c.id+'\')">⚔️ Attack from '+fc.name+'</button>';
+      });
+      h += '</div>';
+    } else {
+      h += '<div style="font-size:.82em;color:#5a4a3a;margin-top:6px;font-style:italic">No adjacent cities with troops available.</div>';
+    }
+    h += '</div>';
+  }
+
+  body.innerHTML = h;
+}
+
+// =====================================================================
+// ACTIONS
+// =====================================================================
+function selectCity(id){
+  selectedCityId = id;
+  renderAll();
+}
+
+function trainUnit(cityId, unitType){
+  var c = city(cityId);
+  var ut = UNITS[unitType];
+  if(!c || c.faction!==G.player) return;
+  if(G.res.gold<ut.cost.gold || G.res.food<ut.cost.food || G.res.mp<ut.cost.mp){
+    toast('Insufficient resources!','war'); return;
+  }
+  if(ut.name==='Trireme' && c.bld.indexOf('harbor')<0){
+    toast('Need a harbor!','war'); return;
+  }
+  G.res.gold -= ut.cost.gold;
+  G.res.food -= ut.cost.food;
+  G.res.mp -= ut.cost.mp;
+
+  var existing = null;
+  for(var i=0;i<c.units.length;i++){ if(c.units[i].type===unitType){ existing=c.units[i]; break; } }
+  if(existing) existing.count += 5;
+  else c.units.push({type:unitType, count:5});
+
+  toast(ut.name+'s trained at '+c.name+'!','diplo');
+  renderAll();
+}
+
+function sendUnits(fromId, toId){
+  var from = city(fromId);
+  var to = city(toId);
+  if(!from || !to || from.faction !== G.player || from.units.length === 0) return;
+  if((CONNECTIONS[fromId]||[]).indexOf(toId)<0){ toast('Not connected!','war'); return; }
+
+  var movingUnits = from.units.splice(0);
+
+  if(to.faction === G.player){
+    movingUnits.forEach(function(mu){
+      var existing = null;
+      for(var i=0;i<to.units.length;i++){ if(to.units[i].type===mu.type){existing=to.units[i];break;} }
+      if(existing) existing.count += mu.count;
+      else to.units.push({type:mu.type,count:mu.count});
+    });
+    toast('Units moved to '+to.name,'diplo');
+  } else {
+    resolveBattle(movingUnits, to, from);
+  }
+  renderAll();
+}
+
+function resolveBattle(attackers, defCity, fromCity){
+  var atkPow = 0;
+  attackers.forEach(function(u){ atkPow += UNITS[u.type].atk * u.count; });
+  atkPow *= (1 + (G.leader.atkMod||0));
+
+  var defPow = defCity.garrison * 10;
+  if(defCity.faction === G.enemy) defPow *= 1.15;
+  if(defCity.bld.indexOf('walls')>=0) defPow *= 1.5;
+  defCity.units.forEach(function(u){ defPow += UNITS[u.type].def * u.count; });
+
+  var atkRoll = atkPow * (0.7 + Math.random()*0.6);
+  var defRoll = defPow * (0.7 + Math.random()*0.6);
+
+  showQuote('battle');
+
+  if(atkRoll > defRoll){
+    var lossRatio = defRoll / atkRoll;
+    attackers.forEach(function(u){ u.count = Math.max(1, Math.ceil(u.count * (1 - lossRatio*0.5))); });
+    defCity.faction = G.player;
+    defCity.garrison = Math.max(3, Math.floor(defCity.garrison * 0.3));
+    defCity.units = attackers;
+    defCity.loyalty = 30;
+    defCity.hp = Math.max(20, defCity.hp - 30);
+    toast('⚔️ VICTORY! '+defCity.name+' captured!','war');
+    showQuote('siege');
+  } else {
+    attackers.forEach(function(u){ u.count = Math.max(0, Math.ceil(u.count * 0.4)); });
+    var survivors = attackers.filter(function(u){return u.count>0});
+    defCity.garrison = Math.max(2, defCity.garrison - Math.ceil(defCity.garrison * (atkRoll/defRoll) * 0.3));
+    defCity.hp = Math.max(10, defCity.hp - 15);
+    survivors.forEach(function(su){
+      var existing = null;
+      for(var i=0;i<fromCity.units.length;i++){ if(fromCity.units[i].type===su.type){existing=fromCity.units[i];break;} }
+      if(existing) existing.count += su.count;
+      else fromCity.units.push({type:su.type,count:su.count});
+    });
+    toast('Attack on '+defCity.name+' FAILED! Retreating...','war');
+    showQuote('loss');
+  }
+}
+
+function sendEnvoy(cityId){
+  var c = city(cityId);
+  if(!c || G.res.gold < 50){ toast('Need 50 gold!','war'); return; }
+  G.res.gold -= 50;
+  var bonus = Math.floor(15 * (1 + (G.leader.diploMod||0) + G.diploBonus));
+  c.loyalty += bonus;
+  toast('Envoy to '+c.name+': loyalty +'+bonus,'diplo');
+  showQuote('diplo');
+  if(c.loyalty >= 80){
+    c.faction = G.player;
+    c.loyalty = 60;
+    toast('🎉 '+c.name+' joins your alliance!','diplo');
+    showQuote('ally');
+  }
+  renderAll();
+}
+
+function demandSubmit(cityId){
+  var c = city(cityId);
+  if(!c) return;
+  var conns = CONNECTIONS[cityId]||[];
+  var power = 0;
+  conns.forEach(function(cid){
+    var nc = city(cid);
+    if(nc && nc.faction===G.player){
+      power += nc.garrison;
+      nc.units.forEach(function(u){ power += u.count * 2; });
+    }
+  });
+  if(power > 25){
+    c.loyalty += 20;
+    c.garrison = Math.max(2, c.garrison - 3);
+    toast(c.name+' trembles! Loyalty +20','diplo');
+    showQuote('tribute');
+    if(c.loyalty >= 80){
+      c.faction = G.player;
+      c.loyalty = 55;
+      toast('🎉 '+c.name+' submits to your power!','diplo');
+    }
+  } else {
+    toast(c.name+' refuses! Need more troops nearby.','war');
+    showQuote('resist');
+  }
+  renderAll();
+}
+
+// =====================================================================
+// LEADER ABILITY
+// =====================================================================
+function useAbility(){
+  if(!G || abilityCooldown > 0) return;
+  abilityCooldown = 5;
+  var L = G.leader;
+  if(L.name==='Pericles'){
+    G.cities.forEach(function(c){if(c.faction===G.player){c.garrison+=5;c.hp=Math.min(100,c.hp+20);}});
+    toast('Pericles: All cities fortified! +5 garrison','diplo');
+  } else if(L.name==='Cleon'){
+    G.cities.forEach(function(c){c.units.forEach(function(u){if(c.faction===G.player)u.count+=3;});});
+    toast("Cleon: Rally! +3 troops to all units!",'war');
+  } else if(L.name==='Alcibiades'){
+    var neutrals = G.cities.filter(function(c){return c.faction==='neutral'});
+    if(neutrals.length>0){
+      var t = neutrals[Math.floor(Math.random()*neutrals.length)];
+      t.faction = G.player; t.loyalty = 45;
+      toast('Alcibiades wins over '+t.name+'!','diplo');
+    } else toast('No neutral cities to convert!','war');
+  } else if(L.name==='Nicias'){
+    G.res.gold+=150; G.res.food+=100;
+    G.cities.forEach(function(c){if(c.faction===G.player)c.hp=100;});
+    toast('Nicias: Peace! +150g, +100f, cities healed','diplo');
+  } else if(L.name==='Brasidas'){
+    G.cities.forEach(function(c){if(c.faction===G.player)c.units.push({type:'hoplite',count:5});});
+    toast('Brasidas: Blitz! Free hoplites everywhere!','war');
+  } else if(L.name==='Lysander'){
+    var count = 0;
+    G.cities.forEach(function(c){if(c.faction===G.player && c.bld.indexOf('harbor')>=0){c.units.push({type:'trireme',count:4});count++;}});
+    toast('Lysander: Fleet! '+count+' free trireme groups!','war');
+  }
+  renderAll();
+}
+
+// =====================================================================
+// END TURN
+// =====================================================================
+function endTurn(){
+  if(!G || G.over) return;
+  G.turn++;
+  G.year = 431 - Math.floor((G.turn-1)/4);
+
+  calcRates();
+  G.res.gold += G.rates.gold;
+  G.res.food += G.rates.food;
+  G.res.mp += G.rates.mp;
+  G.res.gold = Math.max(0, G.res.gold);
+  G.res.food = Math.max(0, G.res.food);
+  G.res.mp = Math.max(0, G.res.mp);
+  if(G.res.food <= 0){ G.res.mp -= 10; toast('Famine! Manpower declining!','war'); }
+
+  if(abilityCooldown > 0) abilityCooldown--;
+
+  G.cities.forEach(function(c){
+    if(c.faction===G.player || c.faction===G.enemy){
+      if(c.garrison < 15) c.garrison++;
+      c.hp = Math.min(100, c.hp + 3);
+    }
+    if(c.faction==='neutral') c.loyalty = Math.max(30, c.loyalty - 2);
+  });
+
+  aiTurn();
+  checkEvents();
+  if(G.turn % 5 === 0) showQuote(null);
+  checkVictory();
+  renderAll();
+}
+
+// =====================================================================
+// AI
+// =====================================================================
+function aiTurn(){
+  var aiF = G.enemy;
+  var aiCities = G.cities.filter(function(c){return c.faction===aiF});
+
+  aiCities.forEach(function(c){
+    if(Math.random() < 0.6){
+      var type = Math.random()<0.6 ? 'hoplite' : (c.bld.indexOf('harbor')>=0 && Math.random()<0.4 ? 'trireme' : 'peltast');
+      var existing = null;
+      for(var i=0;i<c.units.length;i++){if(c.units[i].type===type){existing=c.units[i];break;}}
+      if(existing) existing.count += 3;
+      else c.units.push({type:type, count:3});
+    }
+  });
+
+  aiCities.forEach(function(c){
+    if(c.units.length === 0 || Math.random() > 0.35) return;
+    var totalCount = 0;
+    c.units.forEach(function(u){totalCount+=u.count});
+    if(totalCount < 8) return;
+
+    var conns = CONNECTIONS[c.id]||[];
+    var targets = conns.map(function(tid){return city(tid)}).filter(function(tc){return tc && tc.faction===G.player});
+    targets.sort(function(a,b){return a.garrison-b.garrison});
+
+    if(targets.length > 0){
+      var target = targets[0];
+      var attackers = c.units.splice(0);
+      var atkPow = 0;
+      attackers.forEach(function(u){ atkPow += UNITS[u.type].atk * u.count; });
+      var defPow = target.garrison * 10 + (target.bld.indexOf('walls')>=0?target.garrison*5:0);
+      target.units.forEach(function(u){ defPow += UNITS[u.type].def * u.count; });
+      defPow *= (1 + (G.leader.defMod||0));
+
+      if(atkPow * (0.7+Math.random()*0.6) > defPow * (0.7+Math.random()*0.6)){
+        target.faction = aiF;
+        target.garrison = Math.max(3, Math.floor(target.garrison*0.3));
+        attackers.forEach(function(u){u.count = Math.max(1, Math.ceil(u.count*0.6))});
+        target.units = attackers;
+        toast('💀 '+target.name+' falls to the enemy!','war');
+      } else {
+        target.garrison = Math.max(2, target.garrison - 3);
+        attackers.forEach(function(u){u.count = Math.max(0, Math.ceil(u.count*0.4))});
+        c.units = attackers.filter(function(u){return u.count>0});
+        toast('Defended '+target.name+' from enemy attack!','diplo');
+        showQuote('defend');
+      }
+    }
+  });
+
+  G.cities.forEach(function(c){
+    if(c.faction!=='neutral') return;
+    var conns = CONNECTIONS[c.id]||[];
+    var aiPower = 0;
+    conns.forEach(function(cid){
+      var nc = city(cid);
+      if(nc && nc.faction===aiF) aiPower += nc.garrison;
+    });
+    if(aiPower > 15 && Math.random() < 0.3){
+      c.loyalty -= 5;
+      if(c.loyalty <= 15){
+        c.faction = aiF; c.garrison += 5;
+        toast(c.name+' has joined the enemy!','war');
+      }
+    }
+  });
+
+  aiCities.forEach(function(c){
+    if(c.garrison < 20) c.garrison += 2;
+    c.hp = Math.min(100, c.hp + 5);
+  });
+}
+
+// =====================================================================
+// EVENTS
+// =====================================================================
+function checkEvents(){
+  EVENTS.forEach(function(ev){
+    if(firedEvents[ev.id]) return;
+    if(G.year <= ev.yr && G.year >= ev.yr - 1 && ev.cond(G)){
+      firedEvents[ev.id] = true;
+      showEvent(ev);
+    }
+  });
+}
+
+function showEvent(ev){
+  var ov = document.getElementById('overlay');
+  document.getElementById('ov-title').textContent = ev.name;
+  document.getElementById('ov-text').textContent = ev.text;
+
+  var qb = document.getElementById('ov-quote');
+  if(ev.quoteIdx != null && QUOTES[ev.quoteIdx]){
+    document.getElementById('ov-qtxt').textContent = QUOTES[ev.quoteIdx].text;
+    document.getElementById('ov-qattr').textContent = '— ' + QUOTES[ev.quoteIdx].attr;
+    qb.style.display = 'block';
+  } else qb.style.display = 'none';
+
+  var ins = document.getElementById('ov-insight');
+  if(ev.insight){ ins.innerHTML = ev.insight; ins.style.display = 'block'; }
+  else ins.style.display = 'none';
+
+  var ch = document.getElementById('ov-choices');
+  ch.innerHTML = '';
+  ev.choices.forEach(function(c){
+    var btn = document.createElement('button');
+    btn.className = 'ev-btn';
+    btn.textContent = c.label;
+    btn.onclick = function(){ c.fn(G); ov.classList.remove('active'); renderAll(); };
+    ch.appendChild(btn);
+  });
+  ov.classList.add('active');
+}
+
+// =====================================================================
+// VICTORY
+// =====================================================================
+function checkVictory(){
+  var pc = G.cities.filter(function(c){return c.faction===G.player}).length;
+  var ec = G.cities.filter(function(c){return c.faction===G.enemy}).length;
+  var eCap = G.cities.filter(function(c){return c.cap && c.faction===G.enemy}).length > 0;
+  var pCap = G.cities.filter(function(c){return c.cap && c.faction===G.player}).length > 0;
+  if(pc >= 8 || !eCap) endGame(true);
+  else if(ec >= 8 || !pCap) endGame(false);
+}
+
+function endGame(win){
+  G.over = true;
+  var es = document.getElementById('end-screen');
+  document.getElementById('end-title').textContent = win ? 'VICTORY' : 'DEFEAT';
+  document.getElementById('end-text').textContent = win
+    ? 'In '+G.turn+' turns, you achieved hegemony over Greece as '+(G.player==='athens'?'Athens':'Sparta')+'. The balance of power shifted decisively.'
+    : 'Your power has crumbled. In the anarchic world of states, the weak are consumed.';
+  document.getElementById('end-quote').innerHTML = win
+    ? '"The strong do what they can and the weak suffer what they must."<span>— Thucydides</span>'
+    : '"War is a stern teacher."<span>— Thucydides</span>';
+  es.className = 'screen active ' + (win?'victory':'defeat');
+}
+
+// =====================================================================
+// QUOTES & TOASTS
+// =====================================================================
+function showQuote(trigger){
+  var pool = trigger ? QUOTES.filter(function(q){return q.on===trigger}) : QUOTES;
+  if(pool.length===0) pool = QUOTES;
+  var q = pool[Math.floor(Math.random()*pool.length)];
+  toast('"'+q.text+'" — '+q.attr,'quote');
+}
+
+function toast(msg, cls){
+  var c = document.getElementById('toasts');
+  var t = document.createElement('div');
+  t.className = 'toast '+(cls||'');
+  t.innerHTML = msg;
+  c.appendChild(t);
+  setTimeout(function(){t.style.opacity='0';t.style.transition='opacity .5s';setTimeout(function(){t.remove()},500)},5000);
+  while(c.children.length>4) c.removeChild(c.firstChild);
+}
+</script>
+</body>
+</html>

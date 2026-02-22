@@ -1,0 +1,1687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Melian Dilemma — An IR Realism Strategy Game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --gold: #d4a843;
+    --gold-dark: #b08930;
+    --parchment: #f5e6c8;
+    --parchment-dark: #e8d5a8;
+    --ink: #2c1810;
+    --blood: #8b1a1a;
+    --sea: #1a3a5c;
+    --sea-light: #2a5a8c;
+    --marble: #e8e0d0;
+    --bronze: #cd7f32;
+    --olive: #556b2f;
+  }
+
+  body {
+    font-family: 'Crimson Text', Georgia, serif;
+    background: var(--ink);
+    color: var(--parchment);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated Background ── */
+  .bg-pattern {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, rgba(26,58,92,0.3) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 50%, rgba(139,26,26,0.2) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 0%, rgba(212,168,67,0.1) 0%, transparent 40%);
+    z-index: 0;
+    animation: bgShift 20s ease-in-out infinite alternate;
+  }
+  @keyframes bgShift {
+    0% { opacity: 0.8; }
+    100% { opacity: 1; }
+  }
+
+  .game-container {
+    position: relative;
+    z-index: 1;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 20px;
+  }
+
+  /* ── Title Screen ── */
+  #title-screen {
+    text-align: center;
+    padding: 60px 20px;
+    animation: fadeIn 1.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .game-title {
+    font-family: 'Cinzel', serif;
+    font-size: 3em;
+    font-weight: 900;
+    color: var(--gold);
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+    letter-spacing: 3px;
+    margin-bottom: 5px;
+  }
+
+  .game-subtitle {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1em;
+    color: var(--bronze);
+    letter-spacing: 2px;
+    margin-bottom: 30px;
+  }
+
+  .epigraph {
+    max-width: 600px;
+    margin: 0 auto 40px;
+    padding: 25px 30px;
+    border-left: 3px solid var(--gold);
+    border-right: 3px solid var(--gold);
+    background: rgba(212,168,67,0.05);
+    font-style: italic;
+    font-size: 1.15em;
+    line-height: 1.6;
+    color: var(--parchment-dark);
+  }
+
+  .epigraph .attribution {
+    display: block;
+    margin-top: 10px;
+    font-style: normal;
+    font-size: 0.85em;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+
+  .menu-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    margin-top: 30px;
+  }
+
+  .btn {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1em;
+    font-weight: 700;
+    padding: 14px 40px;
+    border: 2px solid var(--gold);
+    background: transparent;
+    color: var(--gold);
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: all 0.3s ease;
+    min-width: 280px;
+  }
+
+  .btn:hover {
+    background: var(--gold);
+    color: var(--ink);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(212,168,67,0.3);
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink);
+  }
+
+  .btn-primary:hover {
+    background: var(--gold-dark);
+    box-shadow: 0 4px 20px rgba(212,168,67,0.4);
+  }
+
+  .btn-small {
+    font-size: 0.9em;
+    padding: 8px 20px;
+    min-width: auto;
+  }
+
+  .btn-blood {
+    border-color: var(--blood);
+    color: #d44;
+  }
+  .btn-blood:hover {
+    background: var(--blood);
+    color: var(--parchment);
+  }
+
+  .btn-sea {
+    border-color: var(--sea-light);
+    color: #6aa;
+  }
+  .btn-sea:hover {
+    background: var(--sea);
+    color: var(--parchment);
+  }
+
+  .btn-olive {
+    border-color: var(--olive);
+    color: #8a5;
+  }
+  .btn-olive:hover {
+    background: var(--olive);
+    color: var(--parchment);
+  }
+
+  /* ── Screen Management ── */
+  .screen { display: none; }
+  .screen.active { display: block; animation: fadeIn 0.6s ease; }
+
+  /* ── Game HUD ── */
+  .hud {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 15px;
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(212,168,67,0.3);
+    margin-bottom: 20px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.85em;
+  }
+
+  .hud-item {
+    text-align: center;
+  }
+
+  .hud-label {
+    color: var(--gold);
+    font-size: 0.75em;
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .hud-value {
+    font-size: 1.3em;
+    font-weight: 700;
+  }
+
+  .hud-value.power { color: var(--blood); }
+  .hud-value.wisdom { color: var(--gold); }
+  .hud-value.rep { color: var(--sea-light); }
+
+  /* ── Chapter / Scenario Display ── */
+  .chapter-header {
+    text-align: center;
+    padding: 20px 0;
+    margin-bottom: 20px;
+    border-bottom: 1px solid rgba(212,168,67,0.3);
+  }
+
+  .chapter-number {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85em;
+    color: var(--bronze);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  .chapter-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.8em;
+    font-weight: 700;
+    color: var(--gold);
+    margin-top: 5px;
+  }
+
+  .scenario-text {
+    font-size: 1.1em;
+    line-height: 1.8;
+    margin-bottom: 25px;
+    padding: 20px;
+    background: rgba(0,0,0,0.2);
+    border-left: 3px solid var(--gold-dark);
+  }
+
+  .quote-box {
+    margin: 20px 0;
+    padding: 18px 25px;
+    background: rgba(212,168,67,0.08);
+    border: 1px solid rgba(212,168,67,0.2);
+    font-style: italic;
+    font-size: 1.05em;
+    line-height: 1.7;
+    position: relative;
+  }
+
+  .quote-box::before {
+    content: '\201C';
+    font-size: 3em;
+    color: var(--gold);
+    position: absolute;
+    top: -5px;
+    left: 8px;
+    opacity: 0.4;
+    font-family: Georgia, serif;
+  }
+
+  .quote-box .source {
+    display: block;
+    margin-top: 8px;
+    font-style: normal;
+    font-size: 0.85em;
+    color: var(--gold);
+    text-align: right;
+  }
+
+  /* ── Choices ── */
+  .choices {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 25px;
+  }
+
+  .choice-btn {
+    font-family: 'Crimson Text', serif;
+    font-size: 1.05em;
+    padding: 15px 20px;
+    border: 1px solid rgba(212,168,67,0.3);
+    background: rgba(0,0,0,0.3);
+    color: var(--parchment);
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.3s ease;
+    line-height: 1.5;
+  }
+
+  .choice-btn:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.1);
+    transform: translateX(5px);
+  }
+
+  .choice-btn .choice-label {
+    font-family: 'Cinzel', serif;
+    font-weight: 700;
+    color: var(--gold);
+    font-size: 0.85em;
+    letter-spacing: 1px;
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .choice-btn.selected {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.15);
+  }
+
+  .choice-btn.correct {
+    border-color: var(--olive);
+    background: rgba(85,107,47,0.2);
+    animation: pulse-green 0.5s ease;
+  }
+
+  .choice-btn.wrong {
+    border-color: var(--blood);
+    background: rgba(139,26,26,0.2);
+    animation: pulse-red 0.5s ease;
+  }
+
+  @keyframes pulse-green {
+    0% { box-shadow: 0 0 0 0 rgba(85,107,47,0.5); }
+    100% { box-shadow: 0 0 20px 5px rgba(85,107,47,0); }
+  }
+
+  @keyframes pulse-red {
+    0% { box-shadow: 0 0 0 0 rgba(139,26,26,0.5); }
+    100% { box-shadow: 0 0 20px 5px rgba(139,26,26,0); }
+  }
+
+  /* ── Feedback Panel ── */
+  .feedback {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    border: 1px solid rgba(212,168,67,0.3);
+    background: rgba(0,0,0,0.3);
+    animation: fadeIn 0.5s ease;
+  }
+
+  .feedback.show { display: block; }
+
+  .feedback-header {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1em;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .feedback-header.correct { color: var(--olive); }
+  .feedback-header.wrong { color: var(--blood); }
+
+  .feedback-text {
+    line-height: 1.7;
+    margin-bottom: 15px;
+  }
+
+  .ir-concept {
+    display: inline-block;
+    background: rgba(212,168,67,0.15);
+    border: 1px solid rgba(212,168,67,0.3);
+    padding: 2px 8px;
+    font-family: 'Cinzel', serif;
+    font-size: 0.85em;
+    color: var(--gold);
+    letter-spacing: 1px;
+  }
+
+  .stat-change {
+    font-size: 0.9em;
+    padding: 8px 12px;
+    background: rgba(0,0,0,0.3);
+    margin-top: 10px;
+    border-left: 3px solid var(--gold);
+  }
+
+  /* ── Quiz Mode ── */
+  .quiz-progress {
+    display: flex;
+    gap: 6px;
+    justify-content: center;
+    margin-bottom: 20px;
+  }
+
+  .quiz-dot {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(212,168,67,0.4);
+    background: transparent;
+    transition: all 0.3s ease;
+  }
+
+  .quiz-dot.answered { background: var(--gold); border-color: var(--gold); }
+  .quiz-dot.current { border-color: var(--gold); box-shadow: 0 0 8px rgba(212,168,67,0.4); }
+  .quiz-dot.wrong-dot { background: var(--blood); border-color: var(--blood); }
+
+  /* ── Results Screen ── */
+  .results-card {
+    text-align: center;
+    padding: 30px;
+    border: 2px solid var(--gold);
+    background: rgba(0,0,0,0.3);
+  }
+
+  .results-title {
+    font-family: 'Cinzel', serif;
+    font-size: 2em;
+    font-weight: 900;
+    color: var(--gold);
+    margin-bottom: 5px;
+  }
+
+  .results-subtitle {
+    font-family: 'Cinzel', serif;
+    color: var(--bronze);
+    margin-bottom: 25px;
+  }
+
+  .final-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    margin: 25px 0;
+  }
+
+  .final-stat {
+    padding: 15px;
+    border: 1px solid rgba(212,168,67,0.2);
+    background: rgba(0,0,0,0.2);
+  }
+
+  .final-stat-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.75em;
+    letter-spacing: 2px;
+    color: var(--gold);
+    margin-bottom: 5px;
+  }
+
+  .final-stat-value {
+    font-size: 2em;
+    font-weight: 700;
+  }
+
+  .rank-title {
+    font-family: 'Cinzel', serif;
+    font-size: 1.5em;
+    color: var(--gold);
+    margin: 20px 0 10px;
+  }
+
+  .rank-description {
+    font-style: italic;
+    color: var(--parchment-dark);
+    max-width: 500px;
+    margin: 0 auto 25px;
+    line-height: 1.6;
+  }
+
+  .concepts-learned {
+    text-align: left;
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 15px 20px;
+    border: 1px solid rgba(212,168,67,0.2);
+    background: rgba(0,0,0,0.2);
+  }
+
+  .concepts-learned h3 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    font-size: 0.9em;
+    letter-spacing: 2px;
+    margin-bottom: 10px;
+  }
+
+  .concepts-learned li {
+    margin: 5px 0 5px 20px;
+    font-size: 0.95em;
+    line-height: 1.5;
+  }
+
+  /* ── Codex (Encyclopedia) ── */
+  .codex-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .codex-card {
+    padding: 15px;
+    border: 1px solid rgba(212,168,67,0.2);
+    background: rgba(0,0,0,0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .codex-card:hover {
+    border-color: var(--gold);
+    background: rgba(212,168,67,0.05);
+  }
+
+  .codex-card.locked {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .codex-card h3 {
+    font-family: 'Cinzel', serif;
+    font-size: 0.95em;
+    color: var(--gold);
+    margin-bottom: 5px;
+  }
+
+  .codex-card p {
+    font-size: 0.85em;
+    color: var(--parchment-dark);
+    line-height: 1.5;
+  }
+
+  .codex-detail {
+    padding: 25px;
+    border: 1px solid rgba(212,168,67,0.3);
+    background: rgba(0,0,0,0.3);
+    margin-top: 20px;
+    display: none;
+  }
+
+  .codex-detail.show { display: block; animation: fadeIn 0.4s ease; }
+
+  .codex-detail h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    margin-bottom: 15px;
+  }
+
+  .codex-detail p {
+    line-height: 1.8;
+    margin-bottom: 12px;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 700px) {
+    .game-title { font-size: 2em; }
+    .hud { grid-template-columns: 1fr; gap: 8px; }
+    .final-stats { grid-template-columns: 1fr; }
+    .codex-grid { grid-template-columns: 1fr; }
+    .game-container { padding: 10px; }
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .modal-overlay.show { display: flex; }
+
+  .modal-content {
+    max-width: 650px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 30px;
+    background: #1a1410;
+    border: 2px solid var(--gold);
+    animation: fadeIn 0.4s ease;
+  }
+
+  .modal-content h2 {
+    font-family: 'Cinzel', serif;
+    color: var(--gold);
+    margin-bottom: 15px;
+  }
+
+  .modal-content p, .modal-content li {
+    line-height: 1.7;
+    margin-bottom: 10px;
+  }
+
+  .close-modal {
+    float: right;
+    background: none;
+    border: none;
+    color: var(--gold);
+    font-size: 1.5em;
+    cursor: pointer;
+  }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: relative;
+    display: inline;
+    border-bottom: 1px dotted var(--gold);
+    cursor: help;
+  }
+  .tooltip .tip-text {
+    visibility: hidden;
+    background: #1a1410;
+    border: 1px solid var(--gold);
+    color: var(--parchment);
+    padding: 8px 12px;
+    position: absolute;
+    z-index: 10;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 250px;
+    font-size: 0.85em;
+    line-height: 1.5;
+    font-style: normal;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .tooltip:hover .tip-text {
+    visibility: visible;
+    opacity: 1;
+  }
+</style>
+</head>
+<body>
+
+<div class="bg-pattern"></div>
+
+<div class="game-container">
+
+  <!-- ═══════════ TITLE SCREEN ═══════════ -->
+  <div id="title-screen" class="screen active">
+    <div class="game-title">THE MELIAN DILEMMA</div>
+    <div class="game-subtitle">Power, Justice & the Peloponnesian War</div>
+
+    <div class="epigraph">
+      "The strong do what they can and the weak suffer what they must."
+      <span class="attribution">— Thucydides, The Melian Dialogue</span>
+    </div>
+
+    <p style="max-width:550px; margin:0 auto 30px; line-height:1.7; color:var(--parchment-dark);">
+      Step into the ancient Greek world where Athens and Sparta clash for supremacy.
+      Learn the foundations of <strong style="color:var(--gold)">International Relations Realism</strong>
+      through the very conflict that inspired it — guided by the words of Thucydides himself.
+    </p>
+
+    <div class="menu-buttons">
+      <button class="btn btn-primary" onclick="startCampaign()">BEGIN CAMPAIGN</button>
+      <button class="btn" onclick="startQuiz()">QUICK QUIZ</button>
+      <button class="btn" onclick="showCodex()">CODEX OF REALISM</button>
+      <button class="btn btn-small" onclick="showHowToPlay()" style="margin-top:10px;">HOW TO PLAY</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ CAMPAIGN SCREEN ═══════════ -->
+  <div id="campaign-screen" class="screen">
+    <div class="hud">
+      <div class="hud-item">
+        <div class="hud-label">MILITARY POWER</div>
+        <div class="hud-value power" id="hud-power">50</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">POLITICAL WISDOM</div>
+        <div class="hud-value wisdom" id="hud-wisdom">50</div>
+      </div>
+      <div class="hud-item">
+        <div class="hud-label">REPUTATION</div>
+        <div class="hud-value rep" id="hud-rep">50</div>
+      </div>
+    </div>
+
+    <div id="scenario-container"></div>
+
+    <div class="feedback" id="feedback-panel">
+      <div class="feedback-header" id="feedback-header"></div>
+      <div class="feedback-text" id="feedback-text"></div>
+      <div class="stat-change" id="feedback-stats"></div>
+      <button class="btn btn-small" style="margin-top:15px;" id="next-btn" onclick="nextScenario()">CONTINUE</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ QUIZ SCREEN ═══════════ -->
+  <div id="quiz-screen" class="screen">
+    <div class="chapter-header">
+      <div class="chapter-number">Knowledge Challenge</div>
+      <div class="chapter-title">Test Your Realism</div>
+    </div>
+    <div class="quiz-progress" id="quiz-progress"></div>
+    <div id="quiz-container"></div>
+    <div class="feedback" id="quiz-feedback">
+      <div class="feedback-header" id="quiz-feedback-header"></div>
+      <div class="feedback-text" id="quiz-feedback-text"></div>
+      <button class="btn btn-small" style="margin-top:15px;" id="quiz-next-btn" onclick="nextQuizQuestion()">NEXT QUESTION</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ CODEX SCREEN ═══════════ -->
+  <div id="codex-screen" class="screen">
+    <div class="chapter-header">
+      <div class="chapter-number">Reference</div>
+      <div class="chapter-title">Codex of Realism</div>
+    </div>
+    <p style="text-align:center; color:var(--parchment-dark); margin-bottom:10px;">
+      Unlock concepts by playing the campaign. Explore the ideas that shaped international relations theory.
+    </p>
+    <div class="codex-grid" id="codex-grid"></div>
+    <div class="codex-detail" id="codex-detail"></div>
+    <div style="text-align:center; margin-top:20px;">
+      <button class="btn btn-small" onclick="showScreen('title-screen')">BACK TO MENU</button>
+    </div>
+  </div>
+
+  <!-- ═══════════ RESULTS SCREEN ═══════════ -->
+  <div id="results-screen" class="screen">
+    <div class="results-card" id="results-card"></div>
+    <div style="text-align:center; margin-top:20px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap;" id="results-buttons"></div>
+  </div>
+
+</div>
+
+<!-- ═══════════ HOW TO PLAY MODAL ═══════════ -->
+<div class="modal-overlay" id="how-to-play-modal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeModal()">&times;</button>
+    <h2>How to Play</h2>
+    <p><strong style="color:var(--gold)">Campaign Mode:</strong> You are an advisor to Athens during the Peloponnesian War (431-404 BC). Navigate 8 historical scenarios by making strategic choices that reflect real IR Realism concepts.</p>
+    <ul style="margin-left:20px; margin-bottom:15px;">
+      <li><strong style="color:#d44">Military Power</strong> — Your state's coercive capability and hard power projection.</li>
+      <li><strong style="color:var(--gold)">Political Wisdom</strong> — Understanding of realist strategy and rational statecraft.</li>
+      <li><strong style="color:#6aa">Reputation</strong> — How allies and rivals perceive your credibility and reliability.</li>
+    </ul>
+    <p>Each decision teaches a core concept of IR Realism drawn from Thucydides' account. The "best" answer aligns with classical realist strategy — but every choice reveals something about international politics.</p>
+    <p><strong style="color:var(--gold)">Quick Quiz:</strong> Test your knowledge of IR Realism concepts, key quotes, and Peloponnesian War history in a 10-question challenge.</p>
+    <p><strong style="color:var(--gold)">Codex:</strong> An unlockable encyclopedia of IR Realism concepts. Play the campaign to discover all entries!</p>
+    <p style="margin-top:15px; font-style:italic; color:var(--parchment-dark);">All quotes are drawn from Thucydides' History of the Peloponnesian War, the foundational text of the realist tradition in international relations theory.</p>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  THE MELIAN DILEMMA — Game Engine
+// ══════════════════════════════════════════════════════════
+
+// ── State ──
+let state = {
+  power: 50,
+  wisdom: 50,
+  reputation: 50,
+  currentScenario: 0,
+  conceptsUnlocked: new Set(),
+  quizIndex: 0,
+  quizScore: 0,
+  quizAnswers: [],
+  campaignChoices: [],
+  lastMode: 'campaign', // tracks whether we came from campaign or quiz
+  choiceLocked: false   // prevents double-click on choices
+};
+
+// ── Utility ──
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showHowToPlay() {
+  document.getElementById('how-to-play-modal').classList.add('show');
+}
+
+function closeModal() {
+  document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('show'));
+}
+
+function updateHUD() {
+  state.power = Math.max(0, Math.min(100, state.power));
+  state.wisdom = Math.max(0, Math.min(100, state.wisdom));
+  state.reputation = Math.max(0, Math.min(100, state.reputation));
+  document.getElementById('hud-power').textContent = state.power;
+  document.getElementById('hud-wisdom').textContent = state.wisdom;
+  document.getElementById('hud-rep').textContent = state.reputation;
+}
+
+function unlockConcept(key) {
+  state.conceptsUnlocked.add(key);
+}
+
+// ══════════════════════════════════════════════════════════
+//  CAMPAIGN SCENARIOS
+// ══════════════════════════════════════════════════════════
+
+const scenarios = [
+  // ── SCENARIO 0: The Eve of War ──
+  {
+    chapter: "Chapter I",
+    title: "The Eve of War — 431 BC",
+    text: `Tensions between Athens and Sparta have reached a breaking point. Corinth, Sparta's ally, pressures the Peloponnesian League to declare war against the growing power of the Athenian empire. As an advisor to Athens, you must understand why this war is about to begin.`,
+    quote: {
+      text: "What made war inevitable was the growth of Athenian power and the fear which this caused in Sparta.",
+      source: "Thucydides, Book I — The Truest Cause"
+    },
+    question: "Thucydides identifies the 'truest cause' of the war. What IR Realism concept does this illustrate?",
+    choices: [
+      {
+        label: "Security Dilemma",
+        text: "Athens grew stronger to protect itself, but this very growth threatened Sparta — a classic security dilemma where defensive actions appear offensive to others.",
+        concept: "security_dilemma",
+        best: false,
+        effects: { power: 5, wisdom: 8, reputation: 0 },
+        feedback: "A strong analysis! The security dilemma is certainly at play. Athens' naval buildup, meant for defense and commerce, appeared as an existential threat to Sparta. However, Thucydides emphasizes something even more fundamental here..."
+      },
+      {
+        label: "Balance of Power / Power Transition",
+        text: "A rising power (Athens) threatens the existing hegemon (Sparta). War becomes inevitable when the power balance shifts — this is the core of power transition theory.",
+        concept: "balance_of_power",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: 5 },
+        feedback: "Excellent! This is the heart of what modern scholars call the 'Thucydides Trap.' When a rising power threatens to displace an established one, structural stress makes conflict extremely likely. This passage is the single most cited line in IR Realism — it identifies systemic, structural causes of war rather than individual grievances."
+      },
+      {
+        label: "Offensive Realism",
+        text: "Athens was an aggressive, expansionist power seeking hegemony. Offensive realists argue that great powers always seek to maximize power.",
+        concept: "offensive_realism",
+        best: false,
+        effects: { power: 10, wisdom: 5, reputation: -5 },
+        feedback: "This captures part of the picture. John Mearsheimer's offensive realism does argue states are compelled to maximize power. But Thucydides here emphasizes the structural relationship between the two powers — it's the growth and the fear, together, that make war inevitable."
+      }
+    ]
+  },
+
+  // ── SCENARIO 1: Pericles' Funeral Oration ──
+  {
+    chapter: "Chapter II",
+    title: "Pericles' Funeral Oration — 431 BC",
+    text: `After the first year of war, Pericles delivers his famous funeral oration honoring the Athenian dead. He articulates Athens' vision of itself — democratic, cultured, and powerful. But behind the beautiful words, you notice a deeper strategic message about why Athens fights.`,
+    quote: {
+      text: "We do not say that a man who takes no interest in politics minds his own business; we say that he has no business here at all.",
+      source: "Thucydides, Book II — Pericles' Funeral Oration"
+    },
+    question: "Pericles argues Athens is worth fighting for. From a realist perspective, what is the strategic function of this speech?",
+    choices: [
+      {
+        label: "Domestic Mobilization",
+        text: "Pericles is building national cohesion and willingness to sacrifice — essential for sustaining a long war. Realists recognize that domestic unity is a component of state power.",
+        concept: "state_power",
+        best: true,
+        effects: { power: 5, wisdom: 12, reputation: 8 },
+        feedback: "Precisely. For realists, internal cohesion is a critical element of national power. Pericles understood that military capability means nothing without political will. Hans Morgenthau later identified 'national morale' and 'quality of government' as key elements of national power — Pericles is cultivating both."
+      },
+      {
+        label: "Democratic Peace Theory",
+        text: "Pericles is showing that democracies are inherently more just and less aggressive — supporting the idea that democratic states don't fight each other.",
+        concept: "state_power",
+        best: false,
+        effects: { power: 0, wisdom: 3, reputation: 5 },
+        feedback: "This is actually a liberal internationalist argument, not a realist one! While Pericles celebrates democracy, he's using it instrumentally. Realists would note that Athens — a democracy — was also an empire that subjugated other Greek states. The Peloponnesian War itself refutes simple democratic peace theory."
+      },
+      {
+        label: "Ideological Warfare",
+        text: "Athens is framing the war as democracy versus Spartan oligarchy, using ideology as a weapon to gain allies and justify expansion.",
+        concept: "anarchy",
+        best: false,
+        effects: { power: 5, wisdom: 7, reputation: 3 },
+        feedback: "There's truth here — ideology did play a role. But realists are skeptical that ideology drives state behavior. They argue states use ideology to justify actions taken for strategic reasons. Pericles' primary goal is practical: maintain Athens' willingness to bear the costs of a long war."
+      }
+    ]
+  },
+
+  // ── SCENARIO 2: The Mytilenean Debate ──
+  {
+    chapter: "Chapter III",
+    title: "The Mytilenean Debate — 427 BC",
+    text: `Mytilene, an ally of Athens on the island of Lesbos, has revolted. Athens crushes the rebellion and the Assembly votes to execute all adult men and enslave the women and children. The next day, they reconsider. Cleon argues for harsh punishment; Diodotus argues for leniency. You must advise.`,
+    quote: {
+      text: "In dealing with free peoples, do not wait until they have done you wrong and then punish them. Act before they do wrong. Let them have no reason for revolt, and then if they do revolt, hold as few of them guilty as you can.",
+      source: "Thucydides, Book III — Diodotus' Argument"
+    },
+    question: "Should Athens punish Mytilene harshly or show restraint? What does realist strategy advise?",
+    choices: [
+      {
+        label: "Harsh Punishment (Cleon)",
+        text: "Crush them utterly. Show all allies that rebellion means total destruction. Fear is the only reliable guarantor of an empire's security.",
+        concept: "deterrence",
+        best: false,
+        effects: { power: 10, wisdom: 2, reputation: -15 },
+        feedback: "Cleon's argument has a realist logic — deterrence through fear. But Diodotus makes the shrewder realist case: excessive punishment drives other allies to fight to the death rather than surrender, making future revolts costlier. Sometimes restraint serves power better than brutality."
+      },
+      {
+        label: "Calculated Restraint (Diodotus)",
+        text: "Punish only the ringleaders. Excessive cruelty will make other allies desperate, causing them to fight harder in future revolts. Mercy here is strategic, not moral.",
+        concept: "deterrence",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: 10 },
+        feedback: "This is the masterful realist position. Diodotus explicitly says he argues not from justice but from interest. He demonstrates that rational calculation — not emotion — should guide policy. Total destruction of Mytilene would remove any incentive for future rebels to surrender, raising the cost of maintaining the empire."
+      },
+      {
+        label: "Grant Full Amnesty",
+        text: "Free Mytilene entirely and restore their autonomy. Show that Athens rules through consent, not force.",
+        concept: "deterrence",
+        best: false,
+        effects: { power: -10, wisdom: 3, reputation: 8 },
+        feedback: "A liberal approach, but realists would argue this signals weakness. In an anarchic system, showing that rebellion carries no cost invites more rebellion. Even Diodotus doesn't argue for full amnesty — he advocates punishing the leaders while sparing the population. Realism demands consequences, but proportional ones."
+      }
+    ]
+  },
+
+  // ── SCENARIO 3: The Melian Dialogue ──
+  {
+    chapter: "Chapter IV",
+    title: "The Melian Dialogue — 416 BC",
+    text: `Athens sends an expedition to the small island of Melos, a Spartan colony that has remained neutral. The Athenians demand submission. The Melians appeal to justice and the gods. This is the most famous passage in all of IR Realism — the Melian Dialogue.`,
+    quote: {
+      text: "Right, as the world goes, is only in question between equals in power, while the strong do what they can and the weak suffer what they must.",
+      source: "Thucydides, Book V — The Melian Dialogue"
+    },
+    question: "The Melians appeal to justice and fairness. Athens dismisses this. What core realist principle is being expressed?",
+    choices: [
+      {
+        label: "Anarchy & Might Makes Right",
+        text: "Without a higher authority to enforce rules, power determines outcomes. International politics has no court of appeal — only the distribution of capabilities matters.",
+        concept: "anarchy",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: -5 },
+        feedback: "This is the foundational insight of IR Realism. The Melian Dialogue illustrates the anarchic structure of the international system — there is no world government to protect the weak. Athens isn't being evil; it's articulating the logic of a system where survival depends on self-help. This passage is cited in virtually every IR textbook as the origin point of realist thought."
+      },
+      {
+        label: "Moral Relativism",
+        text: "Athens is arguing that morality doesn't exist — that might makes right and there are no ethical constraints on state behavior.",
+        concept: "anarchy",
+        best: false,
+        effects: { power: 5, wisdom: 5, reputation: -10 },
+        feedback: "Close, but realists are more nuanced than pure moral relativism. Realists don't necessarily deny that morality exists — they argue that in an anarchic system, states cannot afford to be guided by it. The Athenians aren't saying justice doesn't exist; they're saying it only operates between equals. This is a structural argument, not a moral one."
+      },
+      {
+        label: "Bandwagoning Theory",
+        text: "Athens is telling Melos to bandwagon — join the stronger side rather than resist. Small states survive by aligning with great powers.",
+        concept: "alliances",
+        best: false,
+        effects: { power: 3, wisdom: 7, reputation: 0 },
+        feedback: "Bandwagoning is part of the picture — Athens is offering Melos a choice to submit. But the deeper lesson is about the nature of the international system itself. The Athenians are making a philosophical argument about power and justice that goes far beyond alliance choices."
+      }
+    ]
+  },
+
+  // ── SCENARIO 4: The Sicilian Expedition Debate ──
+  {
+    chapter: "Chapter V",
+    title: "The Sicilian Debate — 415 BC",
+    text: `Alcibiades, the charismatic young general, urges Athens to conquer Syracuse in Sicily — a massive expansion of Athenian power. The cautious Nicias warns against overextension. This debate will determine the fate of Athens.`,
+    quote: {
+      text: "We cannot fix the exact point at which our empire shall stop; we have reached a position in which we must not be content with retaining what we have but must scheme to extend it, for if we cease to rule others, we are in danger of being ruled ourselves.",
+      source: "Thucydides, Book VI — Alcibiades' Argument"
+    },
+    question: "Alcibiades argues Athens must keep expanding or perish. Nicias counsels caution. What is the wisest realist position?",
+    choices: [
+      {
+        label: "Support the Expedition (Alcibiades)",
+        text: "A great power must expand or decline. Conquering Syracuse would give Athens control of the Western Mediterranean and break Spartan morale permanently.",
+        concept: "offensive_realism",
+        best: false,
+        effects: { power: 10, wisdom: 3, reputation: 5 },
+        feedback: "This is textbook offensive realism — the idea that states must maximize power to survive. But Thucydides shows us the catastrophic result: the Sicilian Expedition destroyed two Athenian armies and was the turning point that led to Athens' defeat. Overextension — what scholars call 'imperial overstretch' — is as dangerous as weakness."
+      },
+      {
+        label: "Oppose the Expedition (Nicias)",
+        text: "Athens is already overextended. Opening a second front while Sparta remains undefeated is strategic folly. Consolidate existing power rather than gamble everything on a distant conquest.",
+        concept: "balance_of_power",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: 5 },
+        feedback: "The defensive realist position proves correct. Thucydides uses the Sicilian disaster to show the limits of power — that hubris and overextension destroy great powers as surely as weakness. Kenneth Waltz's defensive realism argues states should seek security, not maximum power. Athens' reach exceeded its grasp, and the consequences were fatal."
+      },
+      {
+        label: "Smaller Expedition",
+        text: "Send a limited force to test Syracuse's defenses and build a coalition of Sicilian allies before committing fully.",
+        concept: "balance_of_power",
+        best: false,
+        effects: { power: 5, wisdom: 10, reputation: 3 },
+        feedback: "A pragmatic middle ground, but historically this half-measure approach was actually part of the problem. Nicias, when overruled, demanded a much larger force than Alcibiades wanted — and the Assembly gave it to him, making the eventual disaster even worse. In realist theory, indecisive commitment can be the worst option."
+      }
+    ]
+  },
+
+  // ── SCENARIO 5: The Plague and Human Nature ──
+  {
+    chapter: "Chapter VI",
+    title: "The Plague of Athens — 430 BC",
+    text: `A devastating plague strikes Athens during Sparta's siege, killing perhaps a quarter of the population — including Pericles himself. Social order breaks down. Citizens abandon laws and customs, believing death imminent. Thucydides records these events as a window into human nature under extreme pressure.`,
+    quote: {
+      text: "The catastrophe was so overwhelming that men, not knowing what would happen next to them, became indifferent to every rule of religion or law.",
+      source: "Thucydides, Book II — The Plague"
+    },
+    question: "What does the breakdown of Athenian society during the plague reveal about the realist view of human nature?",
+    choices: [
+      {
+        label: "Humans Are Self-Interested by Nature",
+        text: "When survival is at stake, moral constraints dissolve. This confirms the realist assumption that human nature is fundamentally self-interested, and order requires enforcement.",
+        concept: "human_nature",
+        best: true,
+        effects: { power: 0, wisdom: 15, reputation: 5 },
+        feedback: "Exactly. Classical realists from Thucydides to Morgenthau ground their theory in a pessimistic view of human nature. The plague reveals what happens when the enforcement mechanisms of civilization fail — people revert to self-interest. This extends to states: without an enforcing authority (anarchy), states too act in pure self-interest."
+      },
+      {
+        label: "Society Is Fragile",
+        text: "The plague shows that civilization is a thin veneer. This supports the realist argument that international institutions and norms are similarly fragile — they crumble when tested by real threats.",
+        concept: "human_nature",
+        best: false,
+        effects: { power: 0, wisdom: 10, reputation: 5 },
+        feedback: "A thoughtful answer that realists would largely agree with. The parallel to international institutions is strong — realists argue that treaties and norms only hold when backed by power or mutual interest. When survival is at stake, states abandon agreements just as plague-stricken Athenians abandoned laws."
+      },
+      {
+        label: "Crisis Reveals True Character",
+        text: "The plague is a test of leadership and values. Some Athenians remained virtuous despite the chaos, proving that moral leadership can overcome self-interest.",
+        concept: "human_nature",
+        best: false,
+        effects: { power: 0, wisdom: 5, reputation: 8 },
+        feedback: "A more optimistic reading, but not the one Thucydides emphasizes. While some individuals may have behaved nobly, Thucydides focuses on the systematic breakdown of social order. Realists use this passage to argue that counting on virtue in politics is dangerous — systems must be designed for self-interested actors, not virtuous ones."
+      }
+    ]
+  },
+
+  // ── SCENARIO 6: Alliances and Self-Interest ──
+  {
+    chapter: "Chapter VII",
+    title: "The Alliance Game — 420 BC",
+    text: `Both Athens and Sparta spend enormous effort managing alliances. Athens binds its Delian League members with tribute and force; Sparta holds the Peloponnesian League together through traditional loyalty and fear of Athens. Smaller states constantly calculate which side offers better protection — or poses less threat.`,
+    quote: {
+      text: "Of all manifestations of power, restraint impresses men most.",
+      source: "Thucydides, Book VII"
+    },
+    question: "Why do states form alliances? What drives alliance behavior in the realist framework?",
+    choices: [
+      {
+        label: "Balance Against Threats",
+        text: "States ally against the most dangerous power, not necessarily the strongest. Threat perception — based on power, proximity, and perceived intentions — drives alliance formation.",
+        concept: "alliances",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: 5 },
+        feedback: "This is Stephen Walt's Balance of Threat theory, rooted directly in Thucydides. States don't simply balance against power — they balance against perceived threats. This explains why some states bandwagon with a strong neighbor (it seems less threatening) while others balance against it. The Peloponnesian War alliances perfectly illustrate this logic."
+      },
+      {
+        label: "Shared Values and Ideology",
+        text: "Democracies allied with Athens; oligarchies allied with Sparta. Shared political systems create trust and cooperation between states.",
+        concept: "alliances",
+        best: false,
+        effects: { power: 0, wisdom: 5, reputation: 8 },
+        feedback: "There's some historical truth here — regime type did influence alliance patterns. But realists point out the many exceptions: democratic Argos allied with Sparta, and several oligarchies stayed in Athens' orbit. Thucydides shows that when ideology and interest conflict, interest wins. States switched sides based on strategic calculation, not shared values."
+      },
+      {
+        label: "Imperial Coercion",
+        text: "Athens maintained alliances through force and tribute. The Delian League was an empire in all but name. Alliances are simply hierarchies of power disguised as partnerships.",
+        concept: "alliances",
+        best: false,
+        effects: { power: 8, wisdom: 7, reputation: -5 },
+        feedback: "Partly true — Athens did coerce its 'allies.' But even Sparta's voluntary alliance required careful management. Pure coercion is expensive and unsustainable, as Athens eventually learned. The most successful alliance management combines credible power with restraint — as Thucydides himself notes."
+      }
+    ]
+  },
+
+  // ── SCENARIO 7: The Fall of Athens ──
+  {
+    chapter: "Chapter VIII",
+    title: "The Fall of Athens — 404 BC",
+    text: `After the Sicilian disaster, Athens fights on for another decade but is finally defeated. Sparta's allies demand Athens be destroyed — its walls torn down, its people enslaved. But Sparta refuses, remembering Athens' role in the Persian Wars. The war is over. What lessons endure?`,
+    quote: {
+      text: "It will be enough for me if these words of mine are judged useful by those who want to understand clearly the events which happened in the past and which, human nature being what it is, will at some time or other and in much the same ways, be repeated in the future.",
+      source: "Thucydides, Book I — The Purpose of the History"
+    },
+    question: "The war is over. Athens fell because of imperial overreach, plague, internal division, and the loss at Sicily. What is the enduring lesson of the Peloponnesian War for IR Realism?",
+    choices: [
+      {
+        label: "The Tragedy of Great Power Politics",
+        text: "The war was driven by structural forces that no leader could fully control. Even wise statesmen are constrained by the system's anarchic logic. This tragedy repeats across history.",
+        concept: "structural_realism",
+        best: true,
+        effects: { power: 5, wisdom: 15, reputation: 10 },
+        feedback: "This captures the deepest lesson. Thucydides wrote his history as 'a possession for all time' because he believed the patterns he observed were eternal. Structural realism holds that the anarchic international system generates predictable patterns — security competition, alliance formation, power balancing — regardless of who leads or what values they hold. The Peloponnesian War is the first and greatest case study of this tragic logic."
+      },
+      {
+        label: "Hubris Destroys Empires",
+        text: "Athens fell because of hubris — the arrogance of Alcibiades, the Sicily expedition, the cruelty at Melos. The lesson is that power without wisdom leads to self-destruction.",
+        concept: "structural_realism",
+        best: false,
+        effects: { power: 0, wisdom: 10, reputation: 8 },
+        feedback: "Classical realists like Morgenthau would agree — prudence is the supreme virtue in international politics, and hubris is the great sin. Athens had the power to win but lacked the restraint. Yet structural realists would add: the system itself incentivized Athens' overreach. When you rule an empire maintained by fear, standing still feels like falling behind."
+      },
+      {
+        label: "Democracies Are Vulnerable",
+        text: "Athenian democracy made strategic mistakes — the Assembly was swayed by demagogues, changed its mind constantly, and made emotional rather than rational decisions.",
+        concept: "structural_realism",
+        best: false,
+        effects: { power: 0, wisdom: 7, reputation: 5 },
+        feedback: "Thucydides does show democratic decision-making as messy and sometimes irrational. The Mytilenean reversal, the fickleness toward generals, and the populist appeal of the Sicily expedition all illustrate this. But realists are careful not to draw simple regime-type conclusions — Sparta's rigid oligarchy also made catastrophic mistakes. The deeper lesson is about structural pressures, not regime types."
+      }
+    ]
+  }
+];
+
+
+// ══════════════════════════════════════════════════════════
+//  QUIZ QUESTIONS
+// ══════════════════════════════════════════════════════════
+
+const quizQuestions = [
+  {
+    question: "Which Thucydidean concept describes the situation where a rising power threatens an established one, making conflict more likely?",
+    choices: ["Thucydides Trap", "Melian Dilemma", "Sicilian Gambit", "Periclean Paradox"],
+    correct: 0,
+    explanation: "The 'Thucydides Trap' (coined by Graham Allison) refers to Thucydides' observation that the growth of Athenian power and the fear it caused in Sparta made war inevitable. This pattern has recurred throughout history."
+  },
+  {
+    question: "In the Melian Dialogue, the Athenians argue that justice only exists between parties of equal power. What IR Realism concept does this illustrate?",
+    choices: ["Anarchy in the international system", "Collective security", "International law", "Democratic peace"],
+    correct: 0,
+    explanation: "The Melian Dialogue is the quintessential statement of anarchy in international relations — without a higher authority to enforce rules, power determines outcomes. This is the foundational premise of all realist theory."
+  },
+  {
+    question: "Diodotus argued against massacring the Mytileneans not on moral grounds, but because it would be counterproductive. This exemplifies which realist principle?",
+    choices: ["Rational self-interest guides policy", "Morality should govern statecraft", "International law is supreme", "Small states have equal rights"],
+    correct: 0,
+    explanation: "Diodotus explicitly argues from interest, not justice — the hallmark of realist reasoning. Realism holds that policy should be guided by rational calculation of national interest, not moral sentiment or emotional reaction."
+  },
+  {
+    question: "Pericles' strategy was to avoid land battles with Sparta and rely on Athens' navy and walls. This reflects which realist concept?",
+    choices: ["Leveraging comparative advantage in capabilities", "Appeasement", "Collective security", "Liberal institutionalism"],
+    correct: 0,
+    explanation: "Pericles understood that Athens' power lay at sea, not on land. Rational realist strategy demands playing to your strengths and avoiding engagements where the enemy has an advantage — a principle of statecraft as old as Thucydides."
+  },
+  {
+    question: "The Sicilian Expedition's failure demonstrates which danger that defensive realists warn about?",
+    choices: ["Imperial overextension", "Insufficient military spending", "Too many alliances", "Technological stagnation"],
+    correct: 0,
+    explanation: "Defensive realists (like Kenneth Waltz) argue that states should seek security, not unlimited power. The Sicilian disaster is a textbook case of overextension — Athens committed massive resources to a distant theater while its core interests were unprotected."
+  },
+  {
+    question: "Which modern IR scholar coined the term 'Thucydides Trap' to describe the danger when a rising power challenges a ruling power?",
+    choices: ["Graham Allison", "Kenneth Waltz", "Hans Morgenthau", "John Mearsheimer"],
+    correct: 0,
+    explanation: "Graham Allison of Harvard coined the term in his book 'Destined for War: Can America and China Escape Thucydides's Trap?' (2017), applying the ancient pattern to modern U.S.-China competition."
+  },
+  {
+    question: "Thucydides identifies three motives that drive states: fear, honor, and ___?",
+    choices: ["Interest (or profit)", "Revenge", "Destiny", "Justice"],
+    correct: 0,
+    explanation: "Thucydides identifies fear, honor, and interest as the three fundamental motives driving state behavior. These three motives became foundational to realist theory — they explain why states compete even when cooperation might seem more rational."
+  },
+  {
+    question: "During the plague in Athens, social order collapsed as citizens abandoned laws and morality. Realists cite this to support which argument?",
+    choices: ["Human nature is fundamentally self-interested", "Democracy is inherently weak", "Plagues cause all wars", "Military power prevents disease"],
+    correct: 0,
+    explanation: "Classical realists ground their theory in a pessimistic view of human nature. The plague passage shows that when survival is threatened and enforcement mechanisms fail, humans revert to self-interest — just as states do in the anarchic international system."
+  },
+  {
+    question: "In the Peloponnesian War, Melos tried to remain neutral but was conquered by Athens. This illustrates which realist lesson?",
+    choices: ["Neutrality offers no protection without power", "Neutrality is always the best policy", "Small states are always safe", "International law protects the weak"],
+    correct: 0,
+    explanation: "The Melians' neutrality, their appeals to justice, and their hope for Spartan aid all failed against Athenian power. Realism teaches that without the power to defend your position, appeals to rights, justice, or neutrality are futile in an anarchic system."
+  },
+  {
+    question: "Thucydides wrote that his work would be 'a possession for all time.' What does this claim reflect about the realist view of international politics?",
+    choices: ["Patterns of power politics recur throughout history", "Ancient Greece was the peak of civilization", "History never repeats", "Only Greek history matters"],
+    correct: 0,
+    explanation: "Thucydides believed that because human nature is constant, the patterns of power, fear, and interest he observed would recur in every era. This cyclical view of history — that structural dynamics repeat even as actors change — is a cornerstone of realist thought."
+  }
+];
+
+
+// ══════════════════════════════════════════════════════════
+//  CODEX ENTRIES
+// ══════════════════════════════════════════════════════════
+
+const codexEntries = {
+  anarchy: {
+    title: "Anarchy",
+    short: "The international system has no central authority",
+    full: `<h2>Anarchy in the International System</h2>
+      <p>The most fundamental concept in IR Realism. <strong>Anarchy</strong> doesn't mean chaos — it means the absence of a higher authority above states. There is no "world government" to enforce rules, protect the weak, or punish aggressors.</p>
+      <p>Thucydides demonstrates this in the Melian Dialogue when Athens tells Melos that justice only applies between equals. Without an enforcing authority, power determines outcomes.</p>
+      <p>This has profound implications: states must rely on <em>self-help</em> for their survival. They cannot trust others to protect them, and must always be prepared for the possibility of conflict.</p>
+      <p><strong>Key thinker:</strong> Kenneth Waltz formalized this in <em>Theory of International Politics</em> (1979), arguing that the anarchic structure of the system — not human nature or state characteristics — drives international conflict.</p>`
+  },
+  balance_of_power: {
+    title: "Balance of Power",
+    short: "States seek equilibrium to prevent domination",
+    full: `<h2>Balance of Power & Power Transition</h2>
+      <p>The <strong>balance of power</strong> is the central organizing principle of realist international politics. States form alliances and build military capabilities to prevent any single state from achieving hegemony.</p>
+      <p>Thucydides shows this at the grandest scale: Sparta formed its alliance to counter rising Athenian power. When the balance shifted, war resulted — what Graham Allison calls the "Thucydides Trap."</p>
+      <p><strong>Power transition theory</strong> (A.F.K. Organski) argues that wars are most likely when a rising power approaches parity with the dominant power, creating a window of opportunity or fear.</p>
+      <p><strong>Historical pattern:</strong> Of 16 cases over 500 years where a rising power confronted a ruling power, 12 resulted in war (per Allison's research). Athens vs. Sparta was the first.</p>`
+  },
+  security_dilemma: {
+    title: "Security Dilemma",
+    short: "Defensive measures appear threatening to others",
+    full: `<h2>The Security Dilemma</h2>
+      <p>One of realism's most tragic insights: when one state builds defenses, other states feel less secure — even if the first state's intentions are purely defensive. This creates a spiral of armament and suspicion.</p>
+      <p>Athens built its Long Walls and navy for defense, but Sparta saw these as tools of imperial domination. Athens fortified because it feared Sparta; Sparta armed because it feared Athens. Neither could credibly communicate peaceful intent.</p>
+      <p><strong>Key thinker:</strong> John Herz (1950) coined the term, but the concept is pure Thucydides. Robert Jervis later formalized it in <em>Perception and Misperception in International Politics</em>.</p>
+      <p>The tragedy: even states with genuinely peaceful intentions can end up in conflict because of the security dilemma. Intentions are unknowable; only capabilities are visible.</p>`
+  },
+  deterrence: {
+    title: "Deterrence",
+    short: "Using threats to prevent unwanted actions",
+    full: `<h2>Deterrence Theory</h2>
+      <p><strong>Deterrence</strong> means convincing an adversary that the costs of aggression will outweigh any potential gains. It requires both capability (the power to punish) and credibility (the willingness to use it).</p>
+      <p>The Mytilenean Debate is a masterclass in deterrence theory. Cleon argues for maximum punishment to deter future revolts. Diodotus counters that excessive punishment destroys the incentive to surrender — undermining deterrence itself.</p>
+      <p>The paradox: deterrence works best when punishment is severe enough to be feared but moderate enough that surrender remains an option. If the punishment for rebellion and surrender are the same (death), rebels will always fight to the bitter end.</p>
+      <p><strong>Modern application:</strong> This same logic applies to nuclear deterrence — the threat must be credible but the consequences of failure catastrophic enough to prevent challenge.</p>`
+  },
+  human_nature: {
+    title: "Human Nature",
+    short: "Self-interest as the driver of political behavior",
+    full: `<h2>Human Nature in Realism</h2>
+      <p>Classical realists root their theory in a particular view of human nature: humans are fundamentally self-interested, power-seeking, and driven by fear, honor, and interest — the three motives Thucydides identifies.</p>
+      <p>The plague passage in Book II is Thucydides' most explicit statement on human nature. When social constraints collapsed, Athenians revealed their base impulses: selfishness, hedonism, and disregard for others.</p>
+      <p><strong>Key thinker:</strong> Hans Morgenthau argued in <em>Politics Among Nations</em> (1948) that the drive for power is rooted in human nature itself — an "animus dominandi" that operates at both the individual and state level.</p>
+      <p>This pessimistic anthropology separates realists from liberals, who believe human nature can be improved through institutions, education, and economic interdependence.</p>`
+  },
+  state_power: {
+    title: "Elements of State Power",
+    short: "The components that make a state strong",
+    full: `<h2>The Elements of National Power</h2>
+      <p>Realists analyze power as the fundamental currency of international politics. But power isn't just military strength — it's a complex combination of factors.</p>
+      <p>Pericles' Funeral Oration reveals his understanding of composite power: military capability (the navy), economic resources (tribute from the empire), institutional quality (democracy), national morale (civic pride), and geography (Athens' position and walls).</p>
+      <p><strong>Morgenthau's elements of power:</strong> geography, natural resources, industrial capacity, military preparedness, population, national character, national morale, quality of diplomacy, and quality of government.</p>
+      <p>Athens had many advantages but was ultimately undermined by poor strategic decisions (Sicily), natural disaster (plague), and internal division — showing that power is dynamic and can erode rapidly.</p>`
+  },
+  offensive_realism: {
+    title: "Offensive Realism",
+    short: "States must maximize power to survive",
+    full: `<h2>Offensive Realism</h2>
+      <p><strong>Offensive realism</strong> (John Mearsheimer) argues that the anarchic system compels great powers to constantly seek to maximize their share of world power — including through expansion — because security is scarce and intentions are unknowable.</p>
+      <p>Alcibiades' argument for the Sicilian expedition embodies this logic: "We cannot fix the exact point at which our empire shall stop." For offensive realists, standing still means falling behind.</p>
+      <p>However, Thucydides also shows the limits of this logic. The Sicilian disaster demonstrates that pursuing maximum power can lead to catastrophic overextension. This tension between the drive for power and the dangers of overreach remains central to realist debates.</p>
+      <p><strong>Counter:</strong> Defensive realists (Kenneth Waltz) argue that the system actually punishes overexpansion. States that grab too much power provoke balancing coalitions against themselves.</p>`
+  },
+  alliances: {
+    title: "Alliance Theory",
+    short: "Why and how states form partnerships",
+    full: `<h2>Alliance Formation & Management</h2>
+      <p>Realists view alliances as temporary arrangements driven by shared interests, not shared values. States ally to balance against common threats, and alliances dissolve when the threat disappears.</p>
+      <p>The Peloponnesian War shows both styles: Athens' Delian League was held together increasingly by force, while Sparta's Peloponnesian League relied more on voluntary participation. Both had defections and management problems.</p>
+      <p><strong>Stephen Walt's Balance of Threat theory:</strong> States don't just balance against power — they balance against threats. A nearby, aggressive, and capable state is more threatening than a distant, powerful but restrained one.</p>
+      <p><strong>Key insight from Thucydides:</strong> alliance management requires both strength and restraint. Athens' increasingly coercive treatment of allies drove revolts; Sparta's restraint at war's end (sparing Athens) showed that moderation can serve power.</p>`
+  },
+  structural_realism: {
+    title: "Structural Realism",
+    short: "The system's structure determines state behavior",
+    full: `<h2>Structural / Neorealism</h2>
+      <p><strong>Structural realism</strong> argues that the architecture of the international system — its anarchic structure and the distribution of power — determines state behavior more than individual leaders, domestic politics, or ideology.</p>
+      <p>Thucydides' history supports this: different Athenian leaders (Pericles, Cleon, Alcibiades, Nicias) pursued different tactics but were all constrained by the same structural pressures. The war happened not because of bad leaders but because of the system's logic.</p>
+      <p><strong>Kenneth Waltz's</strong> <em>Theory of International Politics</em> (1979) formalized this insight: states are like firms in a competitive market — they must adapt to systemic pressures or face elimination.</p>
+      <p>The enduring lesson: individuals matter, but the structure of the system constrains and shapes their choices. This is why Thucydides called his work 'a possession for all time' — because the structural dynamics he observed are eternal.</p>`
+  }
+};
+
+
+// ══════════════════════════════════════════════════════════
+//  CAMPAIGN MODE
+// ══════════════════════════════════════════════════════════
+
+function startCampaign() {
+  state.power = 50;
+  state.wisdom = 50;
+  state.reputation = 50;
+  state.currentScenario = 0;
+  state.campaignChoices = [];
+  state.conceptsUnlocked = new Set();
+  state.lastMode = 'campaign';
+  updateHUD();
+  showScreen('campaign-screen');
+  renderScenario();
+}
+
+function renderScenario() {
+  state.choiceLocked = false;
+  const s = scenarios[state.currentScenario];
+  if (!s) {
+    showResults();
+    return;
+  }
+
+  const container = document.getElementById('scenario-container');
+  const feedbackPanel = document.getElementById('feedback-panel');
+  feedbackPanel.classList.remove('show');
+
+  let html = `
+    <div class="chapter-header">
+      <div class="chapter-number">${s.chapter} — Scenario ${state.currentScenario + 1} of ${scenarios.length}</div>
+      <div class="chapter-title">${s.title}</div>
+    </div>
+    <div class="scenario-text">${s.text}</div>
+    <div class="quote-box">
+      ${s.quote.text}
+      <span class="source">— ${s.quote.source}</span>
+    </div>
+    <p style="margin:15px 0; font-weight:600; color:var(--gold); font-family:'Cinzel',serif; font-size:0.95em;">${s.question}</p>
+    <div class="choices">
+  `;
+
+  s.choices.forEach((c, i) => {
+    html += `
+      <button class="choice-btn" id="choice-${i}" onclick="selectChoice(${i})">
+        <span class="choice-label">${c.label}</span>
+        ${c.text}
+      </button>
+    `;
+  });
+
+  html += `</div>`;
+  container.innerHTML = html;
+}
+
+function selectChoice(index) {
+  if (state.choiceLocked) return;
+  state.choiceLocked = true;
+
+  const s = scenarios[state.currentScenario];
+  const choice = s.choices[index];
+
+  // Disable all buttons
+  s.choices.forEach((_, i) => {
+    const btn = document.getElementById(`choice-${i}`);
+    btn.onclick = null;
+    btn.style.cursor = 'default';
+    btn.style.opacity = i === index ? '1' : '0.4';
+  });
+
+  // Mark correct/selected
+  const selectedBtn = document.getElementById(`choice-${index}`);
+  selectedBtn.classList.add(choice.best ? 'correct' : 'wrong');
+
+  // Find best choice and highlight it if different
+  if (!choice.best) {
+    s.choices.forEach((c, i) => {
+      if (c.best) document.getElementById(`choice-${i}`).classList.add('correct');
+    });
+  }
+
+  // Apply effects
+  state.power += choice.effects.power;
+  state.wisdom += choice.effects.wisdom;
+  state.reputation += choice.effects.reputation;
+  updateHUD();
+
+  // Unlock concept
+  unlockConcept(choice.concept);
+
+  // Show feedback
+  const feedbackPanel = document.getElementById('feedback-panel');
+  const feedbackHeader = document.getElementById('feedback-header');
+  const feedbackText = document.getElementById('feedback-text');
+  const feedbackStats = document.getElementById('feedback-stats');
+
+  feedbackHeader.className = 'feedback-header ' + (choice.best ? 'correct' : 'wrong');
+  feedbackHeader.textContent = choice.best ? 'Excellent Strategic Analysis!' : 'A Reasonable Position, But...';
+
+  let conceptLabel = codexEntries[choice.concept] ? codexEntries[choice.concept].title : choice.concept;
+  feedbackText.innerHTML = `
+    <p>${choice.feedback}</p>
+    <p style="margin-top:10px;">Concept unlocked: <span class="ir-concept">${conceptLabel}</span></p>
+  `;
+
+  let statsHtml = '';
+  if (choice.effects.power !== 0) statsHtml += `Military Power ${choice.effects.power > 0 ? '+' : ''}${choice.effects.power} `;
+  if (choice.effects.wisdom !== 0) statsHtml += `Political Wisdom ${choice.effects.wisdom > 0 ? '+' : ''}${choice.effects.wisdom} `;
+  if (choice.effects.reputation !== 0) statsHtml += `Reputation ${choice.effects.reputation > 0 ? '+' : ''}${choice.effects.reputation}`;
+  feedbackStats.textContent = statsHtml;
+
+  feedbackPanel.classList.add('show');
+
+  // Track choice
+  state.campaignChoices.push({ scenario: state.currentScenario, choice: index, best: choice.best });
+
+  // Update next button
+  const nextBtn = document.getElementById('next-btn');
+  if (state.currentScenario >= scenarios.length - 1) {
+    nextBtn.textContent = 'VIEW RESULTS';
+  } else {
+    nextBtn.textContent = 'CONTINUE';
+  }
+}
+
+function nextScenario() {
+  state.currentScenario++;
+  if (state.currentScenario >= scenarios.length) {
+    showResults();
+  } else {
+    renderScenario();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  RESULTS
+// ══════════════════════════════════════════════════════════
+
+function showResults() {
+  const bestCount = state.campaignChoices.filter(c => c.best).length;
+  const total = scenarios.length;
+  const pct = Math.round((bestCount / total) * 100);
+
+  let rank, rankDesc;
+  if (pct >= 90) {
+    rank = "Grand Strategist";
+    rankDesc = "You rival Pericles himself in strategic wisdom. You understand that power without prudence is self-destructive, and that the anarchic system demands constant vigilance tempered by restraint.";
+  } else if (pct >= 70) {
+    rank = "Seasoned Archon";
+    rankDesc = "You grasp the core principles of realist statecraft. Like Nicias, you counsel caution — though perhaps you sometimes underestimate the structural pressures that drive states to compete.";
+  } else if (pct >= 50) {
+    rank = "Ambitious Strategos";
+    rankDesc = "You have the instincts of Alcibiades — bold and daring, but sometimes reckless. You understand power but haven't fully mastered the art of restraint.";
+  } else {
+    rank = "Idealist in an Anarchic World";
+    rankDesc = "Like the Melians, you appeal to justice and hope. Admirable, perhaps — but Thucydides would warn that in the harsh world of international politics, hope is not a strategy.";
+  }
+
+  const concepts = Array.from(state.conceptsUnlocked).map(key => {
+    const entry = codexEntries[key];
+    return entry ? `<li><strong>${entry.title}</strong> — ${entry.short}</li>` : '';
+  }).join('');
+
+  document.getElementById('results-card').innerHTML = `
+    <div class="results-title">Campaign Complete</div>
+    <div class="results-subtitle">The Peloponnesian War has ended.</div>
+    <div class="final-stats">
+      <div class="final-stat">
+        <div class="final-stat-label">MILITARY POWER</div>
+        <div class="final-stat-value" style="color:var(--blood)">${state.power}</div>
+      </div>
+      <div class="final-stat">
+        <div class="final-stat-label">POLITICAL WISDOM</div>
+        <div class="final-stat-value" style="color:var(--gold)">${state.wisdom}</div>
+      </div>
+      <div class="final-stat">
+        <div class="final-stat-label">REPUTATION</div>
+        <div class="final-stat-value" style="color:var(--sea-light)">${state.reputation}</div>
+      </div>
+    </div>
+    <p style="margin:15px 0;">Best strategic choices: <strong>${bestCount} / ${total}</strong></p>
+    <div class="rank-title">${rank}</div>
+    <div class="rank-description">${rankDesc}</div>
+    <div class="concepts-learned">
+      <h3>IR CONCEPTS UNLOCKED</h3>
+      <ul>${concepts}</ul>
+    </div>
+  `;
+
+  setResultsButtons();
+  showScreen('results-screen');
+}
+
+function setResultsButtons() {
+  const btns = document.getElementById('results-buttons');
+  if (state.lastMode === 'quiz') {
+    btns.innerHTML = `
+      <button class="btn btn-primary" onclick="startQuiz()">TRY QUIZ AGAIN</button>
+      <button class="btn" onclick="startCampaign()">PLAY CAMPAIGN</button>
+      <button class="btn" onclick="showScreen('title-screen')">MAIN MENU</button>
+    `;
+  } else {
+    btns.innerHTML = `
+      <button class="btn btn-primary" onclick="startCampaign()">PLAY AGAIN</button>
+      <button class="btn" onclick="startQuiz()">TRY THE QUIZ</button>
+      <button class="btn" onclick="showScreen('title-screen')">MAIN MENU</button>
+    `;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  QUIZ MODE
+// ══════════════════════════════════════════════════════════
+
+function startQuiz() {
+  state.quizIndex = 0;
+  state.quizScore = 0;
+  state.quizAnswers = [];
+  state.lastMode = 'quiz';
+  showScreen('quiz-screen');
+  renderQuizProgress();
+  renderQuizQuestion();
+}
+
+function renderQuizProgress() {
+  let html = '';
+  quizQuestions.forEach((_, i) => {
+    let cls = 'quiz-dot';
+    if (i === state.quizIndex) cls += ' current';
+    if (state.quizAnswers[i] !== undefined) {
+      cls += state.quizAnswers[i] ? ' answered' : ' wrong-dot';
+    }
+    html += `<div class="${cls}"></div>`;
+  });
+  document.getElementById('quiz-progress').innerHTML = html;
+}
+
+function renderQuizQuestion() {
+  const q = quizQuestions[state.quizIndex];
+  if (!q) {
+    showQuizResults();
+    return;
+  }
+
+  state.choiceLocked = false;
+  document.getElementById('quiz-feedback').classList.remove('show');
+
+  // Shuffle choices for quiz (keep track of correct)
+  const indices = q.choices.map((_, i) => i);
+  // Fisher-Yates shuffle
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  let html = `
+    <div class="scenario-text" style="border-left-color:var(--sea-light);">
+      <strong style="color:var(--gold)">Question ${state.quizIndex + 1} of ${quizQuestions.length}</strong><br><br>
+      ${q.question}
+    </div>
+    <div class="choices">
+  `;
+
+  indices.forEach((origIdx, displayIdx) => {
+    html += `
+      <button class="choice-btn" id="quiz-choice-${displayIdx}"
+        data-orig="${origIdx}"
+        onclick="selectQuizAnswer(${displayIdx}, ${origIdx})">
+        ${q.choices[origIdx]}
+      </button>
+    `;
+  });
+
+  html += `</div>`;
+  document.getElementById('quiz-container').innerHTML = html;
+}
+
+function selectQuizAnswer(displayIdx, origIdx) {
+  if (state.choiceLocked) return;
+  state.choiceLocked = true;
+
+  const q = quizQuestions[state.quizIndex];
+  const isCorrect = origIdx === q.correct;
+
+  if (isCorrect) state.quizScore++;
+  state.quizAnswers[state.quizIndex] = isCorrect;
+
+  // Disable all buttons
+  document.querySelectorAll('#quiz-container .choice-btn').forEach((btn, i) => {
+    btn.onclick = null;
+    btn.style.cursor = 'default';
+    const orig = parseInt(btn.dataset.orig);
+    if (orig === q.correct) {
+      btn.classList.add('correct');
+    } else if (i === displayIdx && !isCorrect) {
+      btn.classList.add('wrong');
+    }
+    if (i !== displayIdx && orig !== q.correct) {
+      btn.style.opacity = '0.4';
+    }
+  });
+
+  // Show feedback
+  const fb = document.getElementById('quiz-feedback');
+  const fbHeader = document.getElementById('quiz-feedback-header');
+  const fbText = document.getElementById('quiz-feedback-text');
+
+  fbHeader.className = 'feedback-header ' + (isCorrect ? 'correct' : 'wrong');
+  fbHeader.textContent = isCorrect ? 'Correct!' : 'Not Quite';
+  fbText.innerHTML = `<p>${q.explanation}</p>`;
+
+  const nextBtn = document.getElementById('quiz-next-btn');
+  nextBtn.textContent = state.quizIndex >= quizQuestions.length - 1 ? 'VIEW RESULTS' : 'NEXT QUESTION';
+
+  fb.classList.add('show');
+  renderQuizProgress();
+}
+
+function nextQuizQuestion() {
+  state.quizIndex++;
+  if (state.quizIndex >= quizQuestions.length) {
+    showQuizResults();
+  } else {
+    renderQuizProgress();
+    renderQuizQuestion();
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+}
+
+function showQuizResults() {
+  const pct = Math.round((state.quizScore / quizQuestions.length) * 100);
+  let rank, rankDesc;
+  if (pct >= 90) {
+    rank = "Master Realist";
+    rankDesc = "Morgenthau and Waltz would welcome you into their circle. Your command of realist theory is exceptional.";
+  } else if (pct >= 70) {
+    rank = "Realist Scholar";
+    rankDesc = "You have a strong grasp of realist principles. A few more readings of Thucydides and you'll master the nuances.";
+  } else if (pct >= 50) {
+    rank = "Student of Power Politics";
+    rankDesc = "You're building a foundation in realist theory. Keep studying — the patterns of power and fear are complex.";
+  } else {
+    rank = "Liberal Internationalist";
+    rankDesc = "You may be better suited to Kant than Thucydides — but don't worry, understanding your opponents is half the battle!";
+  }
+
+  document.getElementById('results-card').innerHTML = `
+    <div class="results-title">Quiz Complete</div>
+    <div class="results-subtitle">Knowledge Challenge Results</div>
+    <div class="final-stats">
+      <div class="final-stat">
+        <div class="final-stat-label">SCORE</div>
+        <div class="final-stat-value" style="color:var(--gold)">${state.quizScore}/${quizQuestions.length}</div>
+      </div>
+      <div class="final-stat">
+        <div class="final-stat-label">ACCURACY</div>
+        <div class="final-stat-value" style="color:var(--sea-light)">${pct}%</div>
+      </div>
+      <div class="final-stat">
+        <div class="final-stat-label">RANK</div>
+        <div class="final-stat-value" style="color:var(--bronze); font-size:1em;">${rank}</div>
+      </div>
+    </div>
+    <div class="rank-description">${rankDesc}</div>
+  `;
+
+  setResultsButtons();
+  showScreen('results-screen');
+}
+
+
+// ══════════════════════════════════════════════════════════
+//  CODEX
+// ══════════════════════════════════════════════════════════
+
+function showCodex() {
+  const grid = document.getElementById('codex-grid');
+  document.getElementById('codex-detail').classList.remove('show');
+
+  let html = '';
+  for (const [key, entry] of Object.entries(codexEntries)) {
+    const unlocked = state.conceptsUnlocked.has(key);
+    html += `
+      <div class="codex-card ${unlocked ? '' : 'locked'}" onclick="${unlocked ? `showCodexEntry('${key}')` : ''}">
+        <h3>${unlocked ? entry.title : '???'}</h3>
+        <p>${unlocked ? entry.short : 'Play the campaign to unlock this concept.'}</p>
+      </div>
+    `;
+  }
+  grid.innerHTML = html;
+  showScreen('codex-screen');
+}
+
+function showCodexEntry(key) {
+  const entry = codexEntries[key];
+  if (!entry) return;
+  const detail = document.getElementById('codex-detail');
+  detail.innerHTML = entry.full + `<button class="btn btn-small" style="margin-top:15px;" onclick="document.getElementById('codex-detail').classList.remove('show')">CLOSE</button>`;
+  detail.classList.add('show');
+  detail.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ── Keyboard shortcut for modal ──
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeModal();
+});
+</script>
+
+</body>
+</html>

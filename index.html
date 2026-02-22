@@ -20,52 +20,22 @@
       <p>A collection of AI-generated video games</p>
     </section>
 
-    <section class="game-grid">
-      <a href="games/leonardo2/gingerbread-game.html" class="game-card">
-        <div class="game-icon">🍪</div>
-        <h2>Gingerbread Game</h2>
-        <p>Idle &amp; Mini Games</p>
-      </a>
-      <a href="games/leonardogame/gridwars.html" class="game-card">
-        <div class="game-icon">⚔️</div>
-        <h2>Grid Wars</h2>
-        <p>Strategy</p>
-      </a>
-      <a href="games/periodic-table-game/index.html" class="game-card">
-        <div class="game-icon">⚗️</div>
-        <h2>Periodic Table Game</h2>
-        <p>Educational RPG</p>
-      </a>
-      <a href="games/weights/index.html" class="game-card">
-        <div class="game-icon">🏋️</div>
-        <h2>Weights</h2>
-        <p>Idle Game</p>
-      </a>
-      <a href="games/zelda/game.html" class="game-card">
-        <div class="game-icon">🗡️</div>
-        <h2>Triforce Rush</h2>
-        <p>Platformer</p>
-      </a>
-      <a href="games/infinite-hug/index.html" class="game-card">
-        <div class="game-icon">🤗</div>
-        <h2>Infinite Hug</h2>
-        <p>Chill / Relaxing</p>
-      </a>
-      <a href="games/princess-rocket/index.html" class="game-card">
-        <div class="game-icon">🚀</div>
-        <h2>Princess Rocket Adventure</h2>
-        <p>Action</p>
-      </a>
-      <a href="games/magic-princess/index.html" class="game-card">
-        <div class="game-icon">👸</div>
-        <h2>Magic Princess Evolution</h2>
-        <p>Evolution / Idle</p>
-      </a>
-      <a href="games/dungeon-dash/index.html" class="game-card">
-        <div class="game-icon">🏰</div>
-        <h2>Dungeon Dash</h2>
-        <p>Roguelike Action</p>
-      </a>
+    <section class="controls">
+      <div class="filter-bar">
+        <label for="category-filter">Category:</label>
+        <select id="category-filter">
+          <option value="all">All</option>
+        </select>
+        <label for="sort-select">Sort:</label>
+        <select id="sort-select">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="name">A–Z</option>
+        </select>
+      </div>
+    </section>
+
+    <section class="game-grid" id="game-grid">
     </section>
 
     <section class="subscribe-section">
@@ -83,5 +53,6 @@
     <p>&copy; 2026 Game Vault</p>
   </footer>
   <script src="js/subscribe.js"></script>
+  <script src="js/games.js"></script>
 </body>
 </html>
