@@ -15,6 +15,7 @@ const games = [
   { title: "Math Monsters", subtitle: "Multiplication Adventure", icon: "🧮", href: "games/math-monsters/index.html", category: "Educational", added: 13 },
   { title: "ChemRogue: Elemental Ascension", subtitle: "Educational RPG", icon: "🧪", href: "games/chemrogue/index.html", category: "Educational", added: 14 },
   { title: "Division Quest", subtitle: "Math Adventure", icon: "➗", href: "games/division-quest/index.html", category: "Educational", added: 15 },
+  { title: "Pete the Cat's Groovy Computer Skills!", subtitle: "Toddler / Learning", icon: "🐱", href: "games/pete-the-cat/index.html", category: "Educational", added: 16 },
 ];
 
 const grid = document.getElementById('game-grid');

@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pete the Cat's Groovy Computer Skills!</title>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pete-blue: #2B7DE9;
+    --pete-dark-blue: #1a5bbf;
+    --groovy-red: #E63946;
+    --groovy-yellow: #FFD166;
+    --groovy-green: #06D6A0;
+    --groovy-orange: #F77F00;
+    --pizza-crust: #D4A054;
+    --pizza-sauce: #C1440E;
+    --pizza-cheese: #F5D547;
+    --bg-cream: #FFF8E7;
+    --bg-sky: #E8F4FD;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg-cream);
+    overflow-x: hidden;
+    min-height: 100vh;
+  }
+
+  h1, h2, h3, .btn-label {
+    font-family: 'Fredoka One', cursive;
+  }
+
+  /* ===== STARS BACKGROUND ===== */
+  .stars {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    overflow: hidden;
+  }
+  .star {
+    position: absolute;
+    width: 20px; height: 20px;
+    background: var(--groovy-yellow);
+    clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+    opacity: 0.15;
+    animation: twinkle 3s ease-in-out infinite alternate;
+  }
+  @keyframes twinkle { 0% { opacity: 0.08; transform: scale(0.8); } 100% { opacity: 0.2; transform: scale(1.1); } }
+
+  /* ===== NAV ===== */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--pete-blue);
+    padding: 12px 20px;
+    display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 4px 20px rgba(43,125,233,0.3);
+    flex-wrap: wrap; justify-content: center;
+  }
+  .nav-title {
+    color: white; font-family: 'Fredoka One', cursive; font-size: 1.3rem;
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.2);
+    margin-right: auto;
+  }
+  .nav-btn {
+    font-family: 'Fredoka One', cursive;
+    border: 3px solid white; border-radius: 50px;
+    padding: 8px 18px; font-size: 0.9rem;
+    cursor: pointer; transition: all 0.2s;
+    color: white; background: transparent;
+  }
+  .nav-btn:hover { transform: scale(1.08); }
+  .nav-btn.active { background: white; color: var(--pete-blue); }
+  .nav-btn.red { border-color: var(--groovy-red); }
+  .nav-btn.red.active { background: var(--groovy-red); color: white; }
+  .nav-btn.yellow { border-color: var(--groovy-yellow); }
+  .nav-btn.yellow.active { background: var(--groovy-yellow); color: #333; }
+  .nav-btn.green { border-color: var(--groovy-green); }
+  .nav-btn.green.active { background: var(--groovy-green); color: white; }
+  .nav-btn.orange { border-color: var(--groovy-orange); }
+  .nav-btn.orange.active { background: var(--groovy-orange); color: white; }
+
+  /* ===== SCREENS ===== */
+  .screen {
+    display: none; position: relative; z-index: 1;
+    min-height: calc(100vh - 60px);
+    padding: 30px 20px 60px;
+    animation: fadeIn 0.4s ease;
+  }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  .screen-title {
+    text-align: center; font-size: 2rem; margin-bottom: 8px;
+    color: var(--pete-dark-blue);
+    text-shadow: 2px 2px 0 rgba(0,0,0,0.06);
+  }
+  .screen-subtitle {
+    text-align: center; font-size: 1.1rem; color: #666;
+    margin-bottom: 30px; font-weight: 700;
+  }
+
+  /* ===== WELCOME SCREEN ===== */
+  #welcome { text-align: center; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .pete-cat {
+    font-size: 120px; margin: 20px 0;
+    animation: peteBounce 2s ease-in-out infinite;
+    filter: drop-shadow(0 10px 20px rgba(0,0,0,0.1));
+  }
+  @keyframes peteBounce { 0%,100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-15px) rotate(2deg); } }
+
+  .welcome-title {
+    font-family: 'Fredoka One', cursive; font-size: 2.8rem;
+    color: var(--pete-blue);
+    text-shadow: 3px 3px 0 rgba(43,125,233,0.15);
+  }
+  .welcome-sub { font-size: 1.3rem; color: #555; margin: 10px 0 30px; font-weight: 700; }
+
+  .groovy-buttons-row {
+    display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; margin-top: 10px;
+  }
+  .groovy-start-btn {
+    font-family: 'Fredoka One', cursive; font-size: 1.1rem;
+    border: none; border-radius: 50px;
+    padding: 16px 32px; cursor: pointer;
+    color: white; transition: all 0.25s;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.15), 0 8px 25px rgba(0,0,0,0.1);
+    position: relative; top: 0;
+  }
+  .groovy-start-btn:hover { top: -3px; box-shadow: 0 9px 0 rgba(0,0,0,0.15), 0 12px 30px rgba(0,0,0,0.12); }
+  .groovy-start-btn:active { top: 4px; box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  .groovy-start-btn.red { background: var(--groovy-red); }
+  .groovy-start-btn.yellow { background: var(--groovy-yellow); color: #333; }
+  .groovy-start-btn.green { background: var(--groovy-green); }
+  .groovy-start-btn.orange { background: var(--groovy-orange); }
+
+  /* ===== SCORE BAR ===== */
+  .score-bar {
+    display: flex; align-items: center; justify-content: center; gap: 20px;
+    background: white; border-radius: 20px; padding: 12px 24px;
+    margin: 0 auto 25px; max-width: 500px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+  }
+  .score-label { font-family: 'Fredoka One', cursive; color: var(--pete-blue); font-size: 1.1rem; }
+  .score-val { font-family: 'Fredoka One', cursive; font-size: 1.5rem; color: var(--groovy-orange); }
+  .streak-val { font-family: 'Fredoka One', cursive; font-size: 1rem; color: var(--groovy-green); }
+
+  /* ===== GAME 1: CLICK THE BUTTONS ===== */
+  .button-field {
+    position: relative; width: 100%; max-width: 700px;
+    height: 420px; margin: 0 auto;
+    background: white; border-radius: 30px;
+    border: 4px dashed var(--pete-blue);
+    overflow: hidden;
+  }
+  .groovy-button {
+    position: absolute; border-radius: 50%;
+    border: 4px solid rgba(255,255,255,0.5);
+    cursor: pointer; transition: transform 0.15s;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Fredoka One', cursive; color: white;
+    font-size: 1.5rem; text-shadow: 1px 1px 2px rgba(0,0,0,0.2);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.15);
+    animation: buttonPop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    user-select: none;
+  }
+  .groovy-button:hover { transform: scale(1.15); }
+  @keyframes buttonPop { from { transform: scale(0); } to { transform: scale(1); } }
+
+  .pop-text {
+    position: absolute; font-family: 'Fredoka One', cursive;
+    font-size: 1.8rem; pointer-events: none;
+    animation: popUp 0.8s ease forwards; z-index: 10;
+  }
+  @keyframes popUp {
+    0% { opacity: 1; transform: translateY(0) scale(0.5); }
+    50% { opacity: 1; transform: translateY(-40px) scale(1.2); }
+    100% { opacity: 0; transform: translateY(-80px) scale(0.8); }
+  }
+
+  .instruction-bubble {
+    background: var(--pete-blue); color: white;
+    padding: 14px 24px; border-radius: 20px;
+    font-family: 'Fredoka One', cursive; font-size: 1.15rem;
+    text-align: center; max-width: 500px; margin: 0 auto 20px;
+    box-shadow: 0 4px 15px rgba(43,125,233,0.25);
+    animation: fadeIn 0.4s ease;
+  }
+
+  /* ===== GAME 2: DRAG PIZZA TOPPINGS ===== */
+  .pizza-area {
+    display: flex; flex-wrap: wrap; gap: 30px;
+    justify-content: center; align-items: flex-start;
+    max-width: 800px; margin: 0 auto;
+  }
+  .pizza-circle {
+    width: 320px; height: 320px; border-radius: 50%;
+    background: var(--pizza-crust);
+    box-shadow: inset 0 0 0 25px var(--pizza-crust), inset 0 0 0 30px #b8863a, 0 10px 40px rgba(0,0,0,0.15);
+    position: relative; flex-shrink: 0;
+  }
+  .pizza-sauce {
+    position: absolute; top: 28px; left: 28px; right: 28px; bottom: 28px;
+    border-radius: 50%; background: var(--pizza-sauce);
+  }
+  .pizza-cheese {
+    position: absolute; top: 6px; left: 6px; right: 6px; bottom: 6px;
+    border-radius: 50%; background: var(--pizza-cheese);
+    opacity: 0.7;
+  }
+  .pizza-drop-zone {
+    position: absolute; inset: 0; border-radius: 50%; z-index: 2;
+  }
+  .placed-topping {
+    position: absolute; font-size: 36px; pointer-events: none;
+    animation: toppingDrop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    z-index: 3;
+  }
+  @keyframes toppingDrop { from { transform: scale(0) rotate(-30deg); } to { transform: scale(1) rotate(0); } }
+
+  .toppings-tray {
+    background: white; border-radius: 24px; padding: 20px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+    display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+    max-width: 350px; align-content: flex-start;
+  }
+  .topping-item {
+    font-size: 44px; cursor: grab; transition: transform 0.15s;
+    padding: 8px; border-radius: 12px; user-select: none;
+    position: relative;
+  }
+  .topping-item:hover { transform: scale(1.25); background: rgba(255,209,102,0.2); }
+  .topping-item:active { cursor: grabbing; }
+  .topping-item .topping-label {
+    font-family: 'Fredoka One', cursive; font-size: 0.55rem;
+    color: #888; text-align: center; display: block;
+  }
+
+  /* ===== GAME 3: KEYBOARD ===== */
+  .keyboard-game-area {
+    max-width: 650px; margin: 0 auto; text-align: center;
+  }
+  .key-display {
+    font-family: 'Fredoka One', cursive; font-size: 5rem;
+    color: var(--pete-blue); margin: 20px 0;
+    background: white; border-radius: 24px;
+    padding: 20px 40px; display: inline-block;
+    border: 4px solid var(--pete-blue);
+    box-shadow: 0 6px 0 var(--pete-dark-blue);
+    min-width: 120px;
+    animation: keyBounce 1.5s ease-in-out infinite;
+  }
+  @keyframes keyBounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-8px); }
+  }
+  .typed-word {
+    font-family: 'Fredoka One', cursive; font-size: 2.5rem;
+    margin: 20px 0; min-height: 60px;
+    display: flex; gap: 6px; justify-content: center; flex-wrap: wrap;
+  }
+  .typed-letter {
+    display: inline-block; padding: 4px 8px; border-radius: 10px;
+    animation: letterPop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  .typed-letter.correct { color: var(--groovy-green); }
+  .typed-letter.next { color: #ccc; border: 3px dashed #ddd; padding: 2px 6px; }
+  @keyframes letterPop { from { transform: scale(0); } to { transform: scale(1); } }
+
+  .word-hint {
+    font-size: 3rem; margin: 10px 0;
+  }
+
+  .mini-keyboard {
+    display: flex; flex-direction: column; gap: 8px; align-items: center; margin-top: 25px;
+  }
+  .kb-row { display: flex; gap: 6px; }
+  .kb-key {
+    font-family: 'Fredoka One', cursive; font-size: 1rem;
+    width: 42px; height: 42px; border-radius: 10px;
+    border: 3px solid #ddd; background: white;
+    display: flex; align-items: center; justify-content: center;
+    color: #666; transition: all 0.15s;
+  }
+  .kb-key.highlight {
+    border-color: var(--groovy-orange); background: var(--groovy-yellow);
+    color: #333; transform: scale(1.15);
+    box-shadow: 0 3px 10px rgba(247,127,0,0.3);
+  }
+  .kb-key.pressed {
+    background: var(--groovy-green); border-color: var(--groovy-green);
+    color: white; transform: scale(0.95);
+  }
+
+  /* ===== GAME 4: DOUBLE-CLICK & RIGHT-CLICK ===== */
+  .advanced-area {
+    max-width: 700px; margin: 0 auto;
+  }
+  .action-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 16px; margin-top: 15px;
+  }
+  .action-card {
+    background: white; border-radius: 20px; padding: 24px 16px;
+    text-align: center; cursor: pointer;
+    border: 4px solid #eee; transition: all 0.2s;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    user-select: none;
+  }
+  .action-card:hover { border-color: var(--pete-blue); transform: translateY(-3px); }
+  .action-card .card-emoji { font-size: 3rem; margin-bottom: 8px; display: block; }
+  .action-card .card-label {
+    font-family: 'Fredoka One', cursive; font-size: 0.85rem; color: #555;
+  }
+  .action-card.completed {
+    border-color: var(--groovy-green); background: #f0fff4;
+  }
+  .action-card.completed .card-label { color: var(--groovy-green); }
+
+  .challenge-prompt {
+    background: linear-gradient(135deg, var(--groovy-orange), var(--groovy-red));
+    color: white; padding: 18px 28px; border-radius: 20px;
+    font-family: 'Fredoka One', cursive; font-size: 1.2rem;
+    text-align: center; margin-bottom: 20px;
+    box-shadow: 0 5px 20px rgba(230,57,70,0.25);
+  }
+
+  /* ===== CELEBRATION ===== */
+  .celebration {
+    position: fixed; inset: 0; z-index: 999;
+    display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.4); backdrop-filter: blur(4px);
+  }
+  .celebration.active { display: flex; }
+  .celebration-card {
+    background: white; border-radius: 30px; padding: 40px 50px;
+    text-align: center; animation: celebPop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    max-width: 400px;
+  }
+  @keyframes celebPop { from { transform: scale(0) rotate(-10deg); } to { transform: scale(1) rotate(0); } }
+  .celeb-emoji { font-size: 80px; margin-bottom: 15px; }
+  .celeb-text { font-family: 'Fredoka One', cursive; font-size: 1.8rem; color: var(--pete-blue); }
+  .celeb-sub { color: #666; margin: 10px 0 20px; font-weight: 700; }
+  .celeb-btn {
+    font-family: 'Fredoka One', cursive; font-size: 1rem;
+    background: var(--groovy-green); color: white;
+    border: none; border-radius: 50px; padding: 12px 30px;
+    cursor: pointer; transition: all 0.2s;
+    box-shadow: 0 4px 0 #05b586;
+  }
+  .celeb-btn:hover { transform: scale(1.05); }
+
+  /* ===== CONFETTI ===== */
+  .confetti-piece {
+    position: fixed; z-index: 1000; pointer-events: none;
+    width: 10px; height: 10px; border-radius: 2px;
+    animation: confettiFall 2s ease-out forwards;
+  }
+  @keyframes confettiFall {
+    0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+    100% { opacity: 0; transform: translateY(100vh) rotate(720deg); }
+  }
+
+  /* ===== SCROLL INDICATOR ===== */
+  .scroll-hint {
+    position: fixed; bottom: 15px; right: 15px;
+    background: var(--pete-blue); color: white;
+    border-radius: 50px; padding: 8px 16px;
+    font-family: 'Fredoka One', cursive; font-size: 0.8rem;
+    opacity: 0; transition: opacity 0.3s; z-index: 50;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.15);
+  }
+  .scroll-hint.visible { opacity: 1; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 600px) {
+    .welcome-title { font-size: 1.8rem; }
+    .pete-cat { font-size: 80px; }
+    .button-field { height: 320px; }
+    .pizza-circle { width: 250px; height: 250px; }
+    .key-display { font-size: 3.5rem; padding: 15px 30px; }
+    .screen-title { font-size: 1.5rem; }
+    .nav-title { font-size: 1rem; }
+    .kb-key { width: 32px; height: 32px; font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Background Stars -->
+<div class="stars" id="stars"></div>
+
+<!-- Navigation -->
+<nav class="nav">
+  <div class="nav-title">🐱 Pete's Computer School</div>
+  <button class="nav-btn red active" onclick="showScreen('welcome')">🏠 Home</button>
+  <button class="nav-btn yellow" onclick="showScreen('click-game')">🔘 Buttons</button>
+  <button class="nav-btn green" onclick="showScreen('pizza-game')">🍕 Pizza</button>
+  <button class="nav-btn orange" onclick="showScreen('keyboard-game')">⌨️ Typing</button>
+  <button class="nav-btn" onclick="showScreen('advanced-game')">🌟 Challenge</button>
+</nav>
+
+<!-- WELCOME -->
+<div id="welcome" class="screen active">
+  <div class="pete-cat">🐱</div>
+  <h1 class="welcome-title">Pete the Cat's Groovy Computer Skills!</h1>
+  <p class="welcome-sub">Learn to click, drag, and type — it's all good! 😎</p>
+  <div class="groovy-buttons-row">
+    <button class="groovy-start-btn red" onclick="showScreen('click-game')">🔘 Click the Groovy Buttons!</button>
+    <button class="groovy-start-btn yellow" onclick="showScreen('pizza-game')">🍕 Pizza Topping Party!</button>
+    <button class="groovy-start-btn green" onclick="showScreen('keyboard-game')">⌨️ Keyboard Jam!</button>
+    <button class="groovy-start-btn orange" onclick="showScreen('advanced-game')">🌟 Groovy Challenge!</button>
+  </div>
+</div>
+
+<!-- GAME 1: CLICK THE GROOVY BUTTONS -->
+<div id="click-game" class="screen">
+  <h2 class="screen-title">🔘 Pete's Four Groovy Buttons!</h2>
+  <p class="screen-subtitle">Click the buttons before they disappear! How groovy are you?</p>
+  <div class="score-bar">
+    <span class="score-label">Score:</span>
+    <span class="score-val" id="click-score">0</span>
+    <span class="score-label">Streak:</span>
+    <span class="streak-val" id="click-streak">🔥 0</span>
+  </div>
+  <div class="instruction-bubble" id="click-instruction">Click the colorful buttons! Each one Pete loses, does he cry? Goodness, no!</div>
+  <div class="button-field" id="button-field"></div>
+</div>
+
+<!-- GAME 2: PIZZA DRAG -->
+<div id="pizza-game" class="screen">
+  <h2 class="screen-title">🍕 Pete's Pizza Party!</h2>
+  <p class="screen-subtitle">Drag toppings onto the pizza to make Pete's groovy pie!</p>
+  <div class="score-bar">
+    <span class="score-label">Toppings:</span>
+    <span class="score-val" id="pizza-score">0</span>
+  </div>
+  <div class="instruction-bubble" id="pizza-instruction">Drag a topping from the tray and drop it on the pizza! 🎉</div>
+  <div class="pizza-area">
+    <div class="pizza-circle" id="pizza">
+      <div class="pizza-sauce">
+        <div class="pizza-cheese"></div>
+      </div>
+      <div class="pizza-drop-zone" id="pizza-drop"></div>
+    </div>
+    <div class="toppings-tray" id="toppings-tray">
+      <div class="topping-item" draggable="true" data-topping="🍄"><span>🍄</span><span class="topping-label">Mushroom</span></div>
+      <div class="topping-item" draggable="true" data-topping="🫑"><span>🫑</span><span class="topping-label">Pepper</span></div>
+      <div class="topping-item" draggable="true" data-topping="🧀"><span>🧀</span><span class="topping-label">Cheese</span></div>
+      <div class="topping-item" draggable="true" data-topping="🍅"><span>🍅</span><span class="topping-label">Tomato</span></div>
+      <div class="topping-item" draggable="true" data-topping="🌽"><span>🌽</span><span class="topping-label">Corn</span></div>
+      <div class="topping-item" draggable="true" data-topping="🫒"><span>🫒</span><span class="topping-label">Olive</span></div>
+      <div class="topping-item" draggable="true" data-topping="🧅"><span>🧅</span><span class="topping-label">Onion</span></div>
+      <div class="topping-item" draggable="true" data-topping="🥓"><span>🥓</span><span class="topping-label">Bacon</span></div>
+      <div class="topping-item" draggable="true" data-topping="🍍"><span>🍍</span><span class="topping-label">Pineapple</span></div>
+      <div class="topping-item" draggable="true" data-topping="🌶️"><span>🌶️</span><span class="topping-label">Chili</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME 3: KEYBOARD -->
+<div id="keyboard-game" class="screen">
+  <h2 class="screen-title">⌨️ Pete's Keyboard Jam!</h2>
+  <p class="screen-subtitle">Type the letters to spell groovy words!</p>
+  <div class="score-bar">
+    <span class="score-label">Words:</span>
+    <span class="score-val" id="kb-score">0</span>
+    <span class="score-label">Streak:</span>
+    <span class="streak-val" id="kb-streak">🔥 0</span>
+  </div>
+  <div class="keyboard-game-area">
+    <div class="instruction-bubble" id="kb-instruction">Press the highlighted key on your keyboard!</div>
+    <div class="word-hint" id="word-hint">🐱</div>
+    <div class="typed-word" id="typed-word"></div>
+    <div class="key-display" id="key-display">A</div>
+    <div class="mini-keyboard" id="mini-keyboard"></div>
+  </div>
+</div>
+
+<!-- GAME 4: ADVANCED -->
+<div id="advanced-game" class="screen">
+  <h2 class="screen-title">🌟 Pete's Groovy Challenge!</h2>
+  <p class="screen-subtitle">Master all the mouse skills — Pete believes in you!</p>
+  <div class="score-bar">
+    <span class="score-label">Completed:</span>
+    <span class="score-val" id="adv-score">0 / 6</span>
+  </div>
+  <div class="advanced-area">
+    <div class="challenge-prompt" id="challenge-prompt">Complete all the challenges below!</div>
+    <div class="action-grid" id="action-grid">
+      <div class="action-card" data-action="single-click" id="card-single">
+        <span class="card-emoji">🔘</span>
+        <span class="card-label">Single Click Me!</span>
+      </div>
+      <div class="action-card" data-action="double-click" id="card-double">
+        <span class="card-emoji">✌️</span>
+        <span class="card-label">Double Click Me!</span>
+      </div>
+      <div class="action-card" data-action="right-click" id="card-right">
+        <span class="card-emoji">🖱️</span>
+        <span class="card-label">Right Click Me!</span>
+      </div>
+      <div class="action-card" data-action="hover" id="card-hover">
+        <span class="card-emoji">👆</span>
+        <span class="card-label">Hover 3 Seconds!</span>
+      </div>
+      <div class="action-card" data-action="scroll" id="card-scroll">
+        <span class="card-emoji">📜</span>
+        <span class="card-label">Scroll Inside Me!</span>
+      </div>
+      <div class="action-card" data-action="type" id="card-type">
+        <span class="card-emoji">💬</span>
+        <span class="card-label">Type "PETE"</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CELEBRATION MODAL -->
+<div class="celebration" id="celebration">
+  <div class="celebration-card">
+    <div class="celeb-emoji" id="celeb-emoji">🎉</div>
+    <div class="celeb-text" id="celeb-text">Groovy!</div>
+    <div class="celeb-sub" id="celeb-sub">Pete thinks you're awesome!</div>
+    <button class="celeb-btn" onclick="closeCelebration()">Keep Going! 😎</button>
+  </div>
+</div>
+
+<script>
+// ========== GLOBALS ==========
+let currentScreen = 'welcome';
+let clickScore = 0, clickStreak = 0, buttonTimer = null;
+let pizzaScore = 0, draggedTopping = null;
+let kbScore = 0, kbStreak = 0, currentWord = '', currentLetterIdx = 0;
+let advCompleted = new Set();
+let hoverTimeout = null, scrollDetected = false, typeBuffer = '';
+
+const BUTTON_COLORS = ['#E63946','#FFD166','#06D6A0','#F77F00'];
+const BUTTON_EMOJIS = ['🔴','🟡','🟢','🟠'];
+const GROOVY_WORDS = [
+  {word:'CAT', hint:'🐱'}, {word:'COOL', hint:'😎'}, {word:'PIZZA', hint:'🍕'},
+  {word:'PETE', hint:'🐱'}, {word:'LOVE', hint:'❤️'}, {word:'PLAY', hint:'🎮'},
+  {word:'SING', hint:'🎵'}, {word:'BLUE', hint:'🔵'}, {word:'FISH', hint:'🐟'},
+  {word:'STAR', hint:'⭐'}, {word:'BOOK', hint:'📖'}, {word:'BUS', hint:'🚌'}
+];
+const KB_ROWS = [
+  ['Q','W','E','R','T','Y','U','I','O','P'],
+  ['A','S','D','F','G','H','J','K','L'],
+  ['Z','X','C','V','B','N','M']
+];
+
+// ========== INIT ==========
+window.addEventListener('DOMContentLoaded', () => {
+  createStars();
+  buildMiniKeyboard();
+  setupPizzaDrag();
+  setupAdvanced();
+  startNewWord();
+});
+
+// ========== STARS BACKGROUND ==========
+function createStars() {
+  const c = document.getElementById('stars');
+  for (let i = 0; i < 25; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    s.style.width = (10 + Math.random() * 20) + 'px';
+    s.style.height = s.style.width;
+    s.style.animationDelay = (Math.random() * 3) + 's';
+    c.appendChild(s);
+  }
+}
+
+// ========== NAVIGATION ==========
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  const idx = ['welcome','click-game','pizza-game','keyboard-game','advanced-game'].indexOf(id);
+  document.querySelectorAll('.nav-btn')[idx]?.classList.add('active');
+  currentScreen = id;
+
+  if (id === 'click-game') startClickGame();
+  if (id === 'keyboard-game') { startNewWord(); document.addEventListener('keydown', handleKeyDown); }
+  else { document.removeEventListener('keydown', handleKeyDown); }
+}
+
+// ========== CONFETTI ==========
+function launchConfetti(count = 30) {
+  const colors = BUTTON_COLORS;
+  for (let i = 0; i < count; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti-piece';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.top = -10 + 'px';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.width = (6 + Math.random() * 8) + 'px';
+    c.style.height = (6 + Math.random() * 8) + 'px';
+    c.style.animationDuration = (1.5 + Math.random()) + 's';
+    c.style.animationDelay = (Math.random() * 0.5) + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3000);
+  }
+}
+
+// ========== CELEBRATION ==========
+function showCelebration(emoji, text, sub) {
+  document.getElementById('celeb-emoji').textContent = emoji;
+  document.getElementById('celeb-text').textContent = text;
+  document.getElementById('celeb-sub').textContent = sub;
+  document.getElementById('celebration').classList.add('active');
+  launchConfetti(40);
+}
+function closeCelebration() {
+  document.getElementById('celebration').classList.remove('active');
+}
+
+// ========== GAME 1: CLICK THE GROOVY BUTTONS ==========
+function startClickGame() {
+  clearInterval(buttonTimer);
+  spawnButton();
+  buttonTimer = setInterval(spawnButton, 2200);
+}
+
+function spawnButton() {
+  const field = document.getElementById('button-field');
+  // Remove old buttons (max 5 at a time)
+  while (field.querySelectorAll('.groovy-button').length >= 5) {
+    const first = field.querySelector('.groovy-button');
+    if (first) first.remove();
+  }
+
+  const btn = document.createElement('div');
+  btn.className = 'groovy-button';
+  const size = 50 + Math.random() * 40;
+  const colorIdx = Math.floor(Math.random() * 4);
+  btn.style.width = size + 'px';
+  btn.style.height = size + 'px';
+  btn.style.background = BUTTON_COLORS[colorIdx];
+  btn.style.left = Math.random() * (field.clientWidth - size) + 'px';
+  btn.style.top = Math.random() * (field.clientHeight - size) + 'px';
+  btn.textContent = BUTTON_EMOJIS[colorIdx];
+  btn.style.fontSize = (size * 0.4) + 'px';
+
+  btn.addEventListener('click', (e) => {
+    clickScore++;
+    clickStreak++;
+    document.getElementById('click-score').textContent = clickScore;
+    document.getElementById('click-streak').textContent = '🔥 ' + clickStreak;
+
+    // Pop text
+    const pop = document.createElement('div');
+    pop.className = 'pop-text';
+    pop.style.left = e.clientX - field.getBoundingClientRect().left + 'px';
+    pop.style.top = e.clientY - field.getBoundingClientRect().top + 'px';
+    const msgs = ['Groovy!','Cool!','Awesome!','Far out!','Nice!','Yeah!'];
+    pop.textContent = msgs[Math.floor(Math.random() * msgs.length)];
+    pop.style.color = BUTTON_COLORS[colorIdx];
+    field.appendChild(pop);
+    setTimeout(() => pop.remove(), 900);
+
+    btn.style.transform = 'scale(0)';
+    setTimeout(() => btn.remove(), 200);
+
+    if (clickScore > 0 && clickScore % 10 === 0) {
+      showCelebration('🐱', `${clickScore} Buttons!`, 'Pete says: "Did I cry? Goodness, no! I kept on clicking!"');
+    }
+  });
+
+  // Auto-remove after 3s
+  setTimeout(() => {
+    if (btn.parentNode) {
+      clickStreak = 0;
+      document.getElementById('click-streak').textContent = '🔥 0';
+      btn.style.opacity = '0';
+      setTimeout(() => btn.remove(), 300);
+    }
+  }, 3000);
+
+  field.appendChild(btn);
+}
+
+// ========== GAME 2: PIZZA DRAG ==========
+function setupPizzaDrag() {
+  const tray = document.getElementById('toppings-tray');
+  const pizza = document.getElementById('pizza');
+  const drop = document.getElementById('pizza-drop');
+
+  tray.addEventListener('dragstart', (e) => {
+    const item = e.target.closest('.topping-item');
+    if (!item) return;
+    draggedTopping = item.dataset.topping;
+    e.dataTransfer.setData('text/plain', draggedTopping);
+    setTimeout(() => item.style.opacity = '0.4', 0);
+  });
+
+  tray.addEventListener('dragend', (e) => {
+    const item = e.target.closest('.topping-item');
+    if (item) item.style.opacity = '1';
+  });
+
+  drop.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    pizza.style.transform = 'scale(1.05)';
+  });
+
+  drop.addEventListener('dragleave', () => {
+    pizza.style.transform = 'scale(1)';
+  });
+
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    pizza.style.transform = 'scale(1)';
+    const topping = e.dataTransfer.getData('text/plain') || draggedTopping;
+    if (!topping) return;
+
+    pizzaScore++;
+    document.getElementById('pizza-score').textContent = pizzaScore;
+
+    // Place topping on pizza at random position
+    const rect = pizza.getBoundingClientRect();
+    const placed = document.createElement('div');
+    placed.className = 'placed-topping';
+    placed.textContent = topping;
+    const cx = 40 + Math.random() * (rect.width - 100);
+    const cy = 40 + Math.random() * (rect.height - 100);
+    placed.style.left = cx + 'px';
+    placed.style.top = cy + 'px';
+    pizza.appendChild(placed);
+
+    document.getElementById('pizza-instruction').textContent =
+      [`Yum! ${topping} on the pizza!`, 'Groovy topping!', 'Pete loves it!', 'More toppings!'][Math.floor(Math.random()*4)];
+
+    if (pizzaScore === 5) {
+      showCelebration('🍕', 'Pizza Party!', 'Pete says: "That\'s one groovy pizza!"');
+    }
+    if (pizzaScore === 10) {
+      showCelebration('🐱', 'Pizza Master!', 'Pete says: "Best pizza in town! Keep going!"');
+    }
+  });
+
+  // Touch support for mobile
+  let touchTopping = null;
+  tray.addEventListener('touchstart', (e) => {
+    const item = e.target.closest('.topping-item');
+    if (item) { touchTopping = item.dataset.topping; item.style.opacity = '0.4'; }
+  });
+  tray.addEventListener('touchend', (e) => {
+    document.querySelectorAll('.topping-item').forEach(i => i.style.opacity = '1');
+  });
+  drop.addEventListener('touchend', (e) => {
+    if (touchTopping) {
+      const fakeEvent = { preventDefault:()=>{}, dataTransfer: { getData:()=>touchTopping } };
+      drop.dispatchEvent(new Event('drop'));
+    }
+  });
+}
+
+// ========== GAME 3: KEYBOARD ==========
+function buildMiniKeyboard() {
+  const kb = document.getElementById('mini-keyboard');
+  KB_ROWS.forEach(row => {
+    const r = document.createElement('div');
+    r.className = 'kb-row';
+    row.forEach(key => {
+      const k = document.createElement('div');
+      k.className = 'kb-key';
+      k.id = 'kb-' + key;
+      k.textContent = key;
+      r.appendChild(k);
+    });
+    kb.appendChild(r);
+  });
+}
+
+function startNewWord() {
+  const w = GROOVY_WORDS[Math.floor(Math.random() * GROOVY_WORDS.length)];
+  currentWord = w.word;
+  currentLetterIdx = 0;
+  document.getElementById('word-hint').textContent = w.hint;
+  renderTypedWord();
+  highlightNextKey();
+}
+
+function renderTypedWord() {
+  const container = document.getElementById('typed-word');
+  container.innerHTML = '';
+  for (let i = 0; i < currentWord.length; i++) {
+    const span = document.createElement('span');
+    span.className = 'typed-letter';
+    if (i < currentLetterIdx) {
+      span.classList.add('correct');
+      span.textContent = currentWord[i];
+    } else if (i === currentLetterIdx) {
+      span.classList.add('next');
+      span.textContent = currentWord[i];
+    } else {
+      span.classList.add('next');
+      span.textContent = currentWord[i];
+      span.style.opacity = '0.4';
+    }
+    container.appendChild(span);
+  }
+}
+
+function highlightNextKey() {
+  document.querySelectorAll('.kb-key').forEach(k => k.classList.remove('highlight','pressed'));
+  if (currentLetterIdx < currentWord.length) {
+    const letter = currentWord[currentLetterIdx];
+    document.getElementById('key-display').textContent = letter;
+    const kbKey = document.getElementById('kb-' + letter);
+    if (kbKey) kbKey.classList.add('highlight');
+  }
+}
+
+function handleKeyDown(e) {
+  if (currentScreen !== 'keyboard-game') return;
+  const key = e.key.toUpperCase();
+  if (key.length !== 1 || !/[A-Z]/.test(key)) return;
+
+  const kbKey = document.getElementById('kb-' + key);
+  if (kbKey) {
+    kbKey.classList.add('pressed');
+    setTimeout(() => kbKey.classList.remove('pressed'), 200);
+  }
+
+  if (currentLetterIdx < currentWord.length && key === currentWord[currentLetterIdx]) {
+    currentLetterIdx++;
+    renderTypedWord();
+
+    if (currentLetterIdx >= currentWord.length) {
+      // Word complete!
+      kbScore++;
+      kbStreak++;
+      document.getElementById('kb-score').textContent = kbScore;
+      document.getElementById('kb-streak').textContent = '🔥 ' + kbStreak;
+      document.getElementById('kb-instruction').textContent =
+        ['Groovy!','You spelled it!','Pete is proud!','Awesome typing!'][Math.floor(Math.random()*4)];
+      launchConfetti(15);
+
+      if (kbScore % 5 === 0) {
+        showCelebration('⌨️', `${kbScore} Words!`, 'Pete says: "You\'re a typing superstar!"');
+      }
+      setTimeout(startNewWord, 1000);
+    } else {
+      highlightNextKey();
+    }
+  } else {
+    kbStreak = 0;
+    document.getElementById('kb-streak').textContent = '🔥 0';
+    document.getElementById('kb-instruction').textContent = `Oops! Try pressing "${currentWord[currentLetterIdx]}" — it's all good!`;
+  }
+}
+
+// ========== GAME 4: ADVANCED ==========
+function setupAdvanced() {
+  // Single click
+  document.getElementById('card-single').addEventListener('click', () => completeChallenge('single-click'));
+
+  // Double click
+  document.getElementById('card-double').addEventListener('dblclick', () => completeChallenge('double-click'));
+
+  // Right click
+  document.getElementById('card-right').addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    completeChallenge('right-click');
+  });
+
+  // Hover 3 seconds
+  const hoverCard = document.getElementById('card-hover');
+  hoverCard.addEventListener('mouseenter', () => {
+    hoverTimeout = setTimeout(() => completeChallenge('hover'), 3000);
+    hoverCard.querySelector('.card-label').textContent = 'Keep hovering...';
+  });
+  hoverCard.addEventListener('mouseleave', () => {
+    clearTimeout(hoverTimeout);
+    if (!advCompleted.has('hover')) hoverCard.querySelector('.card-label').textContent = 'Hover 3 Seconds!';
+  });
+
+  // Scroll
+  const scrollCard = document.getElementById('card-scroll');
+  scrollCard.style.overflow = 'auto'; scrollCard.style.maxHeight = '160px';
+  const inner = document.createElement('div');
+  inner.style.height = '300px';
+  inner.style.background = 'linear-gradient(to bottom, #fff8e7, #e8f4fd)';
+  inner.style.display = 'flex'; inner.style.alignItems = 'flex-end';
+  inner.style.justifyContent = 'center'; inner.style.padding = '20px';
+  inner.style.fontFamily = "'Fredoka One', cursive"; inner.style.color = '#999';
+  inner.textContent = '↓ Scroll down to find me! 🐱 ↓';
+  scrollCard.appendChild(inner);
+  scrollCard.addEventListener('scroll', () => {
+    if (scrollCard.scrollTop > 50) completeChallenge('scroll');
+  });
+
+  // Type PETE
+  const typeCard = document.getElementById('card-type');
+  typeCard.setAttribute('tabindex', '0');
+  typeCard.addEventListener('keydown', (e) => {
+    if (advCompleted.has('type')) return;
+    typeBuffer += e.key.toUpperCase();
+    if (typeBuffer.length > 4) typeBuffer = typeBuffer.slice(-4);
+    typeCard.querySelector('.card-label').textContent = `Type "PETE": ${typeBuffer}`;
+    if (typeBuffer === 'PETE') completeChallenge('type');
+  });
+  typeCard.addEventListener('click', () => {
+    typeCard.focus();
+    if (!advCompleted.has('type')) typeCard.querySelector('.card-label').textContent = 'Now type P-E-T-E!';
+  });
+}
+
+function completeChallenge(action) {
+  if (advCompleted.has(action)) return;
+  advCompleted.add(action);
+
+  const cardMap = {
+    'single-click': 'card-single',
+    'double-click': 'card-double',
+    'right-click': 'card-right',
+    'hover': 'card-hover',
+    'scroll': 'card-scroll',
+    'type': 'card-type'
+  };
+  const card = document.getElementById(cardMap[action]);
+  card.classList.add('completed');
+  card.querySelector('.card-label').textContent = '✅ Completed!';
+
+  document.getElementById('adv-score').textContent = `${advCompleted.size} / 6`;
+  launchConfetti(12);
+
+  if (advCompleted.size === 6) {
+    setTimeout(() => {
+      showCelebration('🏆', 'All Complete!', 'Pete says: "You\'re a computer superstar! It\'s all groovy!"');
+    }, 500);
+  }
+}
+</script>
+</body>
+</html>
