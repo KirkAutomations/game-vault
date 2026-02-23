@@ -16,6 +16,8 @@ const games = [
   { title: "ChemRogue: Elemental Ascension", subtitle: "Educational RPG", icon: "🧪", href: "games/chemrogue/index.html", category: "Educational", added: 14 },
   { title: "Division Quest", subtitle: "Math Adventure", icon: "➗", href: "games/division-quest/index.html", category: "Educational", added: 15 },
   { title: "Pete the Cat's Groovy Computer Skills!", subtitle: "Toddler / Learning", icon: "🐱", href: "games/pete-the-cat/index.html", category: "Educational", added: 16 },
+  { title: "Spelling Princess Dress-Up", subtitle: "Kids / Spelling", icon: "👗", href: "games/princess-dressup/index.html", category: "Educational", added: 17 },
+  { title: "The Peloponnesian War III", subtitle: "Grand Strategy", icon: "⚔️", href: "games/peloponnesian-war-3/index.html", category: "Strategy / Educational", added: 18 },
 ];
 
 const grid = document.getElementById('game-grid');

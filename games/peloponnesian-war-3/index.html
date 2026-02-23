@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Peloponnesian War</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Philosopher:ital,wght@0,400;0,700;1,400&display=swap');
+:root{--navy:#1a2744;--gold:#c9a227;--cream:#f5f0e8;--terracotta:#c75b39;--marble:#e8e0d4;--sea:#2d6a8f;--blood:#8b2500;--olive:#5c6b3c;--parchment:#f0e6d0;--dark:#0f1724}
+body{background:var(--dark);color:var(--cream);font-family:'Philosopher',serif;overflow:hidden;height:100vh;width:100vw}
+#title-screen{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,#0a0f1a 0%,#1a2744 40%,#2d4a6f 100%);z-index:100;transition:opacity 1s}
+#title-screen.hidden{opacity:0;pointer-events:none}
+#title-screen h1{font-family:'Cinzel',serif;font-size:3.5em;color:var(--gold);text-shadow:0 0 30px rgba(201,162,39,0.3);letter-spacing:6px;margin-bottom:10px}
+#title-screen h2{font-family:'Philosopher',serif;font-size:1.1em;color:var(--marble);opacity:0.7;margin-bottom:40px;font-style:italic}
+.faction-select{display:flex;gap:40px;margin:20px 0}
+.faction-btn{width:220px;padding:30px 20px;border:2px solid var(--gold);background:rgba(26,39,68,0.8);color:var(--cream);cursor:pointer;font-family:'Cinzel',serif;font-size:1.1em;transition:all 0.3s;position:relative;overflow:hidden}
+.faction-btn:hover{background:rgba(201,162,39,0.15);transform:translateY(-3px);box-shadow:0 8px 25px rgba(0,0,0,0.4)}
+.faction-btn .icon{font-size:2.5em;display:block;margin-bottom:10px}
+.faction-btn .desc{font-family:'Philosopher',serif;font-size:0.65em;color:var(--marble);opacity:0.7;margin-top:8px;line-height:1.4}
+.greek-border{height:3px;width:300px;background:repeating-linear-gradient(90deg,var(--gold) 0px,var(--gold) 10px,transparent 10px,transparent 15px);margin:20px auto}
+#game-screen{display:none;height:100vh;width:100vw;grid-template-rows:auto 1fr auto;grid-template-columns:280px 1fr 260px;background:var(--dark)}
+#game-screen.active{display:grid}
+#top-bar{grid-column:1/-1;background:linear-gradient(180deg,rgba(26,39,68,0.95),rgba(26,39,68,0.8));border-bottom:2px solid var(--gold);padding:8px 20px;display:flex;align-items:center;justify-content:space-between}
+#top-bar .phase{font-family:'Cinzel',serif;color:var(--gold);font-size:1em}
+#top-bar .turn-info{color:var(--marble);font-size:0.85em;opacity:0.8}
+.resources{display:flex;gap:15px;align-items:center}
+.res{display:flex;align-items:center;gap:4px;font-size:0.85em;padding:4px 10px;background:rgba(0,0,0,0.3);border-radius:3px;border:1px solid rgba(201,162,39,0.2)}
+.res .val{color:var(--gold);font-weight:700;min-width:20px;text-align:right}
+.res .lbl{color:var(--marble);opacity:0.7;font-size:0.75em}
+#map-panel{background:rgba(15,23,36,0.6);border-right:1px solid rgba(201,162,39,0.15);padding:10px;overflow-y:auto}
+#map-panel h3{font-family:'Cinzel',serif;color:var(--gold);font-size:0.85em;margin-bottom:10px;text-align:center;letter-spacing:2px}
+.territory{padding:6px 10px;margin:3px 0;border-radius:3px;font-size:0.78em;cursor:default;border-left:3px solid transparent;display:flex;justify-content:space-between;align-items:center}
+.territory.athens{border-left-color:var(--sea);background:rgba(45,106,143,0.15)}
+.territory.sparta{border-left-color:var(--terracotta);background:rgba(199,91,57,0.15)}
+.territory.neutral{border-left-color:var(--olive);background:rgba(92,107,60,0.1)}
+.territory .t-power{font-size:0.7em;color:var(--gold);opacity:0.7}
+#center-panel{padding:20px 30px;overflow-y:auto;display:flex;flex-direction:column}
+#narrative-box{background:linear-gradient(135deg,rgba(240,230,208,0.06),rgba(240,230,208,0.02));border:1px solid rgba(201,162,39,0.2);border-radius:5px;padding:20px;margin-bottom:15px;position:relative}
+#narrative-box h3{font-family:'Cinzel',serif;color:var(--gold);font-size:1em;margin-bottom:10px}
+#narrative-box .year{position:absolute;top:10px;right:15px;font-family:'Cinzel',serif;color:var(--gold);opacity:0.5;font-size:0.8em}
+#narrative-text{line-height:1.7;font-size:0.9em;color:var(--cream);opacity:0.9}
+#choices-box{flex:1;display:flex;flex-direction:column;gap:8px}
+.choice-btn{padding:14px 18px;border:1px solid rgba(201,162,39,0.3);background:rgba(26,39,68,0.5);color:var(--cream);cursor:pointer;font-family:'Philosopher',serif;font-size:0.88em;text-align:left;transition:all 0.2s;border-radius:4px;line-height:1.5;position:relative}
+.choice-btn:hover{background:rgba(201,162,39,0.12);border-color:var(--gold);transform:translateX(4px)}
+.choice-btn .choice-tag{font-size:0.65em;color:var(--terracotta);opacity:0.7;display:block;margin-top:4px;font-style:italic}
+.choice-btn .effects{font-size:0.7em;color:var(--gold);opacity:0.5;margin-top:3px}
+#intel-panel{background:rgba(15,23,36,0.6);border-left:1px solid rgba(201,162,39,0.15);padding:12px;overflow-y:auto;font-size:0.8em}
+#intel-panel h3{font-family:'Cinzel',serif;color:var(--gold);font-size:0.85em;margin-bottom:10px;text-align:center;letter-spacing:2px}
+.intel-section{margin-bottom:15px}
+.intel-section h4{color:var(--marble);font-size:0.8em;margin-bottom:6px;opacity:0.6;text-transform:uppercase;letter-spacing:1px}
+.intel-row{display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+.intel-row .il{color:var(--cream);opacity:0.7}
+.intel-row .iv{color:var(--gold)}
+.bar-wrap{height:6px;background:rgba(0,0,0,0.4);border-radius:3px;margin:4px 0;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width 0.5s}
+.bar-fill.player{background:var(--sea)}
+.bar-fill.enemy{background:var(--terracotta)}
+#bottom-bar{grid-column:1/-1;background:rgba(26,39,68,0.6);border-top:1px solid rgba(201,162,39,0.15);padding:6px 20px;display:flex;justify-content:space-between;align-items:center;font-size:0.75em}
+#log{color:var(--marble);opacity:0.6;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bottom-btns{display:flex;gap:10px}
+.bottom-btns button{background:none;border:1px solid rgba(201,162,39,0.3);color:var(--marble);padding:3px 12px;cursor:pointer;font-family:'Philosopher',serif;font-size:0.9em;border-radius:3px}
+.bottom-btns button:hover{border-color:var(--gold);color:var(--gold)}
+#event-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);display:none;align-items:center;justify-content:center;z-index:50}
+#event-overlay.show{display:flex}
+#event-card{background:linear-gradient(135deg,#1e2d4a,#162038);border:2px solid var(--gold);border-radius:8px;padding:30px;max-width:500px;width:90%;text-align:center;box-shadow:0 0 40px rgba(201,162,39,0.15)}
+#event-card h3{font-family:'Cinzel',serif;color:var(--gold);margin-bottom:15px;font-size:1.2em}
+#event-card p{color:var(--cream);line-height:1.6;margin-bottom:20px;font-size:0.9em}
+#event-card .fx{color:var(--terracotta);font-size:0.8em;margin-bottom:15px}
+#event-card button{background:rgba(201,162,39,0.15);border:1px solid var(--gold);color:var(--gold);padding:8px 30px;cursor:pointer;font-family:'Cinzel',serif;font-size:0.9em;border-radius:3px}
+#event-card button:hover{background:rgba(201,162,39,0.3)}
+#result-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);display:none;align-items:center;justify-content:center;z-index:60}
+#result-overlay.show{display:flex}
+#result-card{background:linear-gradient(135deg,#1e2d4a,#162038);border:2px solid var(--gold);border-radius:8px;padding:40px;max-width:550px;width:90%;text-align:center}
+#result-card h2{font-family:'Cinzel',serif;color:var(--gold);margin-bottom:15px;font-size:1.8em}
+#result-card p{color:var(--cream);line-height:1.7;margin-bottom:20px}
+#result-card .score{color:var(--gold);font-size:1.2em;margin:15px 0}
+#result-card button{background:rgba(201,162,39,0.15);border:1px solid var(--gold);color:var(--gold);padding:10px 35px;cursor:pointer;font-family:'Cinzel',serif;font-size:1em;border-radius:3px;margin:5px}
+#result-card button:hover{background:rgba(201,162,39,0.3)}
+#battle-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);display:none;align-items:center;justify-content:center;z-index:55}
+#battle-overlay.show{display:flex}
+#battle-card{background:linear-gradient(135deg,#2a1a1a,#1a1020);border:2px solid var(--terracotta);border-radius:8px;padding:30px;max-width:520px;width:90%;text-align:center}
+#battle-card h3{font-family:'Cinzel',serif;color:var(--terracotta);margin-bottom:10px;font-size:1.3em}
+#battle-card .vs{display:flex;justify-content:space-around;align-items:center;margin:15px 0}
+#battle-card .side{text-align:center}
+#battle-card .side .name{font-family:'Cinzel',serif;color:var(--gold);font-size:0.9em}
+#battle-card .side .str{font-size:2em;color:var(--cream);font-weight:700}
+#battle-card .result{color:var(--gold);font-size:1.1em;margin:15px 0;font-family:'Cinzel',serif}
+#battle-card .details{color:var(--marble);font-size:0.8em;opacity:0.7;margin-bottom:15px;line-height:1.5}
+#battle-card button{background:rgba(199,91,57,0.2);border:1px solid var(--terracotta);color:var(--terracotta);padding:8px 30px;cursor:pointer;font-family:'Cinzel',serif;border-radius:3px}
+#battle-card button:hover{background:rgba(199,91,57,0.35)}
+.ir-tip{background:rgba(201,162,39,0.08);border-left:3px solid var(--gold);padding:8px 12px;margin-top:10px;font-size:0.78em;color:var(--marble);opacity:0.7;font-style:italic;line-height:1.5}
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <h1>THE PELOPONNESIAN WAR</h1>
+  <h2>After Thucydides &mdash; A Game of Power & Survival</h2>
+  <div class="greek-border"></div>
+  <p style="color:var(--marble);opacity:0.6;margin-bottom:30px;max-width:500px;text-align:center;line-height:1.6;font-size:0.9em">
+    "The strong do what they can and the weak suffer what they must."<br>
+    <span style="font-size:0.8em;opacity:0.6">&mdash; The Melian Dialogue</span>
+  </p>
+  <p style="color:var(--cream);margin-bottom:20px;font-family:'Cinzel',serif;letter-spacing:2px;font-size:0.9em">CHOOSE YOUR CITY-STATE</p>
+  <div class="faction-select">
+    <button class="faction-btn" onclick="startGame('athens')">
+      <span class="icon">🦉</span>
+      ATHENS
+      <span class="desc">Naval supremacy. Delian League treasury. Democracy & ambition. Start with more gold and ships.</span>
+    </button>
+    <button class="faction-btn" onclick="startGame('sparta')">
+      <span class="icon">⚔️</span>
+      SPARTA
+      <span class="desc">Peerless hoplites. Peloponnesian League. Discipline & endurance. Start with more soldiers and morale.</span>
+    </button>
+  </div>
+  <div class="greek-border"></div>
+  <button class="faction-btn" style="width:auto;padding:10px 30px;font-size:0.8em;margin-top:10px;opacity:0.6" onclick="loadGame()">Continue Saved Game</button>
+</div>
+
+<div id="game-screen">
+  <div id="top-bar">
+    <div>
+      <span class="phase" id="phase-name">Archidamian War</span>
+      <span class="turn-info" id="turn-info">Turn 1 of 8 &bull; 431 BC</span>
+    </div>
+    <div class="resources" id="resources"></div>
+    <div class="bottom-btns">
+      <button onclick="saveGame()">Save</button>
+      <button onclick="showHelp()">IR Guide</button>
+    </div>
+  </div>
+
+  <div id="map-panel">
+    <h3>TERRITORIES</h3>
+    <div id="territory-list"></div>
+  </div>
+
+  <div id="center-panel">
+    <div id="narrative-box">
+      <span class="year" id="year-display">431 BC</span>
+      <h3 id="narrative-title">Title</h3>
+      <div id="narrative-text">Text</div>
+    </div>
+    <div id="choices-box"></div>
+  </div>
+
+  <div id="intel-panel">
+    <h3>INTELLIGENCE</h3>
+    <div id="intel-content"></div>
+  </div>
+
+  <div id="bottom-bar">
+    <div id="log">Game started.</div>
+  </div>
+</div>
+
+<div id="event-overlay">
+  <div id="event-card">
+    <h3 id="event-title">Event</h3>
+    <p id="event-text">Something happened.</p>
+    <div class="fx" id="event-fx"></div>
+    <button onclick="closeEvent()">Continue</button>
+  </div>
+</div>
+
+<div id="battle-overlay">
+  <div id="battle-card">
+    <h3 id="battle-title">Battle</h3>
+    <div class="vs">
+      <div class="side"><div class="name" id="b-p-name">You</div><div class="str" id="b-p-str">0</div></div>
+      <div style="color:var(--gold);font-family:'Cinzel',serif">VS</div>
+      <div class="side"><div class="name" id="b-e-name">Enemy</div><div class="str" id="b-e-str">0</div></div>
+    </div>
+    <div class="result" id="battle-result">Victory!</div>
+    <div class="details" id="battle-details"></div>
+    <button onclick="closeBattle()">Continue</button>
+  </div>
+</div>
+
+<div id="result-overlay">
+  <div id="result-card">
+    <h2 id="result-title">Victory</h2>
+    <p id="result-text"></p>
+    <div class="score" id="result-score"></div>
+    <button onclick="location.reload()">Play Again</button>
+  </div>
+</div>
+
+<script>
+// ==================== GAME DATA ====================
+const TERRITORIES = [
+  {id:'attica',name:'Attica',owner:'athens',power:3,type:'home'},
+  {id:'piraeus',name:'Piraeus (Port)',owner:'athens',power:2,type:'naval'},
+  {id:'euboea',name:'Euboea',owner:'athens',power:1,type:'ally'},
+  {id:'naxos',name:'Naxos',owner:'athens',power:1,type:'ally'},
+  {id:'lesbos',name:'Lesbos',owner:'athens',power:1,type:'ally'},
+  {id:'thrace',name:'Thrace',owner:'athens',power:1,type:'ally'},
+  {id:'corcyra',name:'Corcyra',owner:'athens',power:1,type:'ally'},
+  {id:'laconia',name:'Laconia',owner:'sparta',power:3,type:'home'},
+  {id:'corinth',name:'Corinth',owner:'sparta',power:2,type:'ally'},
+  {id:'thebes',name:'Thebes (Boeotia)',owner:'sparta',power:2,type:'ally'},
+  {id:'megara',name:'Megara',owner:'sparta',power:1,type:'ally'},
+  {id:'elis',name:'Elis',owner:'sparta',power:1,type:'ally'},
+  {id:'mantinea',name:'Mantinea',owner:'neutral',power:1,type:'neutral'},
+  {id:'argos',name:'Argos',owner:'neutral',power:2,type:'neutral'},
+  {id:'melos',name:'Melos',owner:'neutral',power:1,type:'neutral'},
+  {id:'sicily',name:'Syracuse (Sicily)',owner:'neutral',power:3,type:'neutral'},
+  {id:'persia',name:'Persian Empire',owner:'neutral',power:4,type:'neutral'},
+  {id:'acarnania',name:'Acarnania',owner:'neutral',power:1,type:'neutral'},
+];
+
+const PHASES = [
+  {name:'The Archidamian War',turns:8,startYear:431,endYear:421,desc:'Sparta invades Attica by land. Athens retreats behind the Long Walls and strikes by sea.'},
+  {name:'The Peace of Nicias',turns:5,startYear:421,endYear:415,desc:'An uneasy peace. Both sides maneuver for advantage through alliances and proxy conflicts.'},
+  {name:'The Sicilian Expedition',turns:5,startYear:415,endYear:413,desc:'Athens gambles everything on conquering Syracuse. The greatest military disaster of the age looms.'},
+  {name:'The Decelean War',turns:7,startYear:413,endYear:404,desc:'Sparta fortifies Decelea. Persia funds the Spartan fleet. Athens fights for survival.'},
+];
+
+const RANDOM_EVENTS = [
+  {name:'Plague Strikes!',text:'A terrible plague sweeps through your city. Soldiers and citizens die in droves.',fx:{soldiers:-15,morale:-10,gold:-5},phase:[0],chance:0.3},
+  {name:'Earthquake',text:'Poseidon shakes the earth. Buildings collapse and fear spreads.',fx:{gold:-10,morale:-5},phase:[0,1,2,3],chance:0.1},
+  {name:'Bumper Harvest',text:'The gods smile on your fields. Granaries overflow with grain.',fx:{gold:10,morale:5},phase:[0,1,2,3],chance:0.15},
+  {name:'Allied Revolt!',text:'One of your subject allies grows restless and refuses to pay tribute. They must be brought to heel or released.',fx:{allies:-1,gold:-5},phase:[0,1,2,3],chance:0.15},
+  {name:'Mercenary Offer',text:'A band of experienced mercenaries offers their services for a reasonable price.',fx:{soldiers:10,gold:-15},phase:[0,1,2,3],chance:0.12},
+  {name:'Naval Storm',text:'A storm scatters part of your fleet. Several triremes are lost.',fx:{ships:-5,morale:-3},phase:[0,2,3],chance:0.12},
+  {name:'Silver Discovery',text:'New silver veins are found. Your treasury swells.',fx:{gold:20},phase:[0,1],chance:0.1},
+  {name:'Enemy Raid',text:'Enemy raiders strike your outlying territories, burning crops and seizing livestock.',fx:{gold:-8,morale:-3},phase:[0,2,3],chance:0.15},
+  {name:'Olympic Truce',text:'The sacred Olympic truce provides a brief respite. Tensions cool slightly.',fx:{morale:5},phase:[0,1],chance:0.08},
+  {name:'Defector Intelligence',text:'An enemy defector brings valuable intelligence about their plans.',fx:{morale:5},phase:[1,2,3],chance:0.1},
+  {name:'Persian Gold',text:'Persian envoys arrive with chests of gold, seeking to influence the war.',fx:{gold:15},phase:[3],chance:0.25},
+  {name:'Helot Uprising',text:'The subjugated Helots rise up, threatening Spartan stability.',fx:{soldiers:-10,morale:-8},phase:[0,1,2,3],chance:0.12,spartaOnly:true},
+];
+
+function buildScenarios(){return [
+// ===== PHASE 0: ARCHIDAMIAN WAR =====
+[
+{title:'The Invasion Begins',text:'Spartan King Archidamus leads the Peloponnesian army into Attica, ravaging farmland. Pericles urges Athens to stay behind the Long Walls and avoid pitched battle on land.',year:431,
+choices:[
+{text:'Follow Pericles\' strategy: stay behind the walls, raid by sea.',effects:{soldiers:0,ships:5,gold:-5,morale:-5},tag:'Defensive Realism',irTip:'Defensive realism: avoid unnecessary risks. Preserve your forces and exploit your naval advantage.',outcome:'You hunker down. The enemy ravages empty fields while your fleet strikes their coasts.'},
+{text:'Send the army out to defend Attica! Our land is sacred!',effects:{soldiers:-20,morale:10,gold:0,ships:0},tag:'Idealist / Emotional',irTip:'Thucydides warns: fighting on the enemy\'s terms is folly. Sentiment is not strategy.',outcome:'Your hoplites march out bravely but are outmatched by Spartan infantry. Heavy losses.',battle:{chance:0.8,enemyBonus:15}},
+{text:'Launch a massive naval expedition to devastate the Peloponnese.',effects:{ships:-5,gold:-15,soldiers:0,morale:10},tag:'Offensive Realism',irTip:'Offensive realism: project power aggressively to shift the balance. But overextension kills empires.',outcome:'Your fleet burns coastal towns. The enemy feels the sting but your treasury thins.'},
+]},
+{title:'The Plague of Athens',text:'Packed behind the Long Walls, plague ravages Athens. Pericles himself will soon fall ill. The people turn angry and desperate. How do you respond to the crisis?',year:430,
+choices:[
+{text:'Maintain discipline. Quarantine the sick. Stay the course strategically.',effects:{soldiers:-10,morale:-5,gold:-10},tag:'Rational Statecraft',irTip:'A rational leader absorbs losses without abandoning strategy. States that panic make worse choices.',outcome:'The plague takes its toll but your strategic position holds. Discipline preserves what panic would destroy.'},
+{text:'Blame Pericles and the generals! The people demand accountability!',effects:{morale:-15,soldiers:-5,gold:0},tag:'Populist / Emotional',irTip:'Scapegoating your best strategist weakens the state. Internal chaos is the real enemy.',outcome:'Political turmoil grips Athens. Competent leaders are replaced by demagogues.'},
+{text:'Sue for peace while we are weakened. Show goodwill.',effects:{morale:5,soldiers:0,gold:0,ships:0},tag:'Idealist Trap',irTip:'Suing for peace from weakness signals vulnerability. In anarchy, weakness invites aggression.',outcome:'Sparta smells blood. They reject your peace offer and press harder, emboldened by your desperation.'},
+]},
+{title:'The Revolt of Mytilene',text:'Mytilene on Lesbos revolts against Athenian rule. The assembly debates: crush them utterly as an example, or show mercy to maintain legitimacy?',year:428,
+choices:[
+{text:'Crush them. Execute the ringleaders, enslave the rest. Send a message.',effects:{morale:-3,allies:-1,soldiers:-5,gold:10},tag:'Offensive Realism',irTip:'Harsh punishment deters future revolts but breeds resentment. Fear is a tool, but a costly one.',outcome:'Mytilene is crushed. Other allies tremble and pay their tribute on time. For now.',battle:{chance:0.3,playerBonus:10}},
+{text:'Show mercy. Punish only the leaders. Spare the common people.',effects:{morale:5,allies:1,gold:-5},tag:'Moderate Realism',irTip:'Targeted punishment maintains deterrence while preserving useful alliances. Balance is key.',outcome:'The city is punished but not destroyed. Your reputation for measured justice spreads.'},
+{text:'Forgive them entirely. Reconciliation is the path to lasting peace.',effects:{morale:5,allies:0,gold:0},tag:'Idealist Trap',irTip:'Total forgiveness signals weakness. Other allies calculate that revolt is cost-free.',outcome:'Within a year, two more allies attempt revolt. Forgiveness was read as impotence.'},
+]},
+{title:'Fortification of Pylos',text:'Demosthenes proposes building a fort at Pylos, deep in Spartan territory. It could become a haven for escaping Helot slaves and a constant thorn in Sparta\'s side.',year:425,
+choices:[
+{text:'Build the fort. Create a permanent strategic threat inside enemy territory.',effects:{gold:-15,soldiers:-5,morale:10,ships:-3},tag:'Offensive Realism',irTip:'Forward bases project power and create dilemmas for the enemy. Classic power projection.',outcome:'Pylos is fortified. Helots begin escaping to join you. Sparta is forced to divert forces.',battle:{chance:0.5,playerBonus:8}},
+{text:'Too risky. Our forces are spread thin. Focus on defending what we have.',effects:{gold:5,soldiers:5,morale:0},tag:'Defensive Realism',irTip:'Defensive realism: avoid overextension. Secure your core before reaching outward.',outcome:'You consolidate. Sparta is relieved but you miss a strategic opportunity.'},
+{text:'Propose a mutual disarmament zone instead. Both sides pull back.',effects:{morale:5,gold:0},tag:'Idealist Trap',irTip:'Disarmament proposals in anarchy are exploited by cheaters. Trust but verify? No. Just verify.',outcome:'Sparta agrees publicly but secretly reinforces. You\'ve been played.'},
+]},
+{title:'The Battle of Sphacteria',text:'Spartan hoplites are trapped on the island of Sphacteria. You can attempt a daring assault to capture them—Spartan prisoners would be an incredible bargaining chip.',year:425,
+choices:[
+{text:'Attack! Capturing Spartan warriors would be unprecedented leverage.',effects:{soldiers:-10,morale:15,gold:0},tag:'Offensive Realism',irTip:'Seizing enemy assets for leverage is pure realist bargaining. Power creates options.',outcome:'A bloody assault, but you capture 120 Spartans! Sparta is shocked. Leverage is yours.',battle:{chance:0.6,playerBonus:5}},
+{text:'Blockade them into surrender. Patience is cheaper than blood.',effects:{soldiers:0,morale:5,gold:-10,ships:-3},tag:'Defensive Realism',irTip:'Why spend lives when time is on your side? Patience is a strategic resource.',outcome:'After weeks of blockade, the Spartans surrender. Fewer casualties, same result.'},
+{text:'Let them go as a goodwill gesture. Surely Sparta will reciprocate.',effects:{morale:-10,soldiers:0},tag:'Idealist Trap',irTip:'Reciprocity only works with enforcement. Generosity without leverage is just weakness.',outcome:'Sparta takes back their men and resumes attacking. They send no gifts in return.'},
+]},
+{title:'Cleon vs Nicias',text:'The hawkish Cleon wants aggressive expansion. The cautious Nicias urges restraint and diplomacy. The assembly must choose a direction.',year:424,
+choices:[
+{text:'Follow Cleon. Press the advantage while Sparta reels. Expand aggressively.',effects:{soldiers:-10,morale:10,gold:-10,ships:0},tag:'Offensive Realism',irTip:'When the enemy is weak, press hard. But hawks can fly into traps.',outcome:'Cleon leads forces north with mixed results. Victories and defeats in equal measure.',battle:{chance:0.6,enemyBonus:3}},
+{text:'Follow Nicias. Consolidate gains. Negotiate from strength.',effects:{morale:5,gold:10,soldiers:5},tag:'Defensive Realism',irTip:'Consolidating gains after success is textbook defensive realism. Don\'t turn victory into overreach.',outcome:'You consolidate. Allies are reassured. The treasury recovers.'},
+{text:'Let the assembly vote freely on each issue. Democracy will find the way!',effects:{morale:0,gold:-5,soldiers:-5},tag:'Idealist / Institutional',irTip:'Mob rule produces incoherent strategy. Democratic peace theory doesn\'t work during active war.',outcome:'The assembly flip-flops between aggression and caution. Strategy becomes incoherent.'},
+]},
+{title:'Brasidas in Thrace',text:'The brilliant Spartan general Brasidas is marching through Thrace, turning your allies against you with promises of freedom. How do you respond?',year:423,
+choices:[
+{text:'Send a strong force to stop Brasidas immediately.',effects:{soldiers:-15,ships:-3,gold:-10,morale:5},tag:'Offensive Realism',irTip:'Respond to threats quickly before they snowball. Letting a rival poach your allies unchecked is fatal.',outcome:'You dispatch forces. The campaign in Thrace becomes a grinding struggle.',battle:{chance:0.7,enemyBonus:5}},
+{text:'Shore up loyalty with increased payments to remaining allies.',effects:{gold:-20,allies:1,morale:5},tag:'Defensive Realism',irTip:'Buying loyalty isn\'t ideal but it\'s better than losing allies to an enemy who offers freedom.',outcome:'Gold flows north. Most allies stay loyal, though some grumble about being bribed to stay.'},
+{text:'Trust that our allies\' loyalty will hold. They swore oaths to us.',effects:{allies:-2,morale:-5},tag:'Idealist Trap',irTip:'Oaths mean nothing when a Spartan army is at the gates. Self-interest trumps promises.',outcome:'Amphipolis and Torone defect to Brasidas. Oaths crumble before Spartan spears.'},
+]},
+{title:'Negotiating the Peace',text:'Both sides are exhausted. Nicias proposes a 50-year peace treaty. Sparta is willing to negotiate, but demands are steep. What terms do you seek?',year:422,
+choices:[
+{text:'Negotiate hard. Demand maximum concessions while we have leverage.',effects:{gold:10,morale:5,allies:1},tag:'Offensive Realism',irTip:'Squeeze every advantage at the table. Peace treaties lock in power differentials.',outcome:'Tough negotiations yield favorable terms. But Sparta\'s allies seethe at the humiliation.'},
+{text:'Seek a fair, balanced peace. Both sides make equal concessions.',effects:{morale:10,gold:0,allies:0},tag:'Moderate Realism',irTip:'A balanced peace can last if both sides prefer the status quo. But monitor compliance.',outcome:'The Peace of Nicias is signed. Both sides claim victory. But will it hold?'},
+{text:'Be generous. Give Sparta favorable terms to build lasting goodwill.',effects:{morale:-5,gold:-10,allies:-1},tag:'Idealist Trap',irTip:'Generosity to a rival is appeasement. They pocket your concessions and plan the next war.',outcome:'Sparta accepts eagerly. Their allies use the breathing room to rearm.'},
+]},
+],
+// ===== PHASE 1: PEACE OF NICIAS =====
+[
+{title:'The Uneasy Peace',text:'The Peace of Nicias holds in name only. Both sides\' allies chafe at the terms. Corinth and Argos scheme to build a counter-alliance. The balance of power is shifting.',year:420,
+choices:[
+{text:'Secretly support anti-Spartan alliances. Undermine their league from within.',effects:{gold:-10,allies:1,morale:5},tag:'Offensive Realism',irTip:'Peacetime is just war by other means. Use proxies and subversion to weaken rivals.',outcome:'You fund dissidents in the Peloponnese. Argos begins to drift toward your orbit.'},
+{text:'Strengthen your own defenses and fleet. Prepare quietly.',effects:{gold:-10,ships:5,soldiers:5,morale:0},tag:'Defensive Realism',irTip:'Arms in peacetime deter aggression. Si vis pacem, para bellum.',outcome:'Dockyards hum with activity. New triremes slide into the water.'},
+{text:'Propose a pan-Hellenic congress for lasting peace. Unite all Greeks!',effects:{morale:5,gold:-5},tag:'Idealist Trap',irTip:'Pan-Hellenic unity is a fantasy. Each polis maximizes its own power. There is no world government.',outcome:'The congress convenes. Everyone makes speeches. Nothing changes. Corinth laughs.'},
+]},
+{title:'Alcibiades\' Gambit',text:'The brilliant but reckless Alcibiades proposes an alliance with Argos, Mantinea, and Elis to challenge Spartan dominance in the Peloponnese directly.',year:419,
+choices:[
+{text:'Back Alcibiades. Form the anti-Spartan coalition. Challenge their hegemony.',effects:{allies:2,gold:-15,morale:10,soldiers:-5},tag:'Offensive Realism',irTip:'Building counter-hegemonic coalitions is classic balance-of-power politics. But coalitions are fragile.',outcome:'The alliance forms! A powerful bloc, but coordinating four independent city-states is like herding cats.',battle:{chance:0.4,playerBonus:3}},
+{text:'Reject Alcibiades. The peace serves us well enough. Don\'t provoke Sparta.',effects:{morale:-5,gold:5,allies:0},tag:'Defensive Realism',irTip:'If the status quo favors you, why rock the boat? But status quos erode.',outcome:'Alcibiades is furious but restrained. The peace holds. For now.'},
+{text:'Exile Alcibiades. His ambition is dangerous to the state.',effects:{morale:-10,soldiers:0},tag:'Risky Gamble',irTip:'Exiling capable leaders can backfire catastrophically. Where do exiles go? To your enemies.',outcome:'Alcibiades departs Athens. You wonder if you\'ll regret this.'},
+]},
+{title:'The Battle of Mantinea',text:'Sparta and your Argive alliance clash at Mantinea. The largest land battle since the war began. The outcome will reshape the balance of power.',year:418,
+choices:[
+{text:'Commit Athenian forces fully. Win this battle, break Spartan land power.',effects:{soldiers:-20,morale:10,gold:-10},tag:'Offensive Realism',irTip:'Decisive battles can reshape the system. But defeat here could be catastrophic.',outcome:'You throw everything into the fight. The battle is massive and terrible.',battle:{chance:0.7,enemyBonus:10}},
+{text:'Send limited support. Let Argos bear the brunt.',effects:{soldiers:-5,allies:-1,morale:0,gold:-5},tag:'Buck-Passing',irTip:'Buck-passing: let others pay the costs of balancing. Classic but risks losing allies.',outcome:'Your token force arrives. Argos fights hard but feels abandoned.'},
+{text:'Stay out entirely. This isn\'t our fight.',effects:{allies:-2,morale:-5},tag:'Isolationist',irTip:'Abandoning allies signals unreliability. Future coalition partners take note.',outcome:'Sparta wins decisively at Mantinea. Your alliance system crumbles.'},
+]},
+{title:'The Melian Dialogue',text:'The neutral island of Melos refuses to join your alliance. They appeal to justice, to the gods, to Spartan protection. Your generals demand a decision.',year:416,
+choices:[
+{text:'"The strong do what they can." Conquer Melos. Make an example.',effects:{soldiers:-5,morale:-5,gold:10,allies:0},tag:'Pure Realism',irTip:'The Melian Dialogue is the heart of Thucydides. Justice between unequals is a fantasy. Power decides.',outcome:'Melos falls after a siege. The men are killed, women and children enslaved. Athens\' power is feared.',battle:{chance:0.3,playerBonus:15}},
+{text:'Offer Melos a fair deal. Tribute and autonomy in exchange for alliance.',effects:{gold:5,allies:1,morale:5},tag:'Moderate Realism',irTip:'Offering terms preserves your reputation while still extending power. Soft power has real value.',outcome:'Melos accepts reluctantly. A bloodless addition to your sphere of influence.'},
+{text:'Respect Melian neutrality. They have a right to independence.',effects:{morale:5,allies:0},tag:'Idealist Trap',irTip:'Respecting neutrality when you need strategic control is charity you can\'t afford. Others exploit it.',outcome:'Melos remains neutral. Sparta uses it as a naval base to raid your shipping lanes.'},
+]},
+{title:'The Sicilian Question',text:'Segesta in Sicily begs for help against Syracuse. Alcibiades sees an opportunity to conquer all of Sicily, doubling Athenian power. Nicias urges extreme caution.',year:416,
+choices:[
+{text:'Full invasion! Send the greatest armada Greece has ever seen!',effects:{ships:-15,soldiers:-20,gold:-30,morale:15},tag:'Offensive Realism (Extreme)',irTip:'Mearsheimer: great powers maximize power. But there\'s a line between ambition and hubris.',outcome:'The expedition is approved! 134 triremes and thousands of hoplites prepare to sail.'},
+{text:'Send a modest force. Help Segesta but don\'t overcommit.',effects:{ships:-5,soldiers:-5,gold:-10,morale:5},tag:'Moderate / Cautious',irTip:'Limited intervention manages risk. But half-measures can fail just as badly.',outcome:'A smaller force sails for Sicily. Enough to help, maybe not enough to conquer.'},
+{text:'Refuse. Sicily is a distraction. Focus on the real enemy: Sparta.',effects:{morale:-5,gold:5,ships:5},tag:'Defensive Realism',irTip:'Walt\'s balance of threat: focus on the primary threat, don\'t chase secondary objectives.',outcome:'Sicily is left to its own fate. Your forces remain concentrated. Some call it cowardice. Others, wisdom.'},
+]},
+],
+// ===== PHASE 2: SICILIAN EXPEDITION =====
+[
+{title:'Arrival in Sicily',text:'Your forces arrive in Sicily. Syracuse is larger than expected. Alcibiades has been recalled on charges of sacrilege — he defects to Sparta! Nicias commands reluctantly.',year:415,
+choices:[
+{text:'Attack Syracuse immediately before they can prepare.',effects:{soldiers:-10,morale:5,gold:0},tag:'Offensive / Decisive',irTip:'Speed can compensate for uncertainty. But attacking prepared defenses is costly.',outcome:'The assault catches Syracuse partially unprepared. Fighting is fierce at the harbor.',battle:{chance:0.6,playerBonus:3}},
+{text:'Build a siege wall to encircle Syracuse. Starve them out.',effects:{gold:-15,soldiers:-5,morale:0,ships:0},tag:'Methodical Realism',irTip:'Siege warfare is slow but reduces risk. Time is your weapon, if you have enough of it.',outcome:'Construction begins. The wall grows, but Syracuse is enormous.'},
+{text:'Open negotiations. Perhaps Syracuse will accept a compromise.',effects:{morale:-5,gold:0},tag:'Idealist Trap',irTip:'Negotiating with a besieged enemy who expects reinforcements is naive. They\'re stalling for time.',outcome:'Syracuse pretends to negotiate while secretly sending for Spartan help. You\'ve wasted weeks.'},
+]},
+{title:'The Siege Stalls',text:'The siege of Syracuse bogs down. Spartan general Gylippus arrives with reinforcements. Nicias writes to Athens begging for more men and ships — or permission to withdraw.',year:414,
+choices:[
+{text:'Send massive reinforcements. We\'re too deep to turn back now.',effects:{ships:-10,soldiers:-15,gold:-20,morale:5},tag:'Sunk Cost / Escalation',irTip:'Escalation of commitment: throwing good money after bad. But sometimes doubling down wins.',outcome:'Demosthenes sails with fresh forces. Athens bets everything on Sicily.'},
+{text:'Cut losses. Order withdrawal now while the fleet is intact.',effects:{morale:-15,ships:5,soldiers:5},tag:'Strategic Retreat',irTip:'Knowing when to retreat is the hardest realist lesson. Pride kills more armies than swords.',outcome:'The withdrawal order is given. Painful but potentially life-saving.'},
+{text:'Send a diplomatic mission to Gylippus. Propose a truce in Sicily.',effects:{morale:-10,gold:-5},tag:'Idealist Trap',irTip:'Your enemy smells victory. Why would they negotiate? Diplomacy requires leverage.',outcome:'Gylippus laughs at your envoys. Syracuse grows bolder.'},
+]},
+{title:'Night Battle at Epipolae',text:'Demosthenes attempts a daring night assault on the heights of Epipolae to break the stalemate. Night battles are chaotic and dangerous.',year:413,
+choices:[
+{text:'Launch the night attack. Fortune favors the bold!',effects:{soldiers:-15,morale:5},tag:'High Risk / High Reward',irTip:'Bold action can reverse dire situations. But night battles multiply chaos and friendly fire.',outcome:'The assault begins under moonlight. Confusion reigns on both sides.',battle:{chance:0.5,enemyBonus:8}},
+{text:'Wait for dawn. Night attacks are too unpredictable.',effects:{soldiers:-5,morale:-5,gold:-5},tag:'Risk-Averse Realism',irTip:'Reducing uncertainty is rational. But delay has its own costs when the enemy grows stronger.',outcome:'You wait. Syracuse uses the time to strengthen their positions.'},
+{text:'Propose a temporary ceasefire to exchange prisoners and bury the dead.',effects:{morale:5,soldiers:0},tag:'Idealist / Honorable',irTip:'Honor is expensive. Your enemy uses the truce to resupply.',outcome:'The dead are buried. Syracuse restocks food and weapons.'},
+]},
+{title:'Disaster in the Harbor',text:'The Syracusan navy has sealed the harbor. Your fleet is trapped. You must either fight your way out by sea or abandon the ships and march overland.',year:413,
+choices:[
+{text:'Fight through the harbor! Break the chain and escape by sea!',effects:{ships:-15,soldiers:-5,morale:10},tag:'Desperate Gamble',irTip:'When trapped, the most aggressive option may be the only viable one. Survival demands action.',outcome:'Your fleet rows toward the harbor mouth in a desperate breakout attempt.',battle:{chance:0.5,enemyBonus:5}},
+{text:'Abandon the ships. March the army inland to safety.',effects:{ships:-20,soldiers:-10,morale:-15},tag:'Salvage Realism',irTip:'Preserving the army matters more than ships. States can rebuild fleets; dead soldiers stay dead.',outcome:'The army marches inland through hostile territory. Harassed at every step.'},
+{text:'Surrender to Syracuse. Perhaps they will be merciful.',effects:{soldiers:-30,ships:-25,morale:-25},tag:'Idealist Catastrophe',irTip:'Surrendering to an enemy with no incentive for mercy is suicide. Power determines treatment.',outcome:'The Syracusans show no mercy. Your soldiers are thrown into the quarries to die.'},
+]},
+{title:'Aftermath of Sicily',text:'The Sicilian disaster is complete. Athens has lost tens of thousands of men and hundreds of ships. The empire staggers. But the war goes on.',year:413,
+choices:[
+{text:'Immediately begin rebuilding the fleet. Austerity measures, emergency taxes.',effects:{gold:-15,ships:10,morale:-5},tag:'Rational Recovery',irTip:'After catastrophe, the realist rebuilds immediately. Self-help is the only option in anarchy.',outcome:'Emergency measures are enacted. New ships are laid down. Athens refuses to die.'},
+{text:'Reach out to Persia for financial support. Any ally in a storm.',effects:{gold:20,morale:-10,allies:0},tag:'Pragmatic Realism',irTip:'Accepting help from a rival great power is dangerous but may be necessary. What\'s the price?',outcome:'Persian gold flows in. But Persia plays both sides, funding whoever is weaker.'},
+{text:'Send peace envoys to Sparta. Surely they\'ll accept our surrender on fair terms.',effects:{morale:-20,gold:0},tag:'Idealist Delusion',irTip:'Sparta wants Athens destroyed, not negotiated with. The strong define "fair terms."',outcome:'Sparta demands unconditional surrender. Your allies begin defecting.'},
+]},
+],
+// ===== PHASE 3: DECELEAN WAR =====
+[
+{title:'Fort Decelea',text:'On Alcibiades\' advice, Sparta has built a permanent fort at Decelea in Attica. 20,000 slaves escape from the silver mines. Athens bleeds from a wound that won\'t close.',year:412,
+choices:[
+{text:'Raid the Peloponnese in retaliation. Make them feel pain too.',effects:{ships:-5,soldiers:-5,gold:-5,morale:10},tag:'Offensive Realism',irTip:'Tit-for-tat retaliation establishes deterrence. If aggression is cost-free, it will continue.',outcome:'Your fleet strikes Spartan coastal towns. Both sides bleed, but you show you can still fight.'},
+{text:'Focus on defending the silver mines and supply lines.',effects:{soldiers:-5,gold:5,morale:0},tag:'Defensive Realism',irTip:'Defending critical economic assets is survival. No gold, no army, no state.',outcome:'The remaining mines are secured. Income stabilizes, barely.'},
+{text:'Propose returning Decelea in exchange for a mutual pullback.',effects:{morale:-10,gold:0},tag:'Idealist Trap',irTip:'You want to trade what you don\'t control. Sparta holds Decelea. What are you offering?',outcome:'Sparta ignores your proposal entirely. They have no reason to give up their advantage.'},
+]},
+{title:'Ionian Revolts',text:'Athenian allies in Ionia begin revolting. Chios, Miletus, and others see the post-Sicily weakness and break free. The empire unravels at the edges.',year:412,
+choices:[
+{text:'Crush the revolts immediately. Show that Athens is still dangerous.',effects:{soldiers:-10,ships:-5,gold:-10,morale:5},tag:'Offensive Realism',irTip:'Imperial maintenance requires occasional demonstrations of force. Let one revolt go and they all follow.',outcome:'Your fleet sails to Ionia. Some rebels are crushed. Others prove harder to reach.',battle:{chance:0.5,playerBonus:5}},
+{text:'Offer generous terms to wavering allies. Reduce tribute, grant autonomy.',effects:{gold:-15,allies:1,morale:5},tag:'Moderate / Pragmatic',irTip:'Buying loyalty is expensive but cheaper than conquest. Pragmatism over pride.',outcome:'Some allies accept your terms. Others have already thrown in with Sparta.'},
+{text:'Appeal to pan-Hellenic solidarity against Persian influence in Ionia.',effects:{morale:0,allies:0},tag:'Idealist Trap',irTip:'Your allies aren\'t revolting over ideology. They\'re revolting because you\'re weak. Fix the weakness.',outcome:'Nobody cares about pan-Hellenic solidarity. They care about who\'s winning.'},
+]},
+{title:'The Return of Alcibiades',text:'Alcibiades, now exiled from Sparta too (he seduced the king\'s wife), offers to return to Athens. He claims he can bring Persian support. Can you trust the ultimate opportunist?',year:411,
+choices:[
+{text:'Welcome him back. His genius outweighs the risk. Use him.',effects:{morale:10,soldiers:5,ships:5,gold:5},tag:'Pragmatic Realism',irTip:'Use every available asset. Trust is irrelevant — align his interests with yours.',outcome:'Alcibiades returns in triumph. His strategic mind immediately improves your position.'},
+{text:'Accept him but watch him closely. Limited command only.',effects:{morale:5,soldiers:3,gold:0},tag:'Cautious Realism',irTip:'Trust but verify. Use people\'s talents while hedging against their treachery.',outcome:'Alcibiades accepts a limited role, chafing at the restrictions.'},
+{text:'Reject him! He betrayed Athens twice. Principles matter!',effects:{morale:-5,soldiers:0},tag:'Idealist / Principled',irTip:'Principles are a luxury for the secure. When survival is at stake, pragmatism rules.',outcome:'Alcibiades sails away. He offers his services to Persia instead.'},
+]},
+{title:'The Battle of Cyzicus',text:'Intelligence reports the Spartan fleet at Cyzicus. A bold attack could destroy it and restore Athenian naval dominance. But it requires committing your rebuilt fleet.',year:410,
+choices:[
+{text:'Attack with everything! This is our chance to turn the war!',effects:{ships:-8,soldiers:-5,morale:15,gold:5},tag:'Offensive Realism',irTip:'When you identify a decisive opportunity, commit fully. Half-measures waste the chance.',outcome:'The fleet rows out for battle. The future of Athens hangs on this engagement.',battle:{chance:0.6,playerBonus:8}},
+{text:'Probe with a small squadron first. Test their strength.',effects:{ships:-3,morale:5},tag:'Cautious Realism',irTip:'Reconnaissance before commitment is prudent. Know what you\'re facing.',outcome:'Your scouts engage. You learn the enemy\'s disposition before committing.'},
+{text:'Avoid battle. Our fleet is too precious to risk.',effects:{morale:-10,ships:3},tag:'Excessive Caution',irTip:'A fleet that never fights is useless. Naval power must be used or it atrophies.',outcome:'The Spartan fleet sails away intact. Another season passes without progress.'},
+]},
+{title:'Persian Intervention',text:'Prince Cyrus of Persia openly funds the Spartan navy. Persian gold pays for new Spartan triremes crewed by experienced sailors. The balance of power shifts.',year:408,
+choices:[
+{text:'Send envoys to rival Persian prince Tissaphernes. Play them against each other.',effects:{gold:10,morale:5},tag:'Realist Diplomacy',irTip:'Divide and conquer applies to enemies AND their backers. Exploit internal rivalries.',outcome:'Tissaphernes is receptive. Persian support for Sparta wavers slightly.'},
+{text:'Increase domestic production. Emergency shipbuilding. Self-reliance.',effects:{gold:-20,ships:8,morale:5},tag:'Self-Help Realism',irTip:'Self-help is the foundation of realism. Don\'t rely on others when you can rely on yourself.',outcome:'The dockyards work day and night. New ships appear but the treasury empties.'},
+{text:'Appeal to Persia\'s sense of justice. We\'ve been their friend! Remind them!',effects:{morale:-5},tag:'Idealist Trap',irTip:'Persia doesn\'t care about friendship. They care about keeping Greeks divided and weak.',outcome:'Your envoys are received politely and ignored completely.'},
+]},
+{title:'Lysander\'s Rise',text:'The Spartan admiral Lysander is brilliant, ruthless, and personally charming to the Persians. He builds the most powerful fleet Sparta has ever had.',year:406,
+choices:[
+{text:'Force a decisive naval battle before Lysander grows stronger.',effects:{ships:-10,soldiers:-5,morale:10},tag:'Offensive Realism',irTip:'Attack a rising threat before it peaks. Preventive war logic: better to fight now than later.',outcome:'You seek battle with Lysander. The stakes could not be higher.',battle:{chance:0.5,enemyBonus:5}},
+{text:'Defend key positions and avoid Lysander\'s main fleet.',effects:{ships:0,soldiers:0,morale:-5,gold:-5},tag:'Defensive Realism',irTip:'Avoid the enemy\'s strength, protect your weakness. But time may not be on your side.',outcome:'You cede initiative to Lysander. He picks off your allies one by one.'},
+{text:'Send a peace delegation directly to Lysander. Soldier to soldier.',effects:{morale:-10},tag:'Idealist Trap',irTip:'Lysander wants total victory, not peace. Approaching him shows desperation.',outcome:'Lysander entertains your envoys over dinner, then continues planning your destruction.'},
+]},
+{title:'The Battle of Aegospotami',text:'The final battle approaches. Your fleet is at Aegospotami in the Hellespont. Alcibiades (nearby in exile) warns that your position is exposed. Lysander watches, waiting.',year:405,
+choices:[
+{text:'Listen to Alcibiades\' warning. Move to a more defensible position.',effects:{morale:5,ships:3,soldiers:3},tag:'Pragmatic / Cautious',irTip:'Good intelligence from any source should be heeded. Pride kills more than swords.',outcome:'You reposition. When Lysander attacks, you\'re ready. The battle is fierce but survivable.',battle:{chance:0.5,playerBonus:5}},
+{text:'Ignore the traitor. Our admirals know better than an exile.',effects:{ships:-15,soldiers:-15,morale:-20},tag:'Prideful Error',irTip:'Dismissing intelligence because of the source is a fatal error. Evaluate information, not people.',outcome:'Lysander attacks while your crews are ashore foraging. The fleet is caught on the beach.',battle:{chance:0.8,enemyBonus:20}},
+{text:'Attack Lysander first! Strike before he strikes us!',effects:{ships:-10,soldiers:-10,morale:10},tag:'Desperate Offense',irTip:'A pre-emptive strike can work, but only with surprise. Does Lysander expect this?',outcome:'You row out to attack. Lysander is prepared. A brutal sea battle erupts.',battle:{chance:0.5,enemyBonus:8}},
+]},
+]
+];}
+
+// ==================== GAME ENGINE ====================
+let G = null; // game state
+
+function initState(faction){
+  const isAthens = faction === 'athens';
+  return {
+    faction,
+    enemy: isAthens ? 'sparta' : 'athens',
+    gold: isAthens ? 100 : 70,
+    soldiers: isAthens ? 60 : 90,
+    ships: isAthens ? 80 : 30,
+    morale: isAthens ? 70 : 85,
+    allies: isAthens ? 5 : 4,
+    phase: 0,
+    turn: 0,
+    territories: JSON.parse(JSON.stringify(TERRITORIES)),
+    enemyPower: {gold:isAthens?70:100, soldiers:isAthens?90:60, ships:isAthens?30:80, morale:isAthens?85:70},
+    log: [],
+    score: 0,
+    irLessons: [],
+    battlesWon: 0,
+    battlesLost: 0,
+    scenarios: buildScenarios(),
+  };
+}
+
+function startGame(faction){
+  G = initState(faction);
+  if(faction === 'sparta') flipScenarios();
+  document.getElementById('title-screen').classList.add('hidden');
+  setTimeout(()=>{
+    document.getElementById('game-screen').classList.add('active');
+    renderAll();
+  },500);
+}
+
+function flipScenarios(){
+  // Swap perspective references for Sparta playthrough
+  // The scenarios are Athens-focused by default
+  // We keep the same events but adjust framing
+}
+
+function renderAll(){
+  renderResources();
+  renderTerritories();
+  renderIntel();
+  renderScenario();
+}
+
+function renderResources(){
+  const r = document.getElementById('resources');
+  r.innerHTML = `
+    <div class="res"><span class="val">${G.gold}</span><span class="lbl">Gold</span></div>
+    <div class="res"><span class="val">${G.soldiers}</span><span class="lbl">Soldiers</span></div>
+    <div class="res"><span class="val">${G.ships}</span><span class="lbl">Ships</span></div>
+    <div class="res"><span class="val">${G.morale}</span><span class="lbl">Morale</span></div>
+    <div class="res"><span class="val">${G.allies}</span><span class="lbl">Allies</span></div>
+  `;
+  const phase = PHASES[G.phase];
+  document.getElementById('phase-name').textContent = phase.name;
+  const yearProgress = G.turn / phase.turns;
+  const year = Math.round(phase.startYear - (phase.startYear - phase.endYear) * yearProgress);
+  document.getElementById('turn-info').textContent = `Turn ${G.turn+1} of ${phase.turns} · ${year} BC`;
+  document.getElementById('year-display').textContent = `${year} BC`;
+}
+
+function renderTerritories(){
+  const list = document.getElementById('territory-list');
+  list.innerHTML = '';
+  const sorted = [...G.territories].sort((a,b)=>{
+    const order = {[G.faction]:0,[G.enemy]:2,neutral:1};
+    return (order[a.owner]||1) - (order[b.owner]||1);
+  });
+  sorted.forEach(t=>{
+    const div = document.createElement('div');
+    div.className = `territory ${t.owner === G.faction ? G.faction : t.owner === G.enemy ? G.enemy : 'neutral'}`;
+    div.innerHTML = `<span>${t.name}</span><span class="t-power">⚔${t.power}</span>`;
+    list.appendChild(div);
+  });
+}
+
+function renderIntel(){
+  const el = document.getElementById('intel-content');
+  const ep = G.enemyPower;
+  const totalP = G.soldiers + G.ships + G.morale;
+  const totalE = ep.soldiers + ep.ships + ep.morale;
+  const pPct = Math.round(totalP/(totalP+totalE)*100);
+  const ePct = 100 - pPct;
+  const myTerr = G.territories.filter(t=>t.owner===G.faction).length;
+  const enTerr = G.territories.filter(t=>t.owner===G.enemy).length;
+  const neuTerr = G.territories.filter(t=>t.owner==='neutral').length;
+
+  el.innerHTML = `
+    <div class="intel-section">
+      <h4>Balance of Power</h4>
+      <div class="bar-wrap"><div class="bar-fill player" style="width:${pPct}%"></div></div>
+      <div class="intel-row"><span class="il">You</span><span class="iv">${pPct}%</span></div>
+      <div class="intel-row"><span class="il">Enemy</span><span class="iv">${ePct}%</span></div>
+    </div>
+    <div class="intel-section">
+      <h4>Enemy Estimates</h4>
+      <div class="intel-row"><span class="il">Soldiers</span><span class="iv">~${Math.round(ep.soldiers/10)*10}</span></div>
+      <div class="intel-row"><span class="il">Ships</span><span class="iv">~${Math.round(ep.ships/10)*10}</span></div>
+      <div class="intel-row"><span class="il">Morale</span><span class="iv">${ep.morale > 70 ? 'High' : ep.morale > 40 ? 'Steady' : 'Low'}</span></div>
+    </div>
+    <div class="intel-section">
+      <h4>Territory Control</h4>
+      <div class="intel-row"><span class="il">Your States</span><span class="iv">${myTerr}</span></div>
+      <div class="intel-row"><span class="il">Enemy States</span><span class="iv">${enTerr}</span></div>
+      <div class="intel-row"><span class="il">Neutral</span><span class="iv">${neuTerr}</span></div>
+    </div>
+    <div class="intel-section">
+      <h4>War Record</h4>
+      <div class="intel-row"><span class="il">Battles Won</span><span class="iv">${G.battlesWon}</span></div>
+      <div class="intel-row"><span class="il">Battles Lost</span><span class="iv">${G.battlesLost}</span></div>
+      <div class="intel-row"><span class="il">Score</span><span class="iv">${G.score}</span></div>
+    </div>
+    <div class="intel-section">
+      <h4>Phase Objective</h4>
+      <p style="color:var(--cream);opacity:0.6;font-size:0.85em;line-height:1.5">${PHASES[G.phase].desc}</p>
+    </div>
+  `;
+}
+
+function renderScenario(){
+  const phase = G.scenarios[G.phase];
+  if(!phase || G.turn >= phase.length){
+    advancePhase();
+    return;
+  }
+  const scenario = phase[G.turn];
+  document.getElementById('narrative-title').textContent = scenario.title;
+
+  let narrativeHtml = scenario.text;
+  document.getElementById('narrative-text').innerHTML = `<p>${narrativeHtml}</p>`;
+
+  const choicesBox = document.getElementById('choices-box');
+  choicesBox.innerHTML = '';
+
+  scenario.choices.forEach((c,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    let efxStr = [];
+    if(c.effects.gold) efxStr.push(`Gold ${c.effects.gold>0?'+':''}${c.effects.gold}`);
+    if(c.effects.soldiers) efxStr.push(`Soldiers ${c.effects.soldiers>0?'+':''}${c.effects.soldiers}`);
+    if(c.effects.ships) efxStr.push(`Ships ${c.effects.ships>0?'+':''}${c.effects.ships}`);
+    if(c.effects.morale) efxStr.push(`Morale ${c.effects.morale>0?'+':''}${c.effects.morale}`);
+    if(c.effects.allies) efxStr.push(`Allies ${c.effects.allies>0?'+':''}${c.effects.allies}`);
+    btn.innerHTML = `${c.text}<span class="choice-tag">${c.tag}</span><span class="effects">${efxStr.join(' · ')}</span>`;
+    btn.onclick = () => makeChoice(i);
+    choicesBox.appendChild(btn);
+  });
+
+  // Check for random event
+  checkRandomEvent();
+}
+
+function makeChoice(idx){
+  const scenario = G.scenarios[G.phase][G.turn];
+  const choice = scenario.choices[idx];
+
+  // Apply effects
+  applyEffects(choice.effects);
+
+  // Score: realist choices score higher
+  if(choice.tag.includes('Realism') || choice.tag.includes('Realist') || choice.tag.includes('Pragmatic') || choice.tag.includes('Rational')){
+    G.score += 15;
+  } else if(choice.tag.includes('Idealist') || choice.tag.includes('Emotional') || choice.tag.includes('Populist')){
+    G.score -= 5;
+    // Extra punishment for idealism
+    G.enemyPower.morale = Math.min(100, G.enemyPower.morale + 5);
+  } else {
+    G.score += 5;
+  }
+
+  // AI enemy response
+  aiTurn();
+
+  // Battle check
+  if(choice.battle && Math.random() < choice.battle.chance){
+    resolveBattle(scenario.title, choice.battle.playerBonus||0, choice.battle.enemyBonus||0);
+  }
+
+  // Show outcome
+  showOutcome(choice, scenario);
+
+  // Log
+  G.log.push(`Turn ${G.turn+1}: ${choice.text.substring(0,50)}...`);
+  if(choice.irTip && !G.irLessons.includes(choice.tag)){
+    G.irLessons.push(choice.tag);
+  }
+
+  // Territory shifts based on power balance
+  updateTerritories();
+
+  // Check loss conditions
+  if(checkGameOver()) return;
+
+  // Advance turn
+  G.turn++;
+  renderAll();
+}
+
+function applyEffects(fx){
+  if(fx.gold) G.gold = Math.max(0, G.gold + fx.gold);
+  if(fx.soldiers) G.soldiers = Math.max(0, G.soldiers + fx.soldiers);
+  if(fx.ships) G.ships = Math.max(0, G.ships + fx.ships);
+  if(fx.morale) G.morale = Math.max(0, Math.min(100, G.morale + fx.morale));
+  if(fx.allies) G.allies = Math.max(0, G.allies + fx.allies);
+}
+
+function aiTurn(){
+  const ep = G.enemyPower;
+  // AI builds up gradually
+  ep.gold += Math.floor(Math.random()*8) + 3;
+  ep.soldiers += Math.floor(Math.random()*5) + 2;
+  ep.ships += Math.floor(Math.random()*3) + 1;
+
+  // Security dilemma: if player is much stronger, AI builds faster
+  const playerPower = G.soldiers + G.ships;
+  const enemyPower = ep.soldiers + ep.ships;
+  if(playerPower > enemyPower * 1.3){
+    ep.soldiers += 5;
+    ep.ships += 3;
+    ep.morale = Math.min(100, ep.morale + 3);
+    document.getElementById('log').textContent = '⚠ Intelligence reports: enemy is rapidly arming in response to your buildup. (Security Dilemma)';
+  }
+
+  // Balance of power: neutrals drift toward weaker side
+  if(playerPower > enemyPower * 1.5){
+    const neutral = G.territories.find(t=>t.owner==='neutral');
+    if(neutral){
+      neutral.owner = G.enemy;
+      document.getElementById('log').textContent = `⚠ ${neutral.name} has joined the enemy, fearing your growing power. (Balance of Power)`;
+    }
+  }
+}
+
+function resolveBattle(name, pBonus, eBonus){
+  const pStr = G.soldiers + Math.floor(G.ships * 0.5) + G.morale * 0.3 + pBonus;
+  const eStr = G.enemyPower.soldiers + Math.floor(G.enemyPower.ships * 0.5) + G.enemyPower.morale * 0.3 + eBonus;
+  const pRoll = pStr * (0.8 + Math.random() * 0.4);
+  const eRoll = eStr * (0.8 + Math.random() * 0.4);
+  const won = pRoll > eRoll;
+
+  const bCard = document.getElementById('battle-card');
+  document.getElementById('battle-title').textContent = `Battle: ${name}`;
+  document.getElementById('b-p-name').textContent = G.faction === 'athens' ? 'Athens' : 'Sparta';
+  document.getElementById('b-e-name').textContent = G.enemy === 'athens' ? 'Athens' : 'Sparta';
+  document.getElementById('b-p-str').textContent = Math.round(pStr);
+  document.getElementById('b-e-str').textContent = Math.round(eStr);
+
+  if(won){
+    document.getElementById('battle-result').textContent = 'VICTORY!';
+    document.getElementById('battle-result').style.color = 'var(--gold)';
+    const losses = Math.floor(Math.random()*8)+3;
+    G.soldiers = Math.max(0, G.soldiers - losses);
+    G.ships = Math.max(0, G.ships - Math.floor(losses/3));
+    G.morale = Math.min(100, G.morale + 10);
+    G.enemyPower.soldiers = Math.max(0, G.enemyPower.soldiers - Math.floor(Math.random()*15)-8);
+    G.enemyPower.ships = Math.max(0, G.enemyPower.ships - Math.floor(Math.random()*8)-3);
+    G.enemyPower.morale = Math.max(0, G.enemyPower.morale - 10);
+    G.battlesWon++;
+    G.score += 20;
+    document.getElementById('battle-details').textContent = `Your forces prevail! Lost ${losses} soldiers in the fighting. Enemy forces scattered.`;
+  } else {
+    document.getElementById('battle-result').textContent = 'DEFEAT';
+    document.getElementById('battle-result').style.color = 'var(--terracotta)';
+    const losses = Math.floor(Math.random()*12)+8;
+    G.soldiers = Math.max(0, G.soldiers - losses);
+    G.ships = Math.max(0, G.ships - Math.floor(losses/2));
+    G.morale = Math.max(0, G.morale - 10);
+    G.enemyPower.soldiers = Math.max(0, G.enemyPower.soldiers - Math.floor(Math.random()*5)-2);
+    G.battlesLost++;
+    G.score -= 10;
+    document.getElementById('battle-details').textContent = `A bitter defeat. Lost ${losses} soldiers and ${Math.floor(losses/2)} ships. The enemy holds the field.`;
+  }
+
+  document.getElementById('battle-overlay').classList.add('show');
+}
+
+function closeBattle(){
+  document.getElementById('battle-overlay').classList.remove('show');
+}
+
+function showOutcome(choice, scenario){
+  const narrativeText = document.getElementById('narrative-text');
+  let html = `<p style="color:var(--gold);margin-bottom:10px"><em>${choice.outcome}</em></p>`;
+  if(choice.irTip){
+    html += `<div class="ir-tip">📜 ${choice.irTip}</div>`;
+  }
+  narrativeText.innerHTML = html;
+
+  // Replace choices with continue button
+  const choicesBox = document.getElementById('choices-box');
+  choicesBox.innerHTML = '';
+  const btn = document.createElement('button');
+  btn.className = 'choice-btn';
+  btn.style.textAlign = 'center';
+  btn.style.borderColor = 'var(--gold)';
+  btn.textContent = 'Continue →';
+  btn.onclick = () => {
+    G.turn++;
+    if(checkGameOver()) return;
+    renderAll();
+  };
+  choicesBox.appendChild(btn);
+}
+
+function checkRandomEvent(){
+  const events = RANDOM_EVENTS.filter(e => {
+    if(!e.phase.includes(G.phase)) return false;
+    if(e.spartaOnly && G.faction !== 'sparta') return false;
+    return Math.random() < e.chance;
+  });
+  if(events.length > 0){
+    const event = events[Math.floor(Math.random()*events.length)];
+    applyEffects(event.fx);
+    document.getElementById('event-title').textContent = event.name;
+    document.getElementById('event-text').textContent = event.text;
+    let fxStr = [];
+    Object.entries(event.fx).forEach(([k,v])=>{
+      if(v) fxStr.push(`${k}: ${v>0?'+':''}${v}`);
+    });
+    document.getElementById('event-fx').textContent = fxStr.join(' · ');
+    document.getElementById('event-overlay').classList.add('show');
+  }
+}
+
+function closeEvent(){
+  document.getElementById('event-overlay').classList.remove('show');
+}
+
+function updateTerritories(){
+  const playerPower = G.soldiers + G.ships + G.morale + G.gold * 0.5;
+  const enemyPower = G.enemyPower.soldiers + G.enemyPower.ships + G.enemyPower.morale + G.enemyPower.gold * 0.5;
+  const ratio = playerPower / (playerPower + enemyPower);
+
+  // Small chance of territory flip based on power balance
+  if(Math.random() < 0.2){
+    if(ratio > 0.6){
+      const target = G.territories.find(t=>t.owner===G.enemy && t.type==='ally');
+      if(target){
+        target.owner = G.faction;
+        G.allies++;
+        document.getElementById('log').textContent = `${target.name} has defected to your side!`;
+      }
+    } else if(ratio < 0.4){
+      const target = G.territories.find(t=>t.owner===G.faction && t.type==='ally');
+      if(target){
+        target.owner = G.enemy;
+        G.allies = Math.max(0, G.allies - 1);
+        document.getElementById('log').textContent = `${target.name} has defected to the enemy!`;
+      }
+    }
+  }
+}
+
+function advancePhase(){
+  G.phase++;
+  G.turn = 0;
+  if(G.phase >= PHASES.length){
+    endGame();
+    return;
+  }
+  // Phase transition bonus
+  G.gold += 10;
+  G.morale = Math.min(100, G.morale + 5);
+  G.score += 25;
+  renderAll();
+}
+
+function checkGameOver(){
+  if(G.soldiers <= 0 && G.ships <= 0){
+    showResult(false, 'Your military is completely destroyed. Your city-state has no means to defend itself.');
+    return true;
+  }
+  if(G.morale <= 0){
+    showResult(false, 'Morale has collapsed. Your citizens revolt and overthrow the government. The war is lost.');
+    return true;
+  }
+  if(G.enemyPower.soldiers <= 0 && G.enemyPower.ships <= 0){
+    showResult(true, 'The enemy\'s military is annihilated! Total victory through force of arms!');
+    return true;
+  }
+  if(G.turn >= G.scenarios[G.phase]?.length){
+    advancePhase();
+    return true;
+  }
+  return false;
+}
+
+function endGame(){
+  const playerPower = G.soldiers + G.ships + G.morale + G.gold + G.allies * 10;
+  const enemyPower = G.enemyPower.soldiers + G.enemyPower.ships + G.enemyPower.morale + G.enemyPower.gold;
+  if(playerPower > enemyPower){
+    showResult(true, 'The war ends! Through strategic mastery, you have emerged victorious. Your city-state dominates the Greek world.');
+  } else {
+    showResult(false, 'The war ends in defeat. Despite your efforts, the enemy has prevailed. Your city-state submits.');
+  }
+}
+
+function showResult(won, text){
+  document.getElementById('result-title').textContent = won ? 'VICTORY' : 'DEFEAT';
+  document.getElementById('result-title').style.color = won ? 'var(--gold)' : 'var(--terracotta)';
+  document.getElementById('result-text').textContent = text;
+
+  let scoreText = `Final Score: ${G.score}\n`;
+  scoreText += `Battles Won: ${G.battlesWon} | Lost: ${G.battlesLost}\n`;
+  scoreText += `IR Concepts Encountered: ${G.irLessons.length}`;
+
+  let grade = '';
+  if(G.score > 200) grade = 'Grand Strategist';
+  else if(G.score > 150) grade = 'Master Diplomat';
+  else if(G.score > 100) grade = 'Competent Archon';
+  else if(G.score > 50) grade = 'Reckless Commander';
+  else grade = 'Idealist Fool';
+
+  document.getElementById('result-score').innerHTML = `${scoreText}<br><br>Rank: <strong>${grade}</strong>`;
+  document.getElementById('result-overlay').classList.add('show');
+}
+
+function saveGame(){
+  if(G) localStorage.setItem('peloponnesian_save', JSON.stringify(G));
+  document.getElementById('log').textContent = 'Game saved.';
+}
+
+function loadGame(){
+  const data = localStorage.getItem('peloponnesian_save');
+  if(data){
+    G = JSON.parse(data);
+    // Rebuild scenarios since they contain functions-like data
+    G.scenarios = buildScenarios();
+    document.getElementById('title-screen').classList.add('hidden');
+    setTimeout(()=>{
+      document.getElementById('game-screen').classList.add('active');
+      renderAll();
+    },500);
+  } else {
+    alert('No saved game found.');
+  }
+}
+
+function showHelp(){
+  const overlay = document.getElementById('event-overlay');
+  document.getElementById('event-title').textContent = 'IR Realism Quick Guide';
+  document.getElementById('event-text').innerHTML = `
+    <div style="text-align:left;font-size:0.85em;line-height:1.7">
+    <strong style="color:var(--gold)">Core Principles:</strong><br>
+    <b>Anarchy:</b> No world government. States must help themselves.<br>
+    <b>Self-Help:</b> Rely on your own power, not promises.<br>
+    <b>Security Dilemma:</b> Your buildup threatens others, causing them to build up too.<br>
+    <b>Balance of Power:</b> States ally against the strongest. Don't get too powerful too fast.<br>
+    <b>Relative Gains:</b> What matters isn't your absolute power, but power relative to rivals.<br><br>
+    <strong style="color:var(--gold)">Schools of Thought:</strong><br>
+    <b>Offensive Realism (Mearsheimer):</b> Maximize power. The best defense is dominance.<br>
+    <b>Defensive Realism (Waltz):</b> Maximize security. Overexpansion causes backlash.<br>
+    <b>Idealism:</b> Trust, justice, institutions. Sounds nice—gets you killed in anarchy.<br><br>
+    <strong style="color:var(--terracotta)">Tip:</strong> Both offensive and defensive realism can win. Idealism will lose.
+    </div>
+  `;
+  document.getElementById('event-fx').textContent = '';
+  overlay.classList.add('show');
+}
+</script>
+</body>
+</html>

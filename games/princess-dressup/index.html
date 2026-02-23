@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Princess Dress-Up</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@700&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Comic Neue', cursive, sans-serif;
+            background-color: #ffe4e1; /* Pastel pink */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            text-align: center;
+            color: #d81b60;
+        }
+
+        #game-area {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        h1 {
+            margin-top: 20px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px white;
+        }
+
+        #character-display {
+            font-size: 8rem;
+            position: relative;
+            height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s;
+        }
+
+        .clothing-item {
+            position: absolute;
+            font-size: 6rem;
+            display: none; /* Hidden until unlocked */
+            animation: popIn 0.5s ease-out;
+        }
+
+        /* Positioning for emoji clothing */
+        #dress-item { top: 40px; }
+        #crown-item { top: -80px; font-size: 4rem; }
+        #shoe-item { top: 130px; font-size: 3rem; left: 10px; }
+        #wand-item { top: 20px; left: 60px; font-size: 4rem; }
+
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            80% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        #prompt-text {
+            font-size: 2rem;
+            margin: 10px 0;
+            background: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 4px dashed #ffb6c1;
+        }
+
+        #spelling-area {
+            display: flex;
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .letter-box {
+            width: 60px;
+            height: 80px;
+            background: white;
+            border: 4px solid #d81b60;
+            border-radius: 15px;
+            font-size: 3rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #d81b60;
+            box-shadow: 3px 3px 0px #d81b60;
+            text-transform: uppercase;
+        }
+
+        .letter-box.unfilled {
+            color: #ffb6c1; /* Faint color to act as a hint */
+        }
+
+        #keyboard {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 600px;
+            gap: 10px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-top-left-radius: 30px;
+            border-top-right-radius: 30px;
+        }
+
+        .key {
+            width: 50px;
+            height: 60px;
+            background: #ff69b4;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.8rem;
+            font-family: inherit;
+            cursor: pointer;
+            box-shadow: 0px 4px 0px #c2185b;
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .key:active, .key.pressed {
+            transform: translateY(4px);
+            box-shadow: 0px 0px 0px #c2185b;
+        }
+
+        .celebration {
+            position: absolute;
+            font-size: 4rem;
+            pointer-events: none;
+            animation: floatUp 2s ease-out forwards;
+        }
+
+        @keyframes floatUp {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1 id="title">Help the Baby!</h1>
+
+    <div id="game-area">
+        <div id="prompt-text">Type T-O-Y to give her a toy!</div>
+        
+        <div id="character-display">
+            <span id="base-character">👶</span> <span id="toy-item" class="clothing-item" style="top: 40px; left: -40px; font-size: 4rem;">🧸</span>
+            <span id="dress-item" class="clothing-item">👗</span>
+            <span id="crown-item" class="clothing-item">👑</span>
+            <span id="shoe-item" class="clothing-item">🥿</span>
+            <span id="wand-item" class="clothing-item">✨</span>
+        </div>
+
+        <div id="spelling-area">
+            </div>
+    </div>
+
+    <div id="keyboard">
+        </div>
+
+    <script>
+        // Game Sequence Definition
+        const stages = [
+            { 
+                id: 'toy', 
+                word: 'TOY', 
+                title: 'Help the Baby!', 
+                prompt: 'The baby wants her toy! Spell TOY:', 
+                base: '👶',
+                successMsg: 'Yay! Now she is growing up!'
+            },
+            { 
+                id: 'dress', 
+                word: 'DRESS', 
+                title: 'Princess Dress-Up!', 
+                prompt: 'Spell DRESS to get her a pretty dress!', 
+                base: '🧍‍♀️',
+                successMsg: 'Beautiful!'
+            },
+            { 
+                id: 'crown', 
+                word: 'CROWN', 
+                title: 'Princess Dress-Up!', 
+                prompt: 'Spell CROWN for her head!', 
+                base: '🧍‍♀️',
+                successMsg: 'So royal!'
+            },
+            { 
+                id: 'shoe', 
+                word: 'SHOE', 
+                title: 'Princess Dress-Up!', 
+                prompt: 'Spell SHOE so she can dance!', 
+                base: '🧍‍♀️',
+                successMsg: 'Perfect fit!'
+            },
+            { 
+                id: 'wand', 
+                word: 'WAND', 
+                title: 'Princess Dress-Up!', 
+                prompt: 'Spell WAND for some magic!', 
+                base: '🧍‍♀️',
+                successMsg: 'You did it! She looks amazing!'
+            }
+        ];
+
+        let currentStageIndex = 0;
+        let currentTypedLength = 0;
+
+        const titleEl = document.getElementById('title');
+        const promptEl = document.getElementById('prompt-text');
+        const spellingAreaEl = document.getElementById('spelling-area');
+        const keyboardEl = document.getElementById('keyboard');
+        const baseCharEl = document.getElementById('base-character');
+
+        // Create virtual keyboard
+        const letters = "QWERTYUIOPASDFGHJKLZXCVBNM".split("");
+        letters.forEach(letter => {
+            const btn = document.createElement('button');
+            btn.className = 'key';
+            btn.innerText = letter;
+            btn.onclick = () => handleInput(letter);
+            keyboardEl.appendChild(btn);
+        });
+
+        // Listen for physical keyboard typing
+        window.addEventListener('keydown', (e) => {
+            const key = e.key.toUpperCase();
+            if (letters.includes(key)) {
+                handleInput(key);
+                // Highlight virtual key
+                const btns = document.querySelectorAll('.key');
+                btns.forEach(b => {
+                    if (b.innerText === key) {
+                        b.classList.add('pressed');
+                        setTimeout(() => b.classList.remove('pressed'), 150);
+                    }
+                });
+            }
+        });
+
+        function loadStage() {
+            if (currentStageIndex >= stages.length) {
+                promptEl.innerText = "You spelled everything! Great job!";
+                spellingAreaEl.innerHTML = "";
+                keyboardEl.style.display = "none";
+                createConfetti();
+                return;
+            }
+
+            const stage = stages[currentStageIndex];
+            currentTypedLength = 0;
+            
+            titleEl.innerText = stage.title;
+            promptEl.innerText = stage.prompt;
+            baseCharEl.innerText = stage.base;
+
+            // Render spelling boxes (showing hints)
+            spellingAreaEl.innerHTML = "";
+            for (let i = 0; i < stage.word.length; i++) {
+                const box = document.createElement('div');
+                box.className = 'letter-box unfilled';
+                box.innerText = stage.word[i]; // Hint
+                spellingAreaEl.appendChild(box);
+            }
+        }
+
+        function handleInput(letter) {
+            const stage = stages[currentStageIndex];
+            if (!stage) return;
+
+            const expectedLetter = stage.word[currentTypedLength];
+
+            // For 3-4 year olds, we only accept the correct letter to avoid frustration
+            if (letter === expectedLetter) {
+                const boxes = spellingAreaEl.children;
+                boxes[currentTypedLength].classList.remove('unfilled');
+                currentTypedLength++;
+                
+                // Play a cute pop sound effect mentally!
+                createSparkle(boxes[currentTypedLength-1]);
+
+                if (currentTypedLength === stage.word.length) {
+                    completeStage(stage);
+                }
+            }
+        }
+
+        function completeStage(stage) {
+            promptEl.innerText = stage.successMsg;
+            
+            // Show the clothing item
+            const itemEl = document.getElementById(`${stage.id}-item`);
+            if (itemEl) itemEl.style.display = 'block';
+
+            createConfetti();
+
+            setTimeout(() => {
+                // If we just finished the baby stage, remove the toy when she grows up
+                if (stage.id === 'toy') {
+                    document.getElementById('toy-item').style.display = 'none';
+                }
+                currentStageIndex++;
+                loadStage();
+            }, 2500); // Wait a moment before moving to the next word
+        }
+
+        function createSparkle(element) {
+            const rect = element.getBoundingClientRect();
+            const sparkle = document.createElement('div');
+            sparkle.innerText = '✨';
+            sparkle.className = 'celebration';
+            sparkle.style.left = rect.left + 'px';
+            sparkle.style.top = rect.top + 'px';
+            document.body.appendChild(sparkle);
+            setTimeout(() => sparkle.remove(), 2000);
+        }
+
+        function createConfetti() {
+            const emojis = ['💖', '⭐', '✨', '🎈'];
+            for (let i = 0; i < 10; i++) {
+                const confetti = document.createElement('div');
+                confetti.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                confetti.className = 'celebration';
+                confetti.style.left = (Math.random() * window.innerWidth) + 'px';
+                confetti.style.top = (window.innerHeight / 2) + 'px';
+                document.body.appendChild(confetti);
+                setTimeout(() => confetti.remove(), 2000);
+            }
+        }
+
+        // Start the game
+        loadStage();
+
+    </script>
+</body>
+</html>
