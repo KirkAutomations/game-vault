@@ -18,6 +18,7 @@ const games = [
   { title: "Pete the Cat's Groovy Computer Skills!", subtitle: "Toddler / Learning", icon: "🐱", href: "games/pete-the-cat/index.html", category: "Educational", added: 16 },
   { title: "Spelling Princess Dress-Up", subtitle: "Kids / Spelling", icon: "👗", href: "games/princess-dressup/index.html", category: "Educational", added: 17 },
   { title: "The Peloponnesian War III", subtitle: "Grand Strategy", icon: "⚔️", href: "games/peloponnesian-war-3/index.html", category: "Strategy / Educational", added: 18 },
+  { title: "GORGIAS: The Dialectic Duel", subtitle: "Philosophy / Debate", icon: "🏛️", href: "games/gorgias/index.html", category: "Strategy / Educational", added: 19 },
 ];
 
 const grid = document.getElementById('game-grid');

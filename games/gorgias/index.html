@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GORGIAS: The Dialectic Duel</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700;900&family=Cinzel:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,700;1,400&display=swap');
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --papyrus:#f4e4c1;--papyrus-dark:#d4c4a1;--ink:#2a1810;
+  --terracotta:#c25a3c;--terracotta-glow:#e8734f;
+  --olive:#5a6b3c;--olive-light:#8ba85e;
+  --gold:#c9a84c;--gold-bright:#e8c84c;
+  --azure:#3a5a8c;--azure-light:#5a8ac0;
+  --shadow:rgba(42,24,16,0.3);
+}
+html,body{width:100%;height:100%;font-family:'EB Garamond',serif;background:var(--ink);color:var(--ink);overflow:hidden}
+
+/* ===== TITLE ===== */
+#title-screen{
+  position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 30% 20%,rgba(201,168,76,.15) 0%,transparent 50%),radial-gradient(ellipse at 70% 80%,rgba(194,90,60,.1) 0%,transparent 50%),linear-gradient(180deg,#1a0e08,#2a1810 40%,#3a2820);
+  transition:opacity .8s,transform .8s;
+}
+#title-screen.hidden{opacity:0;transform:scale(1.05);pointer-events:none}
+.title-columns{display:flex;gap:60px;align-items:center;margin-bottom:20px;animation:fadeUp 1.2s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.title-main{text-align:center}
+.title-main h1{font-family:'Cinzel Decorative',serif;font-size:4.5rem;font-weight:900;color:var(--gold);text-shadow:0 0 40px rgba(201,168,76,.4),0 4px 8px rgba(0,0,0,.6);letter-spacing:.15em;line-height:1}
+.title-main .subtitle{font-family:'Cinzel',serif;font-size:1.3rem;color:var(--terracotta);letter-spacing:.4em;margin-top:8px;text-transform:uppercase}
+.title-desc{max-width:520px;text-align:center;font-size:1.1rem;line-height:1.7;color:var(--papyrus-dark);margin:30px auto;animation:fadeUp 1.2s ease .3s both}
+.title-desc em{color:var(--gold);font-style:italic}
+.start-btn,.go-btn,.next-btn,.replay-btn{font-family:'Cinzel',serif;cursor:pointer;letter-spacing:.15em;transition:all .3s ease;border:2px solid var(--gold)}
+.start-btn{font-size:1.3rem;font-weight:700;padding:16px 50px;background:linear-gradient(135deg,var(--terracotta),#a04030);color:var(--papyrus);text-transform:uppercase;animation:fadeUp 1.2s ease .6s both}
+.start-btn:hover,.go-btn.ready:hover{background:linear-gradient(135deg,var(--terracotta-glow),var(--terracotta));transform:translateY(-2px);box-shadow:0 8px 30px rgba(194,90,60,.4)}
+.title-char{text-align:center;color:var(--papyrus-dark)}
+.title-char-icon{width:80px;height:80px;margin:0 auto 10px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;border:2px solid var(--gold)}
+.title-char-icon.socrates-icon{background:radial-gradient(circle,var(--azure),#2a3a5c)}
+.title-char-icon.callicles-icon{background:radial-gradient(circle,var(--terracotta),#7a2a1c)}
+.title-char-name{font-family:'Cinzel',serif;font-size:.9rem;letter-spacing:.2em;color:var(--gold)}
+.title-char-role{font-size:.85rem;margin-top:4px;font-style:italic}
+
+/* ===== CHARACTER SELECT ===== */
+#select-screen{position:fixed;inset:0;z-index:90;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 30% 40%,rgba(58,90,140,.12) 0%,transparent 50%),radial-gradient(ellipse at 70% 60%,rgba(194,90,60,.12) 0%,transparent 50%),linear-gradient(180deg,#1a0e08,#2a1810 40%,#3a2820)}
+#select-screen.active{display:flex}
+.select-title{font-family:'Cinzel Decorative',serif;font-size:2.2rem;color:var(--gold);text-shadow:0 0 30px rgba(201,168,76,.3);margin-bottom:8px}
+.select-subtitle{font-family:'Cinzel',serif;font-size:1rem;color:var(--papyrus-dark);letter-spacing:.25em;margin-bottom:40px}
+.select-cards{display:flex;gap:40px;margin-bottom:30px}
+.select-card{width:280px;padding:30px 24px;background:rgba(244,228,193,.04);border:2px solid rgba(201,168,76,.25);text-align:center;cursor:pointer;transition:all .35s ease}
+.select-card:hover{border-color:var(--gold);background:rgba(244,228,193,.08);transform:translateY(-6px);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.select-card.chosen{border-color:var(--gold-bright);background:rgba(201,168,76,.1);box-shadow:0 0 40px rgba(201,168,76,.2);transform:translateY(-6px)}
+.select-card .char-icon{width:100px;height:100px;margin:0 auto 16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:3rem;border:3px solid var(--gold);transition:all .35s}
+.select-card:hover .char-icon,.select-card.chosen .char-icon{box-shadow:0 0 25px rgba(201,168,76,.3)}
+.select-card .char-icon.soc-bg{background:radial-gradient(circle at 40% 40%,var(--azure-light),var(--azure),#1a2a4c)}
+.select-card .char-icon.cal-bg{background:radial-gradient(circle at 40% 40%,var(--terracotta-glow),var(--terracotta),#5a1a10)}
+.select-card h3{font-family:'Cinzel',serif;font-size:1.2rem;color:var(--gold);letter-spacing:.15em;margin-bottom:4px}
+.select-card .role{font-size:.9rem;color:var(--terracotta);font-style:italic;margin-bottom:14px}
+.select-card .desc{font-size:.92rem;line-height:1.65;color:var(--papyrus-dark)}
+.select-card .playstyle{margin-top:14px;padding-top:14px;border-top:1px solid rgba(201,168,76,.15);font-family:'Cinzel',serif;font-size:.72rem;letter-spacing:.15em;color:var(--olive-light)}
+.go-btn{font-size:1.2rem;font-weight:700;padding:14px 50px;background:linear-gradient(135deg,var(--terracotta),#a04030);color:var(--papyrus);opacity:.3;pointer-events:none}
+.go-btn.ready{opacity:1;pointer-events:all}
+
+/* ===== GAME SCREEN ===== */
+#game-screen{position:fixed;inset:0;display:none;flex-direction:column;background:url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 L55 30 L30 55 L5 30Z' fill='none' stroke='rgba(201,168,76,0.04)' stroke-width='1'/%3E%3C/svg%3E"),linear-gradient(180deg,#f8eed8,var(--papyrus) 30%,var(--papyrus-dark))}
+#game-screen.active{display:flex}
+.top-bar{display:flex;justify-content:space-between;align-items:center;padding:12px 24px;background:linear-gradient(180deg,#2a1810,#3a2820);border-bottom:3px solid var(--gold)}
+.round-display{font-family:'Cinzel',serif;color:var(--gold);font-size:1rem;letter-spacing:.2em}
+.score-display{display:flex;gap:24px}
+.score-item{display:flex;align-items:center;gap:8px;font-family:'Cinzel',serif;font-size:.9rem;color:var(--papyrus)}
+.score-icon{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.score-icon.s{background:var(--azure)}.score-icon.c{background:var(--terracotta)}
+.wisdom-bar-wrap{display:flex;align-items:center;gap:8px}
+.wisdom-bar{width:150px;height:10px;background:rgba(255,255,255,.1);border:1px solid var(--gold);border-radius:2px;overflow:hidden}
+.wisdom-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--olive),var(--gold-bright));transition:width .6s}
+.wisdom-label{font-family:'Cinzel',serif;color:var(--gold);font-size:.8rem;letter-spacing:.1em}
+.playing-as{font-family:'Cinzel',serif;font-size:.75rem;color:var(--papyrus-dark);letter-spacing:.15em}
+.playing-as span{color:var(--gold);font-weight:700}
+
+.arena{flex:1;display:flex;flex-direction:column;padding:20px 30px;overflow:hidden;position:relative}
+.characters{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px}
+.character{display:flex;flex-direction:column;align-items:center;width:180px;transition:all .4s}
+.character.speaking{transform:scale(1.05)}
+.character.speaking .char-portrait{box-shadow:0 0 30px rgba(201,168,76,.5);border-color:var(--gold-bright)}
+.character.you-indicator .char-name::after{content:' (YOU)';font-size:.7rem;color:var(--gold-bright)}
+.char-portrait{width:100px;height:100px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:3rem;border:3px solid var(--gold);transition:all .4s}
+.char-portrait.socrates-bg{background:radial-gradient(circle at 40% 40%,var(--azure-light),var(--azure),#1a2a4c)}
+.char-portrait.callicles-bg{background:radial-gradient(circle at 40% 40%,var(--terracotta-glow),var(--terracotta),#5a1a10)}
+.char-name{font-family:'Cinzel',serif;font-size:.85rem;margin-top:8px;letter-spacing:.15em;color:var(--ink)}
+.char-title{font-size:.75rem;color:rgba(42,24,16,.6);font-style:italic}
+.logic-bar-wrap{width:100%;margin-top:6px}
+.logic-bar{width:100%;height:8px;background:rgba(42,24,16,.1);border:1px solid rgba(42,24,16,.2);border-radius:2px;overflow:hidden}
+.logic-bar-fill{height:100%;transition:width .6s;border-radius:2px}
+.logic-bar-fill.soc{background:linear-gradient(90deg,var(--azure),var(--azure-light));width:100%}
+.logic-bar-fill.cal{background:linear-gradient(90deg,var(--terracotta),var(--terracotta-glow));width:100%}
+.logic-label{font-size:.7rem;text-align:center;margin-top:2px;color:rgba(42,24,16,.5);font-family:'Cinzel',serif;letter-spacing:.1em}
+
+.vs-area{display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:20px}
+.vs-badge{font-family:'Cinzel Decorative',serif;font-size:1.8rem;color:var(--terracotta);text-shadow:0 2px 4px var(--shadow)}
+.round-topic{font-family:'Cinzel',serif;font-size:.8rem;color:var(--olive);letter-spacing:.15em;margin-top:4px;text-align:center;max-width:300px}
+
+.dialogue-area{flex:1;display:flex;flex-direction:column;min-height:0}
+.dialogue-box{background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(244,228,193,.5));border:2px solid var(--gold);padding:20px 24px;position:relative;margin-bottom:16px;min-height:90px;box-shadow:0 4px 20px var(--shadow)}
+.dialogue-box::before{content:'';position:absolute;inset:4px;border:1px solid rgba(201,168,76,.3);pointer-events:none}
+.dialogue-speaker{font-family:'Cinzel',serif;font-size:.85rem;font-weight:700;letter-spacing:.2em;margin-bottom:8px;text-transform:uppercase}
+.dialogue-speaker.soc-speak{color:var(--azure)}.dialogue-speaker.cal-speak{color:var(--terracotta)}
+.dialogue-text{font-size:1.05rem;line-height:1.65;color:var(--ink)}
+.dialogue-text .highlight{color:var(--terracotta);font-weight:700}
+.dialogue-text .concept{background:rgba(201,168,76,.2);padding:1px 6px;border-bottom:2px solid var(--gold);cursor:help}
+
+.choices{display:flex;flex-direction:column;gap:10px;overflow-y:auto;flex:1;min-height:0;padding-bottom:10px}
+.choice-btn{display:flex;align-items:flex-start;gap:14px;padding:14px 18px;background:linear-gradient(135deg,rgba(255,255,255,.8),rgba(244,228,193,.4));border:2px solid rgba(201,168,76,.4);cursor:pointer;text-align:left;font-family:'EB Garamond',serif;font-size:1rem;line-height:1.5;color:var(--ink);transition:all .25s}
+.choice-btn:hover{border-color:var(--gold);background:linear-gradient(135deg,rgba(255,255,255,.95),rgba(244,228,193,.7));transform:translateX(4px);box-shadow:0 4px 15px var(--shadow)}
+.choice-btn.correct{border-color:var(--olive-light);background:rgba(90,107,60,.15);animation:correctFlash .6s}
+.choice-btn.wrong{border-color:var(--terracotta);background:rgba(194,90,60,.1);opacity:.6}
+.choice-btn.disabled{pointer-events:none}
+@keyframes correctFlash{0%,100%{box-shadow:0 0 0 transparent}50%{box-shadow:0 0 30px rgba(139,168,94,.5)}}
+.choice-letter{flex-shrink:0;width:28px;height:28px;background:var(--gold);color:var(--ink);font-family:'Cinzel',serif;font-weight:700;font-size:.85rem;display:flex;align-items:center;justify-content:center;border-radius:2px}
+.choice-type{display:inline-block;font-family:'Cinzel',serif;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;padding:2px 8px;border-radius:2px;margin-top:4px}
+.type-dialectic{background:rgba(58,90,140,.15);color:var(--azure)}
+.type-rhetoric{background:rgba(194,90,60,.15);color:var(--terracotta)}
+.type-irony{background:rgba(201,168,76,.2);color:#8a6a2c}
+.type-concede{background:rgba(90,107,60,.15);color:var(--olive)}
+.type-power{background:rgba(120,40,20,.15);color:#8a3020}
+.type-nature{background:rgba(90,60,30,.15);color:#6a4a20}
+
+/* ===== RESULT OVERLAY ===== */
+.result-overlay{display:none;position:absolute;inset:0;background:rgba(42,24,16,.88);z-index:50;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.result-overlay.active{display:flex}
+.result-card{background:var(--papyrus);border:3px solid var(--gold);padding:32px 40px;text-align:center;max-width:550px;width:100%;position:relative}
+.result-card::before{content:'';position:absolute;inset:6px;border:1px solid rgba(201,168,76,.4);pointer-events:none}
+.result-icon{font-size:3rem;margin-bottom:12px}
+.result-title{font-family:'Cinzel Decorative',serif;font-size:1.6rem;color:var(--ink);margin-bottom:10px}
+.result-text{font-size:1rem;line-height:1.65;color:rgba(42,24,16,.8);margin-bottom:16px}
+.result-concept{background:rgba(201,168,76,.15);border:1px solid var(--gold);padding:14px 18px;margin:16px 0;text-align:left}
+.result-concept-title{font-family:'Cinzel',serif;font-size:.8rem;letter-spacing:.15em;color:var(--olive);margin-bottom:6px}
+.result-concept-text{font-size:.92rem;line-height:1.6;color:var(--ink)}
+.next-btn{font-size:1rem;font-weight:700;padding:12px 36px;background:var(--ink);color:var(--gold);position:relative;z-index:10}
+.next-btn:hover{background:var(--gold);color:var(--ink)}
+
+/* ===== FINAL ===== */
+#final-screen{position:fixed;inset:0;z-index:200;display:none;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at 50% 30%,rgba(201,168,76,.2) 0%,transparent 60%),linear-gradient(180deg,#1a0e08,#2a1810);padding:40px;overflow-y:auto}
+#final-screen.active{display:flex}
+.final-card{max-width:600px;text-align:center}
+.final-title{font-family:'Cinzel Decorative',serif;font-size:2.8rem;color:var(--gold);text-shadow:0 0 40px rgba(201,168,76,.3);margin-bottom:10px}
+.final-subtitle{font-family:'Cinzel',serif;font-size:1rem;color:var(--terracotta);letter-spacing:.3em;margin-bottom:24px}
+.final-score{font-family:'Cinzel',serif;font-size:1.8rem;color:var(--papyrus);margin-bottom:10px}
+.final-rank{font-size:1.05rem;color:var(--gold);font-style:italic;margin-bottom:28px;line-height:1.6}
+.final-lessons{text-align:left;margin-bottom:30px}
+.final-lesson{background:rgba(244,228,193,.08);border:1px solid rgba(201,168,76,.2);padding:14px 18px;margin-bottom:10px}
+.final-lesson-title{font-family:'Cinzel',serif;font-size:.8rem;color:var(--gold);letter-spacing:.15em;margin-bottom:4px}
+.final-lesson-text{font-size:.92rem;color:var(--papyrus-dark);line-height:1.6}
+.replay-btn{font-size:1.2rem;font-weight:700;padding:14px 44px;background:linear-gradient(135deg,var(--terracotta),#a04030);color:var(--papyrus);border:2px solid var(--gold);cursor:pointer;letter-spacing:.15em;transition:all .3s}
+.replay-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(194,90,60,.4)}
+
+.tooltip{display:none;position:fixed;background:var(--ink);color:var(--papyrus);padding:10px 14px;font-size:.85rem;line-height:1.5;max-width:280px;z-index:999;border:1px solid var(--gold);pointer-events:none}
+.tooltip.active{display:block}
+
+@keyframes slideIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+.animate-in{animation:slideIn .4s ease both}.animate-in-1{animation-delay:.1s}.animate-in-2{animation-delay:.2s}.animate-in-3{animation-delay:.3s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+.shake{animation:shake .5s ease}
+.choices::-webkit-scrollbar{width:6px}.choices::-webkit-scrollbar-track{background:rgba(42,24,16,.05)}.choices::-webkit-scrollbar-thumb{background:var(--gold);border-radius:3px}
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <div class="title-columns">
+    <div class="title-char">
+      <div class="title-char-icon socrates-icon">🏛️</div>
+      <div class="title-char-name">SOCRATES</div>
+      <div class="title-char-role">The Gadfly of Athens</div>
+    </div>
+    <div class="title-main">
+      <h1>GORGIAS</h1>
+      <div class="subtitle">The Dialectic Duel</div>
+    </div>
+    <div class="title-char">
+      <div class="title-char-icon callicles-icon">⚔️</div>
+      <div class="title-char-name">CALLICLES</div>
+      <div class="title-char-role">Champion of the Strong</div>
+    </div>
+  </div>
+  <div class="title-desc">
+    <em>Athens, 5th Century BCE.</em> A fierce debate about justice, power, and the good life. Is might right? Is philosophy worthless? Is pleasure the highest good?<br><br><em>Choose your champion. Fight with words.</em>
+  </div>
+  <button class="start-btn" onclick="showSelect()">⚡ Enter the Agora ⚡</button>
+</div>
+
+<div id="select-screen">
+  <div class="select-title">Choose Your Champion</div>
+  <div class="select-subtitle">WHO WILL YOU BECOME?</div>
+  <div class="select-cards">
+    <div class="select-card" id="card-socrates" onclick="selectChar('socrates')">
+      <div class="char-icon soc-bg">🧔</div>
+      <h3>SOCRATES</h3>
+      <div class="role">The Philosopher</div>
+      <div class="desc">Use dialectic to expose contradictions. Ask questions that trap your opponent in his own logic. Prove that the examined life is the only life worth living.</div>
+      <div class="playstyle">⚖️ PLAYSTYLE: QUESTIONS & LOGIC</div>
+    </div>
+    <div class="select-card" id="card-callicles" onclick="selectChar('callicles')">
+      <div class="char-icon cal-bg">👑</div>
+      <h3>CALLICLES</h3>
+      <div class="role">The Aristocrat</div>
+      <div class="desc">Defend the law of nature: the strong should rule and take more. Attack philosophy as childish. Champion desire, power, and the bold life of action over timid convention.</div>
+      <div class="playstyle">🦁 PLAYSTYLE: POWER & RHETORIC</div>
+    </div>
+  </div>
+  <button class="go-btn" id="go-btn" onclick="startGame()">Begin the Debate →</button>
+</div>
+
+<div id="game-screen">
+  <div class="top-bar">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div class="round-display" id="round-display">ROUND I</div>
+      <div class="playing-as" id="playing-as"></div>
+    </div>
+    <div class="wisdom-bar-wrap">
+      <span class="wisdom-label">WISDOM</span>
+      <div class="wisdom-bar"><div class="wisdom-bar-fill" id="wisdom-fill"></div></div>
+    </div>
+    <div class="score-display">
+      <div class="score-item"><div class="score-icon s">🦉</div><span id="soc-score">0</span></div>
+      <div class="score-item"><div class="score-icon c">🦁</div><span id="cal-score">0</span></div>
+    </div>
+  </div>
+  <div class="arena">
+    <div class="characters">
+      <div class="character" id="socrates-char">
+        <div class="char-portrait socrates-bg">🧔</div>
+        <div class="char-name">SOCRATES</div>
+        <div class="char-title">The Philosopher</div>
+        <div class="logic-bar-wrap"><div class="logic-bar"><div class="logic-bar-fill soc" id="soc-logic"></div></div><div class="logic-label">LOGOS</div></div>
+      </div>
+      <div class="vs-area">
+        <div class="vs-badge">⚡ VS ⚡</div>
+        <div class="round-topic" id="round-topic"></div>
+      </div>
+      <div class="character" id="callicles-char">
+        <div class="char-portrait callicles-bg">👑</div>
+        <div class="char-name">CALLICLES</div>
+        <div class="char-title">The Aristocrat</div>
+        <div class="logic-bar-wrap"><div class="logic-bar"><div class="logic-bar-fill cal" id="cal-logic"></div></div><div class="logic-label">LOGOS</div></div>
+      </div>
+    </div>
+    <div class="dialogue-area">
+      <div class="dialogue-box">
+        <div class="dialogue-speaker" id="dialogue-speaker"></div>
+        <div class="dialogue-text" id="dialogue-text"></div>
+      </div>
+      <div class="choices" id="choices"></div>
+    </div>
+    <div class="result-overlay" id="result-overlay">
+      <div class="result-card">
+        <div class="result-icon" id="result-icon"></div>
+        <div class="result-title" id="result-title"></div>
+        <div class="result-text" id="result-text"></div>
+        <div class="result-concept">
+          <div class="result-concept-title" id="concept-title"></div>
+          <div class="result-concept-text" id="concept-text"></div>
+        </div>
+        <button class="next-btn" id="next-btn">Continue →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="final-screen">
+  <div class="final-card">
+    <div class="final-title" id="final-title"></div>
+    <div class="final-subtitle" id="final-subtitle"></div>
+    <div class="final-score" id="final-score"></div>
+    <div class="final-rank" id="final-rank"></div>
+    <div class="final-lessons" id="final-lessons"></div>
+    <button class="replay-btn" onclick="location.reload()">🏛️ Debate Again</button>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+const SOC_ROUNDS=[
+{id:1,topic:"NATURE vs. CONVENTION",speaker:"callicles",
+dialogue:`The truth is, Socrates, you're a fraud. You exploit people's <span class="concept" data-tip="Aidōs: Greek shame/modesty that prevents saying what one really thinks">modesty</span>. <span class="concept" data-tip="Physis: nature, the way things truly are independent of human agreement">Nature</span> and <span class="concept" data-tip="Nomos: convention, law, custom — rules humans agree to follow">convention</span> are at variance! The makers of laws are the <span class="highlight">weak majority</span>, terrifying the strong into compliance. By nature, the superior should rule and have more!`,
+choices:[
+{text:`"Interesting. So you claim the strong should rule. Tell me: are the 'superior' and the 'stronger' exactly the same thing?"`,type:"dialectic",correct:true,
+response:"You deploy the classic Socratic move: get your opponent to define terms precisely. Callicles confidently equates superior, stronger, and better. But this opens a fatal trap...",
+conceptTitle:"🔍 THE SOCRATIC METHOD",conceptText:"Socrates never attacks claims directly. He asks for definitions. By getting Callicles to equate 'superior,' 'stronger,' and 'better,' he sets up a logical contradiction — because the many are physically stronger than the one, yet Callicles despises majority rule.",socDmg:0,calDmg:20},
+{text:`"You're wrong! Convention IS natural — humans are social creatures. Laws arise from our nature!"`,type:"rhetoric",correct:false,
+response:`Callicles laughs. "Now who's playing rhetorical tricks? You're just asserting what you need to prove!" He's right — you argued like a rhetorician, not a dialectician.`,
+conceptTitle:"⚠️ RHETORIC vs. DIALECTIC",conceptText:"Socrates distinguishes rhetoric (persuasion through assertion) from dialectic (discovering truth through question-and-answer). Making bold claims without following the argument is exactly what Socrates criticizes.",socDmg:15,calDmg:0},
+{text:`"I concede entirely. Nature and convention are different. Let's go home."`,type:"concede",correct:false,
+response:`Callicles stares in disbelief. Even Chaerephon looks embarrassed. You've abandoned inquiry before it began.`,
+conceptTitle:"💡 THE DUTY TO INQUIRE",conceptText:"For Socrates, the worst thing is abandoning the search for truth. 'The unexamined life is not worth living.' Conceding without examination is intellectual cowardice.",socDmg:25,calDmg:0}
+]},
+{id:2,topic:"THE TRAP OF DEFINITIONS",speaker:"socrates",
+dialogue:`You agreed that superior, stronger, and better are the same. Then the <span class="highlight">many</span> — being collectively stronger — are <span class="concept" data-tip="If stronger = superior = better, the majority is better by Callicles' own logic">superior</span>. And the many believe justice is equality. So by YOUR logic... nature confirms convention!`,
+choices:[
+{text:`"Not only custom but nature affirms that doing injustice is more disgraceful. Your own premises led here, Callicles. Would you like to revise your definition?"`,type:"dialectic",correct:true,
+response:`Callicles sputters: "This man will never cease talking nonsense! At your age, are you not ashamed to be catching at words?" He's furious because you turned his own logic against him.`,
+conceptTitle:"🪤 ELENCHUS (REFUTATION)",conceptText:"The elenchus: take what your opponent believes, follow the implications, show they lead to contradiction. Callicles said 'stronger = better' and 'the strong should rule.' But the many are stronger. Therefore majority laws ARE natural justice. He refutes himself.",socDmg:0,calDmg:25},
+{text:`"The many are obviously wrong. The strongest individual should rule — that's real natural law!"`,type:"rhetoric",correct:false,
+response:`Callicles is delighted. "Finally you agree!" But you just adopted his view without justification.`,
+conceptTitle:"⚠️ EPISTEMIC HUMILITY",conceptText:"Follow the argument wherever it leads, don't adopt positions because they sound appealing. 'I know that I know nothing' is a commitment to not claiming knowledge one doesn't have.",socDmg:20,calDmg:0},
+{text:`"Your nature/convention distinction is itself a convention — a framework humans invented. How do you know what 'nature' truly intends?"`,type:"irony",correct:false,
+response:`Clever! But Callicles waves it away: "I observe nature with my own eyes — the lion devours the gazelle." You missed pressing the immediate contradiction.`,
+conceptTitle:"💡 KNOWING WHAT WE DON'T KNOW",conceptText:"Valid epistemological point, but misses the dialectical opportunity. Socrates typically presses contradictions before raising meta-questions.",socDmg:5,calDmg:5}
+]},
+{id:3,topic:"WHO ARE THE 'SUPERIOR'?",speaker:"callicles",
+dialogue:`Fine! I don't mean a <span class="concept" data-tip="Callicles shifts from 'stronger' to 'wiser' to escape the majority-rule trap">rabble of slaves</span>. I mean the <span class="highlight">wiser</span> and more <span class="highlight">excellent</span>! One wise man may be superior to ten thousand fools!`,
+choices:[
+{text:`"If we're sharing food and one of us is a physician — wiser about food — should he get the largest portion? Should the weaver get the most coats? The cobbler the most shoes?"`,type:"irony",correct:true,
+response:`Callicles explodes: "Fudge about coats! Fudge about shoes! You are literally ALWAYS talking of cobblers and cooks!" His frustration reveals the principle can't survive concrete examples.`,
+conceptTitle:"🎭 SOCRATIC IRONY & ANALOGIES",conceptText:"Socrates uses humble examples to test grand principles. Expertise is domain-specific. The physician should direct food distribution, but should he eat the most? 'The better should have more' — more of WHAT? The principle is fatally vague.",socDmg:0,calDmg:20},
+{text:`"If the wiser should rule, then philosophers like me should rule. And I say intemperance is bad. So you should listen to ME."`,type:"rhetoric",correct:false,
+response:`Callicles scoffs: "A philosopher ruling? You can't even defend yourself in court!" The crowd murmurs agreement.`,
+conceptTitle:"⚠️ THE PHILOSOPHER IN THE CITY",conceptText:"If philosophers are so wise, why are they helpless in practice? Plato's Republic imagines philosopher-kings, but his own attempt to advise the tyrant of Syracuse was a disaster.",socDmg:15,calDmg:5},
+{text:`"You keep changing your definition! First 'stronger,' then 'wiser,' now 'excellent.' A definition that shifts is no definition."`,type:"dialectic",correct:false,
+response:`Fair, but Callicles regroups: "The naturally excellent should rule." Without a concrete test, you let him escape.`,
+conceptTitle:"💡 AMBIGUITY AS A FEATURE",conceptText:"Words like 'superior' are genuinely ambiguous. A good dialectician uses concrete examples to force clarity — Socrates' cobblers and cooks work better than abstract complaints about inconsistency.",socDmg:5,calDmg:10}
+]},
+{id:4,topic:"THE LEAKY VESSEL",speaker:"socrates",
+dialogue:`Callicles says <span class="concept" data-tip="Sōphrosynē: temperance, self-mastery">temperance is slavery</span>! Desires should <span class="highlight">wax to the uttermost</span>. Consider: two men with casks. One has <span class="highlight">sound, full</span> casks. The other has <span class="highlight">leaky</span> ones he must endlessly fill. Which life is happier?`,
+choices:[
+{text:`"You say the filled man has no pleasure left. But then your happiness requires perpetual deprivation. You're only 'happy' because you're always lacking. Is that really happiness?"`,type:"dialectic",correct:true,
+response:`Callicles retorts: "The filled man is no better than a stone!" But you've framed the devastating metaphor: his ideal life is perpetual, insatiable need — like pouring water through a sieve.`,
+conceptTitle:"🏺 THE LEAKY VESSEL",conceptText:"One of philosophy's most famous metaphors. The intemperate soul is a leaky jar. Callicles says the FILLING is the pleasure — but this means happiness requires constant deprivation. Is that happiness, or perpetual suffering?",socDmg:0,calDmg:20},
+{text:`"All bodily pleasure is shameful. Only pure abstract thought has value."`,type:"rhetoric",correct:false,
+response:`Callicles: "You sound like those ascetic Pythagoreans. If all pleasure is bad, why live?" Extreme asceticism is as indefensible as extreme hedonism.`,
+conceptTitle:"⚠️ THE MIDDLE PATH",conceptText:"Socrates doesn't argue pleasure is evil — he argues pleasure isn't IDENTICAL to the good. Some pleasures are good, some bad. We need a standard beyond pleasure to evaluate them.",socDmg:15,calDmg:0},
+{text:`"Self-rule is unnecessary. A true ruler need only rule others."`,type:"concede",correct:false,
+response:`Socrates would never say this. Self-mastery is central to his ethics. You've undermined the entire Socratic position.`,
+conceptTitle:"💡 SŌPHROSYNĒ",conceptText:"Ruling oneself is prerequisite for ruling others justly. The person enslaved by appetites cannot make rational decisions. In Plato's Republic, the just soul is one where reason rules appetite.",socDmg:25,calDmg:0}
+]},
+{id:5,topic:"PLEASURE vs. THE GOOD",speaker:"socrates",
+dialogue:`So all desires should be satisfied, and <span class="concept" data-tip="Hedonism: the view that pleasure is the highest good">pleasure IS the good</span>? Even the scratcher living pleasantly scratching an itch — is he happy? And those with even <span class="highlight">more shameful</span> pleasures?`,
+choices:[
+{text:`"If pleasure IS the good, then ALL pleasures are equally good — including the most degrading. Do you really commit to that? Is endless scratching truly happiness?"`,type:"dialectic",correct:true,
+response:`Callicles: "Are you not ASHAMED to introduce such topics?" His shame reveals everything — he DOES distinguish worthy from unworthy pleasures. His own disgust disproves his theory!`,
+conceptTitle:"🎯 THE HEDONISM TRAP",conceptText:"The killshot. If pleasure = good, you can't distinguish 'noble' from 'shameful' pleasures without a standard BEYOND pleasure. Callicles finds some pleasures shameful — his disgust proves he doesn't really believe pleasure alone defines the good. The champion of 'nature over convention' is undone by his own conventional shame!",socDmg:0,calDmg:30},
+{text:`"Pleasure is clearly evil. All bodily pleasure should be eliminated."`,type:"rhetoric",correct:false,
+response:`"If all pleasure is bad, why eat? Why live?" Extreme asceticism is as indefensible as extreme hedonism.`,
+conceptTitle:"⚠️ NOT ALL-OR-NOTHING",conceptText:"Socrates argues pleasure isn't identical to the good — not that pleasure is evil. We need a standard beyond pleasure to evaluate pleasures.",socDmg:15,calDmg:0},
+{text:`"Your shame is revealing. You appeal to nature over convention — yet your disgust IS conventional shame."`,type:"irony",correct:false,
+response:`Callicles redirects: "I'm ashamed you discuss such vulgar things in serious discourse." He deflects the shame onto you. Still, you've planted a seed.`,
+conceptTitle:"💡 WHOSE SHAME?",conceptText:"Can we separate 'natural' reactions from 'conventional' conditioning? Callicles wants shame to be purely conventional, but his visceral disgust suggests it runs deeper.",socDmg:0,calDmg:10}
+]},
+{id:6,topic:"THE VALUE OF PHILOSOPHY",speaker:"callicles",
+dialogue:`Enough! Philosophy is for the <span class="concept" data-tip="Callicles compares adult philosophers to adults who lisp like babies">young</span>. A grown man philosophizing is <span class="highlight">ridiculous and unmanly</span>. If someone dragged you to court, you'd stand there <span class="highlight">giddy and gaping</span>! What good is an art that makes a wise man into a <span class="highlight">fool</span>?`,
+choices:[
+{text:`"If my soul were gold, I'd want the perfect touchstone. YOU, Callicles, are that touchstone — you have knowledge, goodwill, and outspokenness. If we agree, we've found truth itself."`,type:"irony",correct:true,
+response:`Callicles is disarmed. By calling him a 'touchstone,' you transform attacker into partner. If he truly has knowledge and goodwill, shouldn't he WANT to follow the argument?`,
+conceptTitle:"🪨 THE TOUCHSTONE",conceptText:"Brilliantly strategic. A touchstone tests gold's purity. 'If YOU — an outspoken critic — agree with me, then I know I'm right.' This makes opposition essential to philosophy and reveals genuine epistemic humility: Socrates needs others to test his ideas.",socDmg:0,calDmg:15},
+{text:`"You're right. I'll give up philosophy and go into politics immediately."`,type:"concede",correct:false,
+response:`Everyone stares. Socrates surrendering philosophy is like a fish surrendering water.`,
+conceptTitle:"💡 PHILOSOPHY AS IDENTITY",conceptText:"Socrates chose death over abandoning philosophy. It's not a career — it's the essential human activity. He'd rather be unjustly condemned while philosophizing than safe while unexamined.",socDmg:30,calDmg:0},
+{text:`"A man helpless in court may be pitied. But one who uses court skill to commit injustice — should he be admired?"`,type:"dialectic",correct:false,
+response:`Callicles recovers: "The dead philosopher has no virtue at all." The practical argument lands.`,
+conceptTitle:"💡 THE PHILOSOPHER'S VULNERABILITY",conceptText:"Socrates argues rhetoric for injustice is worse than helplessness. But powerlessness isn't noble — it's just powerlessness. Plato's Republic gives philosopher-kings guardians with swords.",socDmg:5,calDmg:10}
+]}
+];
+
+const CAL_ROUNDS=[
+{id:1,topic:"NATURE vs. CONVENTION",speaker:"socrates",
+dialogue:`Callicles, do you truly believe <span class="concept" data-tip="Physis vs. Nomos: the fundamental Greek distinction between nature and convention">nature and convention</span> are at variance? That <span class="highlight">suffering</span> injustice is worse than <span class="highlight">doing</span> it? Please explain clearly so we may examine this together.`,
+choices:[
+{text:`"The makers of laws are the weak majority! They terrify the strong into equality from their own inferiority. Nature shows — among men AND animals — that the superior should rule and have more!"`,type:"power",correct:true,
+response:`Socrates nods: "Interesting. So the superior, stronger, and better are the same thing?" He's laying a trap with definitions, but your argument from nature is strong and clear.`,
+conceptTitle:"🦁 THE LAW OF NATURE",conceptText:"Callicles' argument has real force: laws ARE made by the majority in their interest. This anticipates Nietzsche's 'slave morality' by 2,300 years. The question is whether 'nature shows the strong should dominate' or whether nature is being selectively interpreted.",socDmg:10,calDmg:0},
+{text:`"I just FEEL like the strong should rule. It's obvious, isn't it?"`,type:"rhetoric",correct:false,
+response:`Socrates pounces: "You feel it? But feelings vary. The weak FEEL they deserve equality. Without argument, your feelings carry no more weight than theirs."`,
+conceptTitle:"⚠️ ARGUMENT FROM FEELING",conceptText:"In dialectic, 'I feel it's true' carries zero weight. Callicles' power lies in ARGUMENTS from nature — observable patterns. Without arguments, he's asserting preference.",socDmg:0,calDmg:15},
+{text:`"Actually, convention and nature are probably the same thing."`,type:"concede",correct:false,
+response:`Socrates beams: "Then you agree conventional justice IS natural justice! We're done." You surrendered your entire position in round one.`,
+conceptTitle:"💡 KNOW YOUR POSITION",conceptText:"The nature/convention distinction is Callicles' foundation. Without it, he has no argument. A debater who concedes their core premise has nothing left.",socDmg:0,calDmg:25}
+]},
+{id:2,topic:"THE DEFINITION TRAP",speaker:"socrates",
+dialogue:`You say superior and stronger are the same. But the <span class="highlight">many</span> are stronger than the one. And the many believe <span class="concept" data-tip="Socrates' trap: if stronger=better, majority opinion IS natural justice">justice is equality</span>. So by YOUR logic, nature confirms convention! You've refuted yourself!`,
+choices:[
+{text:`"Do you think I mean a rabble of slaves? When I say 'superior' I mean the WISER and more EXCELLENT! One wise ruler is worth ten thousand fools!"`,type:"power",correct:true,
+response:`Socrates catches the shift: "So now 'superior' means 'wiser'?" True, but you've escaped the immediate trap. The redefinition is necessary even if he calls it inconsistent.`,
+conceptTitle:"🔄 STRATEGIC REDEFINITION",conceptText:"Callicles shifts from 'stronger' to 'wiser' to escape. Is this dishonest? Perhaps he was always pointing at natural excellence and merely chose poor initial words. The question of whether shifting definitions is dishonest or clarifying is itself philosophically deep.",socDmg:10,calDmg:5},
+{text:`"...you're right. The many ARE superior since they're stronger. Convention is natural after all."`,type:"concede",correct:false,
+response:`Socrates is triumphant. You've let a verbal trap override genuine observations about how power works in nature and society.`,
+conceptTitle:"⚠️ DON'T CONCEDE TO WORD TRAPS",conceptText:"The elenchus works by holding you to precise definitions. But real concepts are more complex than any single definition. The sophisticated response is to distinguish these concepts while maintaining the core insight.",socDmg:0,calDmg:25},
+{text:`"This is exactly the word-catching I despise! At your age, aren't you ashamed of verbal tricks?"`,type:"rhetoric",correct:false,
+response:`Socrates: "I'm following YOUR words to their logical conclusion. If you dislike the conclusion, change the premise." Attacking method without substance looks like evasion.`,
+conceptTitle:"💡 AD HOMINEM vs. AD REM",conceptText:"Attacking Socrates' method rather than answering is ad hominem. While Callicles has legitimate criticisms of Socratic method, those don't answer the logical problem.",socDmg:0,calDmg:15}
+]},
+{id:3,topic:"COBBLERS AND KINGS",speaker:"socrates",
+dialogue:`So the wiser should have more. If one of us is a <span class="concept" data-tip="Socrates uses humble analogies to test grand principles about power">physician</span>, wiser about food — should he get the <span class="highlight">largest portion</span>? The best <span class="highlight">weaver</span> the most coats? The best <span class="highlight">cobbler</span> the most shoes?`,
+choices:[
+{text:`"I don't mean cobblers! I mean wise POLITICIANS who understand the state — men who are not only wise but VALIANT, able to carry out their designs!"`,type:"power",correct:true,
+response:`Socrates probes: "So now wisdom AND courage?" But you've made a crucial distinction — political wisdom differs from technical expertise. A ruler's excellence differs in kind from a cobbler's.`,
+conceptTitle:"👑 POLITICAL vs. TECHNICAL WISDOM",conceptText:"Running a state IS different from making shoes. Socrates' craftsman analogies may mislead — political leadership requires practical wisdom (phronesis), not technical skill (techne). Aristotle later developed this distinction extensively.",socDmg:10,calDmg:5},
+{text:`"Yes! The physician should get the most food, the weaver the most coats. Expertise entitles you to more!"`,type:"rhetoric",correct:false,
+response:`Socrates laughs: "The doctor should eat the most? He'd become sick! The farmer should hoard grain while others starve?" You've made your position absurd.`,
+conceptTitle:"⚠️ THE ANALOGY TRAP",conceptText:"Socrates' craftsman analogies are designed to make 'the expert should have more' sound ridiculous. The smart response is to REJECT the analogy — political rule isn't like cobbling.",socDmg:0,calDmg:20},
+{text:`"You're always talking about cobblers! What does that have to do with justice?"`,type:"rhetoric",correct:false,
+response:`Socrates: "If your principle can't survive a simple test case, perhaps it's flawed." Dismissing examples without answering them looks like evasion.`,
+conceptTitle:"💡 WHY ANALOGIES MATTER",conceptText:"If a principle is true, it should work in all cases. If 'the wiser should have more' doesn't work for cobblers, explain WHY political wisdom is different. Indignation isn't an argument.",socDmg:0,calDmg:15}
+]},
+{id:4,topic:"THE UNRESTRAINED LIFE",speaker:"socrates",
+dialogue:`Should rulers also rule <span class="concept" data-tip="Sōphrosynē: temperance, self-mastery">themselves</span>? Be temperate? Master of their pleasures? Or is <span class="highlight">temperance</span> just slavery of the weak?`,
+choices:[
+{text:`"Temperance IS slavery! He who would truly live should allow desires to wax to the uttermost! Luxury and licence — if provided with means — ARE virtue and happiness!"`,type:"nature",correct:true,
+response:`Socrates is pleased: "There is a noble freedom in your approach! You say what others think but dare not say." He respects your boldness even as he prepares to demolish it.`,
+conceptTitle:"🔥 RADICAL HEDONISM",conceptText:"Callicles isn't just saying pleasure is nice — he's saying unconstrained desire IS virtue. This anticipates Nietzsche. The position has raw honesty: most moral systems disguise self-interest. Callicles refuses to disguise it.",socDmg:15,calDmg:0},
+{text:`"The ruler should be moderate personally but fierce publicly. Balance is key."`,type:"concede",correct:false,
+response:`Socrates: "So you DO value temperance sometimes? Then it's not slavery — it's a tool. You've halfway agreed with me."`,
+conceptTitle:"⚠️ HALF-MEASURES",conceptText:"Callicles' strength is radical consistency. The moment he admits temperance has ANY value, Socrates works from there. Abandoning your strongest position for a 'moderate' one often means losing both.",socDmg:0,calDmg:20},
+{text:`"What do you mean 'ruling himself'? A man rules others, there is no self to rule."`,type:"rhetoric",correct:false,
+response:`Socrates: "When you want a third cup of wine but know you shouldn't — who tells whom? There are clearly parts of the soul in tension."`,
+conceptTitle:"💡 PARTS OF THE SOUL",conceptText:"We all experience internal conflict. Plato develops this into reason, spirit, and appetite. The question isn't WHETHER we have inner conflicts but whether reason SHOULD govern appetite.",socDmg:0,calDmg:15}
+]},
+{id:5,topic:"THE SCRATCHING ARGUMENT",speaker:"socrates",
+dialogue:`So <span class="concept" data-tip="If pleasure = the good, then ANY pleasure is good, no matter how base">pleasure IS the good</span>. The man who spends his life <span class="highlight">scratching an itch</span> — is he happy? What about those with even more... <span class="highlight">shameful</span> pleasures?`,
+choices:[
+{text:`"Even the scratcher lives pleasantly! If a life is full of pleasure, it IS good. I answer without shame — I will NOT be tripped by your shock tactics!"`,type:"nature",correct:true,
+response:`Socrates escalates further. The crowd gasps. But your consistency is philosophically respectable — most people cave here. You've bitten the bullet.`,
+conceptTitle:"🎭 BITING THE BULLET",conceptText:"Accepting an uncomfortable consequence rather than abandoning your position. Yes, calling the scratcher 'happy' sounds absurd. But if you TRULY believe pleasure = good, consistency demands it. The question: should the absurdity make you abandon the premise, or does our discomfort reveal OUR prejudices?",socDmg:15,calDmg:0},
+{text:`"Are you not ASHAMED to introduce such topics? This is beneath serious discussion!"`,type:"rhetoric",correct:false,
+response:`Socrates pounces: "YOUR shame reveals you DO distinguish worthy from unworthy pleasures! But if pleasure IS the good, there can be no 'shameful' pleasures. Your own disgust disproves your theory!"`,
+conceptTitle:"🪤 CAUGHT BY YOUR OWN SHAME",conceptText:"By calling examples 'shameful,' Callicles admits some pleasures are bad — meaning pleasure alone can't define the good. The champion of nature over convention is undone by conventional feelings of disgust. His shame IS the refutation.",socDmg:0,calDmg:25},
+{text:`"Scratching is fine, but obviously SOME pleasures are more noble than others."`,type:"concede",correct:false,
+response:`Socrates: "So there are BETTER and WORSE pleasures? Then pleasure alone can't be the good — you need another standard to rank them." You've accidentally conceded everything.`,
+conceptTitle:"⚠️ THE RANKING PROBLEM",conceptText:"The moment you distinguish 'noble' from 'base' pleasures, you need a criterion BEYOND pleasure. That criterion becomes the real 'good,' not pleasure. Callicles' only escape is insisting ALL pleasures are equal.",socDmg:0,calDmg:25}
+]},
+{id:6,topic:"PHILOSOPHY IS FOR CHILDREN",speaker:"socrates",
+dialogue:`You've told me philosophy is <span class="concept" data-tip="Callicles compares adult philosophers to adults who lisp like babies">unmanly</span> for adults. That I should learn <span class="highlight">the philosophy of business</span>. But is this inquiry not worth pursuing: <span class="highlight">What ought a man to be?</span>`,
+choices:[
+{text:`"I say this from GOODWILL. If someone dragged you to court, you'd die — giddy and gaping! What value is an art that converts a wise man into a fool, helpless before his enemies?"`,type:"power",correct:true,
+response:`Socrates calls you his 'touchstone.' Flattering but strategic — he's making your criticism part of his method. Still, your practical point stands. The philosopher who dies in court has lost more than an argument.`,
+conceptTitle:"⚔️ THE PRACTICAL OBJECTION",conceptText:"Callicles' strongest argument isn't about logic — it's about survival. Socrates WAS executed, validating this warning. Plato wrote the Gorgias AFTER Socrates' death, making this passage hauntingly prophetic. Whether philosophical truth is worth dying for remains genuinely open.",socDmg:15,calDmg:0},
+{text:`"Actually, philosophy IS valuable for adults. You've convinced me, Socrates."`,type:"concede",correct:false,
+response:`Socrates is suspicious: "You concede too easily. A real touchstone doesn't yield to first pressure." Even your opponent doesn't want you to give up!`,
+conceptTitle:"💡 THE VALUE OF OPPOSITION",conceptText:"Paradoxically, Socrates NEEDS Callicles to resist. Without opposition, dialectic can't function. If everyone agreed, he'd have no way to test ideas.",socDmg:0,calDmg:20},
+{text:`"Every man excels in his own domain. Leave the city to those who can run it — stick to your corner with your admiring youths."`,type:"rhetoric",correct:false,
+response:`Socrates: "If the city is run by men who never examine whether they rule justly, is it well-governed? Unexamined power is the most dangerous kind."`,
+conceptTitle:"💡 UNEXAMINED POWER",conceptText:"The deepest tension: practical power without self-examination leads to tyranny, but self-examination without power leads to helplessness. Plato's entire political philosophy tries to resolve this. Arguably, he never fully succeeds.",socDmg:5,calDmg:10}
+]}
+];
+
+let state={round:0,player:null,socScore:0,calScore:0,socLogic:100,calLogic:100,wisdom:0,totalCorrect:0};
+function getRounds(){return state.player==='socrates'?SOC_ROUNDS:CAL_ROUNDS}
+
+function showSelect(){
+  document.getElementById('title-screen').classList.add('hidden');
+  setTimeout(()=>document.getElementById('select-screen').classList.add('active'),800);
+}
+function selectChar(who){
+  state.player=who;
+  document.getElementById('card-socrates').classList.toggle('chosen',who==='socrates');
+  document.getElementById('card-callicles').classList.toggle('chosen',who==='callicles');
+  document.getElementById('go-btn').classList.add('ready');
+}
+function startGame(){
+  if(!state.player)return;
+  document.getElementById('select-screen').classList.remove('active');
+  document.getElementById('game-screen').classList.add('active');
+  document.getElementById('playing-as').innerHTML=`Playing as: <span>${state.player==='socrates'?'SOCRATES':'CALLICLES'}</span>`;
+  document.getElementById(state.player==='socrates'?'socrates-char':'callicles-char').classList.add('you-indicator');
+  loadRound();
+}
+
+function loadRound(){
+  const rounds=getRounds();
+  if(state.round>=rounds.length){showFinal();return}
+  const r=rounds[state.round];
+  const rom=['I','II','III','IV','V','VI'];
+  document.getElementById('round-display').textContent=`ROUND ${rom[state.round]}`;
+  document.getElementById('round-topic').textContent=r.topic;
+  document.getElementById('soc-score').textContent=state.socScore;
+  document.getElementById('cal-score').textContent=state.calScore;
+  document.getElementById('soc-logic').style.width=state.socLogic+'%';
+  document.getElementById('cal-logic').style.width=state.calLogic+'%';
+  document.getElementById('wisdom-fill').style.width=state.wisdom+'%';
+
+  const sp=document.getElementById('dialogue-speaker');
+  if(r.speaker==='callicles'){
+    sp.className='dialogue-speaker cal-speak';sp.textContent='CALLICLES';
+    document.getElementById('callicles-char').classList.add('speaking');
+    document.getElementById('socrates-char').classList.remove('speaking');
+  }else{
+    sp.className='dialogue-speaker soc-speak';sp.textContent='SOCRATES';
+    document.getElementById('socrates-char').classList.add('speaking');
+    document.getElementById('callicles-char').classList.remove('speaking');
+  }
+  document.getElementById('dialogue-text').innerHTML=r.dialogue;
+
+  const ch=document.getElementById('choices');ch.innerHTML='';
+  const letters=['α','β','γ'];
+  const tl={dialectic:['Dialectic','type-dialectic'],rhetoric:['Rhetoric','type-rhetoric'],irony:['Irony','type-irony'],concede:['Concede','type-concede'],power:['Natural Law','type-power'],nature:['Appeal to Nature','type-nature']};
+  r.choices.forEach((c,i)=>{
+    const btn=document.createElement('button');
+    btn.className=`choice-btn animate-in animate-in-${i+1}`;
+    const[label,cls]=tl[c.type]||['Choice','type-dialectic'];
+    btn.innerHTML=`<span class="choice-letter">${letters[i]}</span><div>${c.text}<div><span class="choice-type ${cls}">${label}</span></div></div>`;
+    btn.addEventListener('click',()=>selectChoice(i));
+    ch.appendChild(btn);
+  });
+  setupTooltips();
+}
+
+function selectChoice(index){
+  const rounds=getRounds(),r=rounds[state.round],c=r.choices[index];
+  document.querySelectorAll('.choice-btn').forEach((btn,i)=>{
+    btn.classList.add('disabled');
+    if(i===index&&c.correct)btn.classList.add('correct');
+    else if(i===index&&!c.correct)btn.classList.add('wrong');
+    else if(r.choices[i].correct)btn.classList.add('correct');
+  });
+  if(c.correct){state.totalCorrect++;if(state.player==='socrates')state.socScore+=10;else state.calScore+=10}
+  else{if(state.player==='socrates')state.calScore+=5;else state.socScore+=5}
+  state.socLogic=Math.max(0,state.socLogic-c.socDmg);
+  state.calLogic=Math.max(0,state.calLogic-c.calDmg);
+  state.wisdom=Math.min(100,((state.round+1)/getRounds().length)*100);
+  document.getElementById('soc-score').textContent=state.socScore;
+  document.getElementById('cal-score').textContent=state.calScore;
+  document.getElementById('soc-logic').style.width=state.socLogic+'%';
+  document.getElementById('cal-logic').style.width=state.calLogic+'%';
+  document.getElementById('wisdom-fill').style.width=state.wisdom+'%';
+
+  const loser=c.correct?(state.player==='socrates'?'callicles-char':'socrates-char'):(state.player==='socrates'?'socrates-char':'callicles-char');
+  document.getElementById(loser).classList.add('shake');
+  setTimeout(()=>document.getElementById(loser).classList.remove('shake'),500);
+
+  setTimeout(()=>{
+    document.getElementById('result-icon').textContent=c.correct?(state.player==='socrates'?'🦉':'🦁'):(state.player==='socrates'?'🦁':'🦉');
+    document.getElementById('result-title').textContent=c.correct?'Well Argued!':'Your Opponent Scores!';
+    document.getElementById('result-text').textContent=c.response;
+    document.getElementById('concept-title').textContent=c.conceptTitle;
+    document.getElementById('concept-text').textContent=c.conceptText;
+    document.getElementById('result-overlay').classList.add('active');
+  },600);
+}
+
+document.getElementById('next-btn').addEventListener('click',function(){
+  document.getElementById('result-overlay').classList.remove('active');
+  state.round++;
+  setTimeout(loadRound,300);
+});
+
+function showFinal(){
+  document.getElementById('game-screen').classList.remove('active');
+  document.getElementById('final-screen').classList.add('active');
+  let title,subtitle,rank;
+  if(state.player==='socrates'){
+    if(state.totalCorrect>=5){title="PHILOSOPHER KING";subtitle="Master of the Dialectic";rank="\"I would rather my lyre be inharmonious than that I myself should contradict myself.\" — You embodied Socratic method perfectly."}
+    else if(state.totalCorrect>=3){title="WORTHY INTERLOCUTOR";subtitle="A promising Socratic";rank="You grasped dialectic but sometimes strayed. Keep questioning!"}
+    else{title="FRIEND OF CALLICLES";subtitle="The aristocrat swayed you";rank="You were seduced by bold rhetoric. Even Callicles couldn't maintain his position under scrutiny. Try again?"}
+  }else{
+    if(state.totalCorrect>=5){title="LION OF ATHENS";subtitle="Champion of Natural Right";rank="You held ground where the historical Callicles faltered. Your consistency was philosophically formidable — even if Socrates poked holes."}
+    else if(state.totalCorrect>=3){title="BOLD CONTENDER";subtitle="Worthy opponent of Socrates";rank="You fought well but let traps catch you. Never concede core premises, and never let shame undermine your logic."}
+    else{title="CONVERTED PHILOSOPHER";subtitle="Socrates won you over";rank="You abandoned Callicles' position under pressure. Perhaps dialectic leads to truth — or perhaps you weren't ruthless enough."}
+  }
+  document.getElementById('final-title').textContent=title;
+  document.getElementById('final-subtitle').textContent=subtitle;
+  document.getElementById('final-score').textContent=`${state.totalCorrect} / ${getRounds().length} Rounds Won`;
+  document.getElementById('final-rank').textContent=rank;
+
+  const lessons=[
+    {title:"NATURE vs. CONVENTION (Physis vs. Nomos)",text:"Callicles argues natural justice means the strong dominate. Socrates shows that defining 'strong' leads to contradictions. But whether human laws conflict with natural reality remains one of philosophy's deepest questions."},
+    {title:"THE ELENCHUS",text:"Socrates takes opponents' premises and follows them to logical conclusions. Truth emerges through refutation of error, not assertion of doctrine."},
+    {title:"EPISTEMIC HUMILITY",text:"'I know that I know nothing' isn't modesty — it's a method. Neither side can claim final authority. The dialogue ends without full resolution, modeling genuine inquiry."},
+    {title:"THE AMBIGUITY OF 'GOOD'",text:"Is pleasure the good? Callicles says yes but can't accept ALL pleasures. This reveals we need a standard beyond pleasure — making pure hedonism self-defeating."},
+    {title:"THE PHILOSOPHER'S DILEMMA",text:"Can truth survive in a world rewarding power? Socrates was executed — vindicating Callicles' warning. But his ideas outlived every Athenian politician. Who really won?"}
+  ];
+  document.getElementById('final-lessons').innerHTML=lessons.map(l=>`<div class="final-lesson"><div class="final-lesson-title">📜 ${l.title}</div><div class="final-lesson-text">${l.text}</div></div>`).join('');
+}
+
+function setupTooltips(){
+  const tip=document.getElementById('tooltip');
+  document.querySelectorAll('.concept').forEach(el=>{
+    el.addEventListener('mouseenter',()=>{
+      tip.textContent=el.dataset.tip;tip.classList.add('active');
+      const r=el.getBoundingClientRect();
+      tip.style.left=Math.min(r.left,window.innerWidth-300)+'px';
+      tip.style.top=(r.bottom+8)+'px';
+    });
+    el.addEventListener('mouseleave',()=>tip.classList.remove('active'));
+  });
+}
+</script>
+</body>
+</html>
