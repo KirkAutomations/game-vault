@@ -19,6 +19,9 @@ const games = [
   { title: "Spelling Princess Dress-Up", subtitle: "Kids / Spelling", icon: "👗", href: "games/princess-dressup/index.html", category: "Educational", added: 17 },
   { title: "The Peloponnesian War III", subtitle: "Grand Strategy", icon: "⚔️", href: "games/peloponnesian-war-3/index.html", category: "Strategy / Educational", added: 18 },
   { title: "GORGIAS: The Dialectic Duel", subtitle: "Philosophy / Debate", icon: "🏛️", href: "games/gorgias/index.html", category: "Strategy / Educational", added: 19 },
+  { title: "SwirlyBrew: First Sip", subtitle: "Idle Drink Tycoon", icon: "🍹", href: "games/swirlybrew/v1.html", category: "Idle", added: 20 },
+  { title: "SwirlyBrew: Golden Pour", subtitle: "Idle Drink Tycoon", icon: "🥂", href: "games/swirlybrew/v2.html", category: "Idle", added: 21 },
+  { title: "SwirlyBrew: Grand Elixir", subtitle: "Idle Drink Tycoon", icon: "🧪", href: "games/swirlybrew/index.html", category: "Idle", added: 22 },
 ];
 
 const grid = document.getElementById('game-grid');
