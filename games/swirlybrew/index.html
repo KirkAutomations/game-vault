@@ -1082,6 +1082,8 @@ function getTotalWorkerCount() {
 
 // ====== HELPERS ======
 function formatNum(n) {
+  if (!isFinite(n) || isNaN(n)) return "0";
+  if (n >= 1e15) return (n/1e15).toFixed(1) + "Q";
   if (n >= 1e12) return (n/1e12).toFixed(1) + "T";
   if (n >= 1e9) return (n/1e9).toFixed(1) + "B";
   if (n >= 1e6) return (n/1e6).toFixed(1) + "M";
@@ -1139,17 +1141,26 @@ function produceDrink(amount) {
 }
 
 function checkLevelUp() {
-  const needed = xpForLevel(state.level);
-  while (state.xp >= needed) {
+  let levelsGained = 0;
+  let newestUnlock = null;
+  while (state.xp >= xpForLevel(state.level)) {
     state.xp -= xpForLevel(state.level);
     state.level++;
-    recalcStats();
-    toast("Level Up! Now level " + state.level + "!");
-    playSound("buy");
+    levelsGained++;
     const avail = DRINK_TYPES.filter(d => state.level >= d.minLevel);
     const newest = avail[avail.length - 1];
-    if (state.level === newest.minLevel) {
-      toast("New drink unlocked: " + newest.icon + " " + newest.name + "!");
+    if (state.level === newest.minLevel) newestUnlock = newest;
+  }
+  if (levelsGained > 0) {
+    recalcStats();
+    if (levelsGained === 1) {
+      toast("Level Up! Now level " + state.level + "!");
+    } else {
+      toast("+" + levelsGained + " Levels! Now level " + state.level + "!");
+    }
+    playSound("buy");
+    if (newestUnlock) {
+      toast("New drink unlocked: " + newestUnlock.icon + " " + newestUnlock.name + "!");
     }
     checkQuestProgress("level", state.level);
     checkAchievements();
