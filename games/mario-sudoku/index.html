@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mario's Number Kingdom 🏰</title>
+<style>
+/* ===== CSS RESET & BASE ===== */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --mario-red:#E52521;--luigi-green:#43B047;--coin-gold:#F5C722;
+  --sky-blue:#5C94FC;--brick-brown:#C84C0C;--dark-brown:#6B3300;
+  --block-tan:#E7A53E;--pipe-green:#30A030;--bg-dark:#1a0a2e;
+  --bg-mid:#2d1b4e;--star-yellow:#FFD700;--white:#fff;--black:#111;
+  --cell-size:min(9.5vw, 52px);--font-pixel:'Courier New',monospace;
+}
+html{font-size:16px;overflow-x:hidden}
+body{
+  font-family:var(--font-pixel);background:var(--bg-dark);color:var(--white);
+  min-height:100vh;display:flex;flex-direction:column;align-items:center;
+  background-image:
+    radial-gradient(ellipse at 20% 50%,rgba(92,148,252,0.08) 0%,transparent 50%),
+    radial-gradient(ellipse at 80% 30%,rgba(229,37,33,0.06) 0%,transparent 50%);
+  overflow-x:hidden;
+}
+/* ===== PIXEL FONT SIMULATION ===== */
+h1,h2,h3,.pixel-text{
+  text-shadow:2px 2px 0 rgba(0,0,0,0.5);letter-spacing:1px;
+  font-family:var(--font-pixel);
+}
+/* ===== HEADER ===== */
+#game-header{
+  text-align:center;padding:10px 5px 5px;width:100%;max-width:600px;
+}
+#game-header h1{
+  font-size:clamp(1.1rem,4vw,1.8rem);color:var(--coin-gold);
+  text-shadow:2px 2px 0 var(--mario-red),4px 4px 0 rgba(0,0,0,0.3);
+  margin-bottom:2px;
+}
+#game-header .subtitle{font-size:0.7rem;color:var(--sky-blue);opacity:0.8}
+/* ===== TOP BAR (coins, timer, streak) ===== */
+#top-bar{
+  display:flex;justify-content:space-between;align-items:center;
+  width:100%;max-width:520px;padding:4px 8px;gap:6px;flex-wrap:wrap;
+}
+.stat-box{
+  background:linear-gradient(180deg,var(--dark-brown),#3a1a00);
+  border:2px solid var(--block-tan);border-radius:6px;
+  padding:3px 8px;font-size:0.75rem;display:flex;align-items:center;gap:4px;
+  min-width:70px;justify-content:center;
+}
+.stat-box .emoji{font-size:1rem}
+.stat-box .val{color:var(--coin-gold);font-weight:bold}
+/* ===== BUTTONS ROW ===== */
+#btn-row{
+  display:flex;gap:4px;flex-wrap:wrap;justify-content:center;
+  width:100%;max-width:520px;padding:4px 8px;
+}
+.btn{
+  background:linear-gradient(180deg,var(--mario-red),#a01010);
+  border:2px solid #ff6666;border-bottom-color:#600;border-right-color:#600;
+  color:var(--white);font-family:var(--font-pixel);font-size:0.7rem;
+  padding:5px 8px;border-radius:4px;cursor:pointer;
+  text-shadow:1px 1px 0 rgba(0,0,0,0.5);
+  transition:transform 0.1s,filter 0.1s;white-space:nowrap;
+}
+.btn:hover{transform:translateY(-1px);filter:brightness(1.1)}
+.btn:active{transform:translateY(1px);filter:brightness(0.9)}
+.btn.green{background:linear-gradient(180deg,var(--luigi-green),#2a7a2a);border-color:#6f6;border-bottom-color:#060;border-right-color:#060}
+.btn.gold{background:linear-gradient(180deg,var(--coin-gold),#c9a020);border-color:#ffe066;border-bottom-color:#996;border-right-color:#996;color:#333}
+.btn.blue{background:linear-gradient(180deg,var(--sky-blue),#3060c0);border-color:#99c;border-bottom-color:#336;border-right-color:#336}
+.btn.active{box-shadow:0 0 8px var(--coin-gold);border-color:var(--coin-gold)}
+.btn.sm{font-size:0.6rem;padding:3px 6px}
+/* ===== DIFFICULTY ROW ===== */
+#diff-row{display:flex;gap:6px;margin:2px 0}
+/* ===== SUDOKU GRID ===== */
+#grid-container{
+  position:relative;margin:4px auto;
+  display:inline-block;
+}
+#sudoku-grid{
+  display:grid;grid-template-columns:repeat(9,var(--cell-size));
+  grid-template-rows:repeat(9,var(--cell-size));
+  border:3px solid var(--block-tan);background:var(--dark-brown);
+  gap:0;border-radius:4px;overflow:hidden;
+  box-shadow:0 4px 20px rgba(0,0,0,0.5),inset 0 0 10px rgba(0,0,0,0.3);
+}
+.cell{
+  width:var(--cell-size);height:var(--cell-size);
+  display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--cell-size)*0.55);font-weight:bold;
+  font-family:var(--font-pixel);cursor:pointer;
+  border:1px solid rgba(180,120,60,0.3);
+  background:linear-gradient(135deg,#f5e6c8,#e8d4a8);
+  color:var(--black);position:relative;
+  transition:background 0.15s,transform 0.1s;
+  user-select:none;-webkit-user-select:none;
+}
+.cell.given{color:var(--dark-brown);font-weight:900}
+.cell.player{color:var(--sky-blue)}
+.cell.selected{
+  background:linear-gradient(135deg,#ffe066,#ffd030)!important;
+  transform:scale(1.05);z-index:2;
+  box-shadow:0 0 8px var(--coin-gold);
+}
+.cell.highlight-same{background:linear-gradient(135deg,#fff3c0,#ffe880)!important}
+.cell.highlight-rc{background:linear-gradient(135deg,#f0e0b0,#e8d8a0)!important}
+.cell.error{color:var(--mario-red)!important;animation:shake 0.3s}
+.cell.conflict-highlight{background:linear-gradient(135deg,#ffcccc,#ffaaaa)!important}
+/* Box borders */
+.cell.box-right{border-right:2px solid var(--brick-brown)}
+.cell.box-bottom{border-bottom:2px solid var(--brick-brown)}
+/* Pencil marks */
+.cell .pencil-marks{
+  display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  width:100%;height:100%;position:absolute;top:0;left:0;
+  font-size:calc(var(--cell-size)*0.22);color:#666;
+  pointer-events:none;
+}
+.cell .pencil-marks span{display:flex;align-items:center;justify-content:center}
+/* ===== NUMBER PALETTE ===== */
+#number-palette{
+  display:flex;gap:4px;flex-wrap:wrap;justify-content:center;
+  width:100%;max-width:520px;padding:6px;
+}
+.num-btn{
+  width:calc(var(--cell-size)*1.1);height:calc(var(--cell-size)*1.1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:calc(var(--cell-size)*0.5);font-weight:bold;font-family:var(--font-pixel);
+  background:linear-gradient(180deg,var(--block-tan),var(--brick-brown));
+  border:2px solid var(--coin-gold);border-radius:6px;cursor:pointer;
+  color:var(--white);text-shadow:1px 1px 0 rgba(0,0,0,0.5);
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+.num-btn:hover{transform:scale(1.1);box-shadow:0 0 10px var(--coin-gold)}
+.num-btn:active{transform:scale(0.95)}
+.num-btn.question-block{
+  background:linear-gradient(180deg,#FFD700,#FFA500);
+  border-color:#fff;animation:qblock 1s infinite;
+  font-size:calc(var(--cell-size)*0.6);
+}
+@keyframes qblock{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+/* ===== CHALLENGE MODAL ===== */
+.modal-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.85);z-index:1000;
+  display:none;align-items:center;justify-content:center;
+  padding:10px;
+}
+.modal-overlay.show{display:flex}
+.modal-box{
+  background:linear-gradient(180deg,var(--bg-mid),var(--bg-dark));
+  border:3px solid var(--coin-gold);border-radius:12px;
+  padding:15px;max-width:420px;width:100%;max-height:90vh;
+  overflow-y:auto;text-align:center;position:relative;
+  box-shadow:0 0 30px rgba(255,215,0,0.3);
+  animation:modalIn 0.3s ease;
+}
+@keyframes modalIn{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+.modal-box h2{color:var(--coin-gold);font-size:1.2rem;margin-bottom:10px}
+.modal-box h3{color:var(--sky-blue);font-size:1rem;margin:8px 0}
+.modal-box p{font-size:0.85rem;line-height:1.4;margin:6px 0}
+.modal-close{
+  position:absolute;top:5px;right:10px;font-size:1.2rem;
+  cursor:pointer;color:var(--white);background:none;border:none;
+}
+/* Challenge specific */
+.challenge-question{
+  font-size:1rem;color:var(--white);margin:10px 0;
+  padding:10px;background:rgba(0,0,0,0.3);border-radius:8px;
+  border:1px solid var(--sky-blue);
+}
+.challenge-options{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0}
+.challenge-opt{
+  padding:10px 16px;border-radius:8px;font-size:0.9rem;
+  font-family:var(--font-pixel);cursor:pointer;
+  background:linear-gradient(180deg,#4a3080,#2a1860);
+  border:2px solid var(--sky-blue);color:var(--white);
+  transition:all 0.15s;min-width:80px;
+}
+.challenge-opt:hover{background:linear-gradient(180deg,#6a40a0,#4a2880);transform:scale(1.05)}
+.challenge-opt.correct{background:var(--luigi-green)!important;border-color:#0f0!important}
+.challenge-opt.wrong{background:var(--mario-red)!important;border-color:#f00!important}
+/* Scramble tiles */
+.scramble-area{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.scramble-tile{
+  width:40px;height:44px;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;font-weight:bold;font-family:var(--font-pixel);
+  background:linear-gradient(180deg,var(--block-tan),var(--brick-brown));
+  border:2px solid var(--coin-gold);border-radius:6px;cursor:grab;
+  color:var(--white);text-shadow:1px 1px 0 #000;
+  transition:transform 0.1s;user-select:none;
+}
+.scramble-tile:active{cursor:grabbing;transform:scale(1.1)}
+.scramble-tile.placed{opacity:0.3;pointer-events:none}
+.scramble-slot{
+  width:40px;height:44px;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;font-weight:bold;font-family:var(--font-pixel);
+  background:rgba(0,0,0,0.3);border:2px dashed var(--sky-blue);border-radius:6px;
+  color:var(--coin-gold);
+}
+.scramble-slot.filled{border-style:solid;border-color:var(--coin-gold);background:rgba(92,148,252,0.2)}
+/* Input field for typed answers */
+.challenge-input{
+  font-size:1.1rem;padding:8px 12px;border-radius:6px;
+  border:2px solid var(--sky-blue);background:rgba(0,0,0,0.4);
+  color:var(--white);font-family:var(--font-pixel);
+  text-align:center;width:80%;max-width:200px;
+  outline:none;
+}
+.challenge-input:focus{border-color:var(--coin-gold);box-shadow:0 0 8px var(--coin-gold)}
+/* Feedback */
+.feedback{
+  font-size:1rem;font-weight:bold;padding:8px;border-radius:6px;margin:8px 0;
+  animation:fadeInUp 0.3s;
+}
+.feedback.correct-fb{color:#0f0;background:rgba(0,255,0,0.1);border:1px solid #0f0}
+.feedback.wrong-fb{color:#f66;background:rgba(255,0,0,0.1);border:1px solid #f66}
+@keyframes fadeInUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+/* ===== STUDY MODE ===== */
+#study-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:linear-gradient(180deg,#0a2a0a,#1a4a1a);z-index:2000;
+  display:none;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px;
+}
+#study-overlay.show{display:flex}
+#study-overlay h2{color:var(--coin-gold);font-size:1.4rem;margin-bottom:10px}
+.study-card{
+  background:linear-gradient(180deg,#2a5a2a,#1a3a1a);
+  border:3px solid var(--pipe-green);border-radius:12px;
+  padding:20px;width:90%;max-width:350px;text-align:center;
+  min-height:150px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+}
+.study-card .word{font-size:1.8rem;color:var(--coin-gold);margin:10px 0}
+.study-card .hint{font-size:0.8rem;color:#aaa;margin:5px 0}
+.pipe-progress{
+  width:80%;max-width:300px;height:24px;background:#333;
+  border:2px solid var(--pipe-green);border-radius:12px;
+  margin:10px 0;overflow:hidden;
+}
+.pipe-fill{
+  height:100%;background:linear-gradient(90deg,var(--pipe-green),var(--luigi-green));
+  border-radius:10px;transition:width 0.5s;width:0%;
+}
+/* ===== WORD BANK SIDEBAR ===== */
+#word-bank-toggle{
+  position:fixed;right:0;top:50%;transform:translateY(-50%);
+  writing-mode:vertical-rl;text-orientation:mixed;
+  background:var(--brick-brown);color:var(--white);
+  padding:10px 4px;border-radius:8px 0 0 8px;cursor:pointer;
+  font-size:0.7rem;z-index:100;border:2px solid var(--block-tan);
+  border-right:none;
+}
+#word-bank{
+  position:fixed;right:-320px;top:0;width:300px;height:100%;
+  background:linear-gradient(180deg,var(--bg-mid),var(--bg-dark));
+  border-left:3px solid var(--coin-gold);z-index:500;
+  overflow-y:auto;padding:10px;transition:right 0.3s;
+}
+#word-bank.open{right:0}
+#word-bank h3{color:var(--coin-gold);text-align:center;margin:5px 0}
+.wb-filter{display:flex;gap:4px;justify-content:center;margin:5px 0;flex-wrap:wrap}
+.wb-cat{
+  font-size:0.65rem;color:var(--sky-blue);
+  border-bottom:1px solid var(--sky-blue);margin:8px 0 4px;
+}
+.wb-entry{
+  display:flex;align-items:center;gap:6px;padding:4px;
+  border-bottom:1px solid rgba(255,255,255,0.1);font-size:0.7rem;
+  cursor:pointer;
+}
+.wb-entry:hover{background:rgba(255,255,255,0.05)}
+.wb-entry .stars{color:var(--coin-gold);font-size:0.6rem}
+.wb-entry .spa{color:var(--coin-gold);font-weight:bold}
+.wb-entry .eng{color:#aaa}
+.wb-mastery-bar{
+  width:100%;height:8px;background:#333;border-radius:4px;margin:8px 0;overflow:hidden;
+}
+.wb-mastery-fill{height:100%;background:linear-gradient(90deg,var(--luigi-green),var(--coin-gold));border-radius:4px;transition:width 0.5s}
+/* ===== PHILOSOPHY POPUP ===== */
+.philo-popup{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(180deg,#2a1860,#1a0a40);
+  border:2px solid var(--coin-gold);border-radius:10px;
+  padding:12px 16px;max-width:400px;width:90%;z-index:800;
+  animation:slideUp 0.4s ease;font-size:0.8rem;line-height:1.4;
+  box-shadow:0 -4px 20px rgba(255,215,0,0.2);
+}
+@keyframes slideUp{from{transform:translate(-50%,100%);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+.philo-popup.fade-out{animation:slideDown 0.4s ease forwards}
+@keyframes slideDown{from{transform:translate(-50%,0);opacity:1}to{transform:translate(-50%,100%);opacity:0}}
+/* ===== VICTORY MODAL ===== */
+#victory-modal .modal-box{
+  background:linear-gradient(180deg,#1a0a40,#0a0020);
+  border-color:var(--star-yellow);max-width:500px;
+}
+.victory-title{
+  font-size:1.8rem;color:var(--coin-gold);
+  text-shadow:0 0 10px var(--coin-gold),0 0 20px var(--mario-red);
+  animation:victoryPulse 1s infinite;
+}
+@keyframes victoryPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.victory-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:10px 0;
+  font-size:0.8rem;
+}
+.victory-stats div{background:rgba(255,255,255,0.05);padding:6px;border-radius:6px}
+.victory-stats .label{color:#aaa;font-size:0.65rem}
+.victory-stats .val{color:var(--coin-gold);font-size:1rem;font-weight:bold}
+.philo-section{
+  background:rgba(0,0,0,0.3);border:1px solid var(--sky-blue);
+  border-radius:8px;padding:10px;margin:10px 0;text-align:left;
+  font-size:0.75rem;line-height:1.5;
+}
+.philo-section .philo-title{color:var(--coin-gold);font-weight:bold;margin-bottom:5px;font-size:0.85rem}
+/* ===== FIREWORKS / PARTICLES ===== */
+#particles-canvas{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  pointer-events:none;z-index:9999;
+}
+/* ===== HOW TO PLAY ===== */
+.how-section{text-align:left;margin:8px 0;font-size:0.75rem;line-height:1.4}
+.how-section h3{color:var(--coin-gold);font-size:0.9rem;margin:8px 0 4px}
+.how-section ul{padding-left:16px}
+.how-section li{margin:3px 0}
+/* ===== ANIMATIONS ===== */
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes coinFly{
+  0%{transform:translateY(0) scale(1);opacity:1}
+  100%{transform:translateY(-60px) scale(1.5);opacity:0}
+}
+.coin-anim{
+  position:absolute;font-size:1.2rem;animation:coinFly 0.8s ease forwards;
+  pointer-events:none;z-index:100;
+}
+@keyframes numberPlace{
+  0%{transform:scale(0);opacity:0}
+  60%{transform:scale(1.3)}
+  100%{transform:scale(1);opacity:1}
+}
+.cell.just-placed{animation:numberPlace 0.4s ease}
+/* ===== RESPONSIVE ===== */
+@media(max-width:480px){
+  :root{--cell-size:9.8vw}
+  .stat-box{font-size:0.65rem;padding:2px 5px;min-width:60px}
+  .btn{font-size:0.6rem;padding:3px 6px}
+  #word-bank{width:85vw;right:-85vw}
+}
+@media(min-width:768px){
+  :root{--cell-size:52px}
+  body{padding-top:10px}
+}
+/* ===== ESPAÑOL MODE ===== */
+.espanol-cell{font-size:calc(var(--cell-size)*0.28)!important;line-height:1.1}
+/* scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:var(--bg-dark)}
+::-webkit-scrollbar-thumb{background:var(--brick-brown);border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- PARTICLES CANVAS -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- HEADER -->
+<div id="game-header">
+  <h1>🏰 Mario's Number Kingdom 🏰</h1>
+  <div class="subtitle" id="subtitle-text">Learn Spanish · Solve Sudoku · Think Like a Philosopher</div>
+</div>
+
+<!-- TOP BAR -->
+<div id="top-bar">
+  <div class="stat-box"><span class="emoji">🪙</span><span class="val" id="coin-count">15</span></div>
+  <div class="stat-box"><span class="emoji">⏱</span><span class="val" id="timer">0:00</span></div>
+  <div class="stat-box"><span class="emoji">🔥</span><span class="val" id="streak-count">0</span></div>
+  <div class="stat-box"><span class="emoji">🎯</span><span class="val" id="accuracy-display">100%</span></div>
+</div>
+
+<!-- BUTTON ROW -->
+<div id="btn-row">
+  <div id="diff-row">
+    <button class="btn gold sm" onclick="G.newGame('easy')" id="btn-easy">🍄 <span data-i18n="easy">Easy</span></button>
+    <button class="btn sm" onclick="G.newGame('medium')" id="btn-medium">⭐ <span data-i18n="medium">Medium</span></button>
+    <button class="btn sm" onclick="G.newGame('hard')" id="btn-hard">🔥 <span data-i18n="hard">Hard</span></button>
+  </div>
+  <button class="btn green" onclick="G.undo()" id="btn-undo">↩ <span data-i18n="undo">Undo</span></button>
+  <button class="btn blue" id="btn-notes" onclick="G.toggleNotes()">✏ <span data-i18n="notes">Notes</span></button>
+  <button class="btn" onclick="G.checkErrors()" id="btn-check">✓ <span data-i18n="check">Check</span></button>
+  <button class="btn green sm" onclick="G.toggleEspanol()" id="btn-espanol">🌟 ES</button>
+  <button class="btn blue sm" onclick="G.showHelp()">❓</button>
+</div>
+
+<!-- GRID -->
+<div id="grid-container">
+  <div id="sudoku-grid"></div>
+</div>
+
+<!-- NUMBER PALETTE -->
+<div id="number-palette"></div>
+
+<!-- WORD BANK TOGGLE -->
+<div id="word-bank-toggle" onclick="G.toggleWordBank()">📚 <span data-i18n="words">Words</span></div>
+
+<!-- WORD BANK SIDEBAR -->
+<div id="word-bank">
+  <h3>📚 <span data-i18n="wordBank">Word Bank</span></h3>
+  <div class="wb-mastery-bar"><div class="wb-mastery-fill" id="wb-mastery-fill"></div></div>
+  <div class="wb-filter" id="wb-filter">
+    <button class="btn sm active" onclick="G.filterWB('all')">All</button>
+    <button class="btn sm green" onclick="G.filterWB('mastered')">⭐ Mastered</button>
+    <button class="btn sm" onclick="G.filterWB('practice')">📝 Practice</button>
+  </div>
+  <div id="wb-entries"></div>
+</div>
+
+<!-- CHALLENGE MODAL -->
+<div class="modal-overlay" id="challenge-modal">
+  <div class="modal-box" id="challenge-box">
+    <div id="challenge-content"></div>
+  </div>
+</div>
+
+<!-- STUDY MODE OVERLAY -->
+<div id="study-overlay">
+  <h2>🏋️ Mario's Training Ground 🏋️</h2>
+  <p style="color:var(--sky-blue);font-size:0.8rem;margin-bottom:8px">
+    <span data-i18n="studyDesc">No coins left! Match the words to earn coins back!</span>
+  </p>
+  <div class="pipe-progress"><div class="pipe-fill" id="study-pipe-fill"></div></div>
+  <div class="study-card" id="study-card"></div>
+  <div id="study-options" style="margin-top:10px"></div>
+  <p style="margin-top:8px;font-size:0.75rem;color:#aaa">
+    🪙 <span id="study-coins">0</span> / 5 coins earned
+  </p>
+</div>
+
+<!-- VICTORY MODAL -->
+<div class="modal-overlay" id="victory-modal">
+  <div class="modal-box">
+    <div class="victory-title">¡VICTORIA! 🌟👑🌟</div>
+    <div id="victory-content"></div>
+  </div>
+</div>
+
+<!-- HOW TO PLAY MODAL -->
+<div class="modal-overlay" id="help-modal">
+  <div class="modal-box" style="text-align:left;max-width:480px">
+    <button class="modal-close" onclick="G.closeHelp()">✕</button>
+    <h2 style="text-align:center">How to Play / Cómo Jugar 🎮</h2>
+    <div class="how-section">
+      <h3>🎯 Sudoku Rules</h3>
+      <ul>
+        <li>Fill every row, column, and 3×3 box with numbers 1-9</li>
+        <li>No number can repeat in any row, column, or box</li>
+      </ul>
+      <h3>🇪🇸 Spanish Challenge System</h3>
+      <ul>
+        <li>Tap a cell, then tap a number to place</li>
+        <li>You must answer a Spanish question to earn each number!</li>
+        <li>Correct answer = number placed + earn a coin 🪙</li>
+        <li>Wrong answer = no number + lose a coin</li>
+        <li>0 coins = Study Mode (match words to earn coins back)</li>
+      </ul>
+      <h3>✏️ Notes Mode</h3>
+      <ul>
+        <li>Toggle notes to add pencil marks (no challenge needed)</li>
+      </ul>
+      <h3>🌟 Español Mode</h3>
+      <ul><li>Switch entire UI to Spanish for full immersion!</li></ul>
+    </div>
+    <hr style="border-color:rgba(255,255,255,0.1);margin:10px 0">
+    <div class="how-section">
+      <h3>🇪🇸 Reglas del Sudoku</h3>
+      <ul>
+        <li>Llena cada fila, columna y caja 3×3 con los números 1-9</li>
+        <li>Ningún número se repite en fila, columna o caja</li>
+      </ul>
+      <h3>📚 Sistema de Desafío</h3>
+      <ul>
+        <li>Toca una celda, luego un número</li>
+        <li>¡Debes responder en español para colocar cada número!</li>
+        <li>Correcto = número colocado + moneda 🪙</li>
+        <li>Incorrecto = sin número + pierdes moneda</li>
+      </ul>
+    </div>
+    <div style="text-align:center;margin-top:10px">
+      <button class="btn gold" onclick="G.closeHelp()">¡Vamos! Let's Go! 🎮</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// MARIO'S NUMBER KINGDOM - FULL GAME ENGINE
+// ==========================================
+"use strict";
+
+const G = {};
+
+// ===== AUDIO ENGINE =====
+const Audio = (function(){
+  let ctx;
+  function getCtx(){
+    if(!ctx) ctx=new(window.AudioContext||window.webkitAudioContext)();
+    if(ctx.state==='suspended') ctx.resume();
+    return ctx;
+  }
+  function play(type,freq,dur,vol=0.15){
+    try{
+      const c=getCtx(),o=c.createOscillator(),g=c.createGain();
+      o.type=type;o.frequency.value=freq;
+      g.gain.setValueAtTime(vol,c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+dur);
+      o.connect(g);g.connect(c.destination);
+      o.start();o.stop(c.currentTime+dur);
+    }catch(e){}
+  }
+  return{
+    coin(){play('square',988,0.08,0.12);setTimeout(()=>play('square',1319,0.15,0.12),80)},
+    wrong(){play('sawtooth',200,0.15,0.1);setTimeout(()=>play('sawtooth',150,0.25,0.1),100)},
+    place(){play('square',523,0.06,0.08);setTimeout(()=>play('square',659,0.08,0.08),60)},
+    fanfare(){
+      const notes=[523,659,784,1047];
+      notes.forEach((f,i)=>setTimeout(()=>play('square',f,0.2,0.12),i*120));
+    },
+    complete(){
+      const notes=[523,587,659,784,880,1047,1319,1568];
+      notes.forEach((f,i)=>setTimeout(()=>play('square',f,0.25,0.15),i*100));
+    },
+    click(){play('square',440,0.03,0.06)},
+    studyCorrect(){play('triangle',660,0.1,0.1);setTimeout(()=>play('triangle',880,0.15,0.1),80)},
+  };
+})();
+
+// ===== VOCABULARY / LEARNING DATA =====
+const VOCAB = {
+  numbers:{
+    uno:{en:'one',num:1,emoji:'1️⃣'},dos:{en:'two',num:2,emoji:'2️⃣'},
+    tres:{en:'three',num:3,emoji:'3️⃣'},cuatro:{en:'four',num:4,emoji:'4️⃣'},
+    cinco:{en:'five',num:5,emoji:'5️⃣'},seis:{en:'six',num:6,emoji:'6️⃣'},
+    siete:{en:'seven',num:7,emoji:'7️⃣'},ocho:{en:'eight',num:8,emoji:'8️⃣'},
+    nueve:{en:'nine',num:9,emoji:'9️⃣'},diez:{en:'ten',num:10,emoji:'🔟'},
+  },
+  colors:{
+    rojo:{en:'red',emoji:'🔴'},azul:{en:'blue',emoji:'🔵'},
+    verde:{en:'green',emoji:'🟢'},amarillo:{en:'yellow',emoji:'🟡'},
+    blanco:{en:'white',emoji:'⚪'},negro:{en:'black',emoji:'⚫'},
+    morado:{en:'purple',emoji:'🟣'},naranja:{en:'orange',emoji:'🟠'},
+    rosa:{en:'pink',emoji:'🩷'},
+  },
+  animals:{
+    gato:{en:'cat',emoji:'🐱'},perro:{en:'dog',emoji:'🐶'},
+    pez:{en:'fish',emoji:'🐟'},pájaro:{en:'bird',emoji:'🐦'},
+    tortuga:{en:'turtle',emoji:'🐢'},rana:{en:'frog',emoji:'🐸'},
+    conejo:{en:'rabbit',emoji:'🐰'},ratón:{en:'mouse',emoji:'🐭'},
+    oso:{en:'bear',emoji:'🐻'},
+  },
+  food:{
+    manzana:{en:'apple',emoji:'🍎'},plátano:{en:'banana',emoji:'🍌'},
+    uva:{en:'grape',emoji:'🍇'},fresa:{en:'strawberry',emoji:'🍓'},
+    pan:{en:'bread',emoji:'🍞'},leche:{en:'milk',emoji:'🥛'},
+    agua:{en:'water',emoji:'💧'},queso:{en:'cheese',emoji:'🧀'},
+    huevo:{en:'egg',emoji:'🥚'},
+  },
+  family:{
+    mamá:{en:'mom',emoji:'👩'},papá:{en:'dad',emoji:'👨'},
+    hermano:{en:'brother',emoji:'👦'},hermana:{en:'sister',emoji:'👧'},
+    abuelo:{en:'grandfather',emoji:'👴'},abuela:{en:'grandmother',emoji:'👵'},
+    amigo:{en:'friend',emoji:'🧑'},bebé:{en:'baby',emoji:'👶'},
+  },
+  phrases:{
+    hola:{en:'hello',emoji:'👋'},adiós:{en:'goodbye',emoji:'👋'},
+    gracias:{en:'thank you',emoji:'🙏'},
+    'por favor':{en:'please',emoji:'🙏'},
+    sí:{en:'yes',emoji:'✅'},no:{en:'no',emoji:'❌'},
+    bueno:{en:'good',emoji:'👍'},grande:{en:'big',emoji:'📏'},
+    pequeño:{en:'small',emoji:'🤏'},
+  },
+  verbs:{
+    soy:{en:'I am',emoji:'👤',base:'ser'},
+    tengo:{en:'I have',emoji:'✋',base:'tener'},
+    quiero:{en:'I want',emoji:'💭',base:'querer'},
+    puedo:{en:'I can',emoji:'💪',base:'poder'},
+    como:{en:'I eat',emoji:'🍽️',base:'comer'},
+    veo:{en:'I see',emoji:'👀',base:'ver'},
+  },
+};
+
+const NUM_WORDS=['','uno','dos','tres','cuatro','cinco','seis','siete','ocho','nueve'];
+const NUM_EN=['','one','two','three','four','five','six','seven','eight','nine'];
+
+// ===== MASTERY SYSTEM =====
+let mastery = {}; // word -> {correct:0, wrong:0, streak:0, stars:0}
+
+function loadMastery(){
+  try{
+    const d=localStorage.getItem('mario_sudoku_mastery');
+    if(d) mastery=JSON.parse(d);
+  }catch(e){}
+}
+function saveMastery(){
+  try{localStorage.setItem('mario_sudoku_mastery',JSON.stringify(mastery))}catch(e){}
+}
+function getMastery(word){
+  if(!mastery[word]) mastery[word]={correct:0,wrong:0,streak:0,stars:0};
+  return mastery[word];
+}
+function recordAnswer(word,correct){
+  const m=getMastery(word);
+  if(correct){
+    m.correct++;m.streak++;
+    if(m.streak>=3 && m.stars<5){m.stars++;m.streak=0}
+  }else{
+    m.wrong++;m.streak=0;
+    if(m.stars>0) m.stars=Math.max(0,m.stars-1);
+  }
+  saveMastery();
+}
+function getStarsStr(s){return '★'.repeat(s)+'☆'.repeat(5-s)}
+function getTotalMastery(){
+  let total=0,mastered=0;
+  for(const k in mastery){total++;if(mastery[k].stars>=5)mastered++}
+  return total>0?Math.round(mastered/total*100):0;
+}
+
+// ===== STATS =====
+let stats={totalCorrect:0,totalWrong:0,currentStreak:0,bestStreak:0,gamesCompleted:0};
+function loadStats(){
+  try{const d=localStorage.getItem('mario_sudoku_stats');if(d) stats=JSON.parse(d)}catch(e){}
+}
+function saveStats(){
+  try{localStorage.setItem('mario_sudoku_stats',JSON.stringify(stats))}catch(e){}
+}
+
+// ===== SUDOKU ENGINE =====
+function createEmptyGrid(){return Array.from({length:9},()=>Array(9).fill(0))}
+
+function isValid(grid,r,c,n){
+  for(let i=0;i<9;i++){if(grid[r][i]===n||grid[i][c]===n) return false}
+  const br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;
+  for(let i=br;i<br+3;i++) for(let j=bc;j<bc+3;j++){if(grid[i][j]===n) return false}
+  return true;
+}
+
+function shuffleArray(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+
+function solveSudoku(grid){
+  for(let r=0;r<9;r++){
+    for(let c=0;c<9;c++){
+      if(grid[r][c]===0){
+        const nums=shuffleArray([1,2,3,4,5,6,7,8,9]);
+        for(const n of nums){
+          if(isValid(grid,r,c,n)){
+            grid[r][c]=n;
+            if(solveSudoku(grid)) return true;
+            grid[r][c]=0;
+          }
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+function countSolutions(grid,limit=2){
+  let count=0;
+  function solve(){
+    if(count>=limit) return;
+    for(let r=0;r<9;r++){
+      for(let c=0;c<9;c++){
+        if(grid[r][c]===0){
+          for(let n=1;n<=9;n++){
+            if(isValid(grid,r,c,n)){
+              grid[r][c]=n;
+              solve();
+              grid[r][c]=0;
+            }
+          }
+          return;
+        }
+      }
+    }
+    count++;
+  }
+  solve();
+  return count;
+}
+
+function generatePuzzle(difficulty){
+  const solution=createEmptyGrid();
+  solveSudoku(solution);
+  const puzzle=solution.map(r=>[...r]);
+  let givens;
+  if(difficulty==='easy') givens=40+Math.floor(Math.random()*4);
+  else if(difficulty==='medium') givens=30+Math.floor(Math.random()*7);
+  else givens=24+Math.floor(Math.random()*5);
+  const toRemove=81-givens;
+  const cells=[];
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++) cells.push([r,c]);
+  shuffleArray(cells);
+  let removed=0;
+  for(const [r,c] of cells){
+    if(removed>=toRemove) break;
+    const backup=puzzle[r][c];
+    puzzle[r][c]=0;
+    if(countSolutions(puzzle.map(r=>[...r]))===1){removed++}
+    else{puzzle[r][c]=backup}
+  }
+  return{puzzle,solution};
+}
+
+// ===== GAME STATE =====
+let state={
+  puzzle:null,solution:null,board:null,given:null,pencil:null,
+  selectedCell:null,notesMode:false,difficulty:'easy',
+  coins:15,timerSeconds:0,timerInterval:null,
+  undoStack:[],gameActive:false,espanolMode:false,
+  wordsThisGame:0,philoIndex:0,completionPhiloIndex:0,
+  challengeTarget:null,studyActive:false,studyCoins:0,
+};
+
+// ===== I18N =====
+const I18N={
+  en:{easy:'Easy',medium:'Medium',hard:'Hard',undo:'Undo',notes:'Notes',check:'Check',
+    words:'Words',wordBank:'Word Bank',studyDesc:'No coins left! Match the words to earn coins back!',
+    newGame:'New Game',howToPlay:'How to Play'},
+  es:{easy:'Fácil',medium:'Medio',hard:'Difícil',undo:'Deshacer',notes:'Notas',check:'Verificar',
+    words:'Palabras',wordBank:'Banco de Palabras',studyDesc:'¡Sin monedas! ¡Empareja palabras para ganar monedas!',
+    newGame:'Nuevo Juego',howToPlay:'Cómo Jugar'},
+};
+
+function updateI18N(){
+  const lang=state.espanolMode?'es':'en';
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    const key=el.getAttribute('data-i18n');
+    if(I18N[lang][key]) el.textContent=I18N[lang][key];
+  });
+  document.getElementById('subtitle-text').textContent=state.espanolMode?
+    'Aprende Español · Resuelve Sudoku · Piensa Como Filósofo':'Learn Spanish · Solve Sudoku · Think Like a Philosopher';
+}
+
+// ===== PHILOSOPHY QUOTES =====
+const PHILO_QUOTES=[
+  "⭐ Callicles told Socrates: 'People with power SHOULD use it!' What do you think — if you're really good at something, should you use that talent?",
+  "🍄 Socrates believed asking questions makes you smarter. He asked SO many questions that some people got annoyed! But he didn't care — truth mattered more.",
+  "🔥 Plato wrote a famous book called 'The Gorgias' where Callicles argues with Socrates about what 'justice' really means!",
+  "🏰 Countries act like players in a game — each one tries to win! This idea is called 'Realism' in world politics.",
+  "⭐ Socrates said the most powerful person is someone who controls THEMSELVES. That's harder than controlling others!",
+  "🌟 Callicles thought rules were invented by weak people to hold back strong people. Socrates thought rules help EVERYONE. Who do you agree with?",
+  "💫 Just like each Sudoku number has ONE right place, realists say countries have natural roles based on their power.",
+  "🎮 Did you know? Plato lived in ancient Greece about 2,400 years ago. His ideas are STILL discussed today!",
+  "🐢 Like Bowser always trying to take over, some countries try to expand their power. Realists say that's just nature!",
+  "🍄 Socrates never wrote anything down! His student Plato wrote everything for him. Good thing Plato was paying attention!",
+];
+
+const VICTORY_PHILOS=[
+  {title:"The Great Debate",text:"In Plato's Gorgias, Callicles challenged Socrates with a bold idea: nature's law says the strong should lead. Socrates disagreed — he said true leaders are wise and just, not just powerful. This debate happened 2,400 years ago, and we STILL don't agree! Countries today argue about the same thing: should the most powerful nations make the rules? Or should every nation have an equal voice? What do YOU think?"},
+  {title:"Who Was Callicles?",text:"Callicles was a young, ambitious man in ancient Athens. He believed that society's rules hold back talented people. He said: 'Look at nature — the strongest lion leads the pride. Humans should be the same!' Socrates said: 'But humans have something lions don't — reason and wisdom. THAT should decide who leads.'"},
+  {title:"What Is Realism?",text:"In the study of how countries interact, 'realism' means believing that power is what matters most. Just like in the Mushroom Kingdom — Bowser has an army, and that CHANGES things. Realists say every country acts to protect itself first, just like every player in this Sudoku game is trying to WIN."},
+  {title:"Plato's Big Idea",text:"Plato believed there's a PERFECT version of everything — perfect justice, perfect beauty, perfect truth. We can't see these perfect things, but we can think about them. When Callicles said 'might makes right,' Plato (through Socrates) said: 'But what IS right? Let's think deeper.' And that's what philosophy is — thinking deeper!"},
+];
+
+// ===== CHALLENGE GENERATOR =====
+function getStage(){
+  const c=stats.totalCorrect;
+  if(c<21) return 1;
+  if(c<46) return 2;
+  if(c<71) return 3;
+  if(c<101) return 4;
+  return 5;
+}
+
+function pickWeightedWord(category){
+  const words=Object.keys(VOCAB[category]);
+  // Weight: lower mastery = higher chance
+  const weighted=[];
+  for(const w of words){
+    const m=getMastery(w);
+    const weight=Math.max(1, 6-m.stars) + (m.wrong>m.correct?3:0);
+    for(let i=0;i<weight;i++) weighted.push(w);
+  }
+  return weighted[Math.floor(Math.random()*weighted.length)];
+}
+
+function generateChallenge(targetNum){
+  const stage=getStage();
+  const types=[];
+  // Always available: type 1 (number naming), type 6 (quick count)
+  types.push(1,1,1,6);
+  if(stage>=1) types.push(1,1,4);
+  if(stage>=2) types.push(2,3,5,6);
+  if(stage>=3) types.push(3,4,5);
+  if(stage>=4) types.push(4,7);
+  if(stage>=5) types.push(7,3,4);
+
+  const type=types[Math.floor(Math.random()*types.length)];
+  const spanishNum=NUM_WORDS[targetNum];
+  const englishNum=NUM_EN[targetNum];
+
+  switch(type){
+    case 1: return genType1(targetNum,spanishNum,englishNum);
+    case 2: return genType2(targetNum,spanishNum);
+    case 3: return genType3(targetNum);
+    case 4: return genType4(targetNum,spanishNum);
+    case 5: return genType5(targetNum);
+    case 6: return genType6(targetNum,spanishNum);
+    case 7: return genType7(targetNum);
+    default: return genType1(targetNum,spanishNum,englishNum);
+  }
+}
+
+function genType1(num,spa,en){
+  const variant=Math.floor(Math.random()*3);
+  if(variant===0){
+    // "How do you say X in Spanish?"
+    const others=shuffleArray(NUM_WORDS.filter((_,i)=>i>0&&i!==num)).slice(0,3);
+    others.push(spa);
+    shuffleArray(others);
+    return{
+      type:'choice',word:spa,
+      question:`¿Cómo se dice "${en}" en español?\nHow do you say "${en}" in Spanish?`,
+      options:others,answer:spa,
+    };
+  }else if(variant===1){
+    // Math: a + ? = num
+    const a=Math.floor(Math.random()*(num-1))+1;
+    const b=num-a;
+    const bWord=NUM_WORDS[b];
+    const others=shuffleArray(NUM_WORDS.filter((_,i)=>i>0&&i!==b)).slice(0,3);
+    others.push(bWord);shuffleArray(others);
+    return{
+      type:'choice',word:bWord,
+      question:`${NUM_WORDS[a]} + ¿? = ${spa}\n(${a} + ? = ${num})`,
+      options:others,answer:bWord,
+    };
+  }else{
+    // Math: num - a = ?
+    const a=Math.floor(Math.random()*(num-1))+1;
+    const result=num-a;
+    const rWord=NUM_WORDS[result];
+    const others=shuffleArray(NUM_WORDS.filter((_,i)=>i>0&&i!==result)).slice(0,3);
+    others.push(rWord);shuffleArray(others);
+    return{
+      type:'choice',word:rWord,
+      question:`${spa} menos ${NUM_WORDS[a]} = ¿?\n(${num} - ${a} = ?)`,
+      options:others,answer:rWord,
+    };
+  }
+}
+
+function genType2(num,spa){
+  const letters=spa.toUpperCase().split('');
+  const scrambled=[...letters];
+  // Ensure scrambled is different
+  for(let i=0;i<20;i++){shuffleArray(scrambled);if(scrambled.join('')!==letters.join('')) break}
+  return{
+    type:'scramble',word:spa,
+    question:`Unscramble to spell the number ${num}:`,
+    scrambled:[...scrambled],answer:letters.join(''),
+  };
+}
+
+function genType3(num){
+  const scenarios=[
+    {emoji:'🪙',name:'moneda',namePl:'monedas',enName:'coin',enPl:'coins'},
+    {emoji:'⭐',name:'estrella',namePl:'estrellas',enName:'star',enPl:'stars'},
+    {emoji:'🍄',name:'hongo',namePl:'hongos',enName:'mushroom',enPl:'mushrooms'},
+    {emoji:'🐢',name:'tortuga',namePl:'tortugas',enName:'turtle',enPl:'turtles'},
+  ];
+  const s=scenarios[Math.floor(Math.random()*scenarios.length)];
+  let a,b;
+  if(num>2){
+    a=Math.floor(Math.random()*(num-1))+1;
+    b=num-a;
+  }else{a=num;b=0}
+  const spa=NUM_WORDS[num];
+  const question=b>0?
+    `Mario tiene ${NUM_WORDS[a]} ${a===1?s.name:s.namePl} y encuentra ${NUM_WORDS[b]} más.\n¿Cuántas tiene?\n(Mario has ${a} ${a===1?s.enName:s.enPl} and finds ${b} more. How many?)`
+    :`Mario tiene ${NUM_WORDS[a]} ${a===1?s.name:s.namePl}. ¿Cuántas?\n(Mario has ${a}. How many?)`;
+  const others=shuffleArray(NUM_WORDS.filter((_,i)=>i>0&&i!==num)).slice(0,3);
+  others.push(spa);shuffleArray(others);
+  return{type:'choice',word:spa,question,options:others,answer:spa};
+}
+
+function genType4(num,spa){
+  const subjects=['Mario','Luigi','Peach','Toad'];
+  const objects=['estrellas','monedas','hongos','vidas'];
+  const enObjects=['stars','coins','mushrooms','lives'];
+  const subj=subjects[Math.floor(Math.random()*subjects.length)];
+  const oi=Math.floor(Math.random()*objects.length);
+  return{
+    type:'input',word:spa,
+    question:`${subj} tiene ___ (${num}) ${objects[oi]}\n(${subj} has ___ (${num}) ${enObjects[oi]})`,
+    answer:spa,hint:`Type the number ${num} in Spanish`,
+  };
+}
+
+function genType5(num){
+  const stage=getStage();
+  if(stage<2) return genType1(num,NUM_WORDS[num],NUM_EN[num]);
+  const colors=Object.entries(VOCAB.colors);
+  const pick=colors[Math.floor(Math.random()*colors.length)];
+  const [spa,data]=pick;
+  const others=shuffleArray(colors.filter(([k])=>k!==spa).map(([k])=>k)).slice(0,3);
+  others.push(spa);shuffleArray(others);
+  return{
+    type:'choice',word:spa,
+    question:`Name the Spanish word for this color: ${data.emoji}\n¿Cómo se dice este color en español?`,
+    options:others,answer:spa,
+    // Still places the target number, the challenge is about vocab
+    note:`(Correct = place ${num})`,
+  };
+}
+
+function genType6(num,spa){
+  const items=['🍄','⭐','🪙','🐢','🍎','🐱','🌟','🔥','💎'];
+  const names=['hongo','estrella','moneda','tortuga','manzana','gato','estrella','fuego','diamante'];
+  const enNames=['mushroom','star','coin','turtle','apple','cat','star','fire','diamond'];
+  const idx=Math.floor(Math.random()*items.length);
+  const display=Array(num).fill(items[idx]).join(' ');
+  const others=shuffleArray(NUM_WORDS.filter((_,i)=>i>0&&i!==num)).slice(0,3);
+  others.push(spa);shuffleArray(others);
+  return{
+    type:'choice',word:spa,
+    question:`${display}\n¿Cuántos ${names[idx]}${num>1?'s':''}?\n(How many ${enNames[idx]}${num>1?'s':''}?)`,
+    options:others,answer:spa,
+  };
+}
+
+function genType7(num){
+  const stage=getStage();
+  if(stage<4) return genType1(num,NUM_WORDS[num],NUM_EN[num]);
+  const conjugations=[
+    {q:'Yo ___ (I am)',answer:'soy',opts:['soy','eres','es','somos']},
+    {q:'Yo ___ (I have)',answer:'tengo',opts:['tengo','tienes','tiene','tenemos']},
+    {q:'Yo ___ (I want)',answer:'quiero',opts:['quiero','quieres','quiere','queremos']},
+    {q:'Yo ___ (I can)',answer:'puedo',opts:['puedo','puedes','puede','podemos']},
+    {q:'Yo ___ (I eat)',answer:'como',opts:['como','comes','come','comemos']},
+    {q:'Yo ___ (I see)',answer:'veo',opts:['veo','ves','ve','vemos']},
+  ];
+  const c=conjugations[Math.floor(Math.random()*conjugations.length)];
+  return{
+    type:'choice',word:c.answer,
+    question:c.q,options:shuffleArray([...c.opts]),answer:c.answer,
+    note:`(Correct = place ${num})`,
+  };
+}
+
+// ===== RENDER GRID =====
+function renderGrid(){
+  const grid=document.getElementById('sudoku-grid');
+  grid.innerHTML='';
+  for(let r=0;r<9;r++){
+    for(let c=0;c<9;c++){
+      const cell=document.createElement('div');
+      cell.className='cell';
+      cell.dataset.row=r;cell.dataset.col=c;
+      // Box borders
+      if(c%3===2 && c<8) cell.classList.add('box-right');
+      if(r%3===2 && r<8) cell.classList.add('box-bottom');
+      if(state.given[r][c]){
+        cell.classList.add('given');
+        if(state.espanolMode){
+          cell.textContent=NUM_WORDS[state.given[r][c]];
+          cell.classList.add('espanol-cell');
+        }else{
+          cell.textContent=state.given[r][c];
+        }
+      }else if(state.board[r][c]){
+        cell.classList.add('player');
+        if(state.espanolMode){
+          cell.textContent=NUM_WORDS[state.board[r][c]];
+          cell.classList.add('espanol-cell');
+        }else{
+          cell.textContent=state.board[r][c];
+        }
+      }else{
+        // Pencil marks
+        if(state.pencil[r][c].size>0){
+          const pm=document.createElement('div');
+          pm.className='pencil-marks';
+          for(let n=1;n<=9;n++){
+            const s=document.createElement('span');
+            s.textContent=state.pencil[r][c].has(n)?n:'';
+            pm.appendChild(s);
+          }
+          cell.appendChild(pm);
+        }
+      }
+      // Highlighting
+      if(state.selectedCell){
+        const [sr,sc]=state.selectedCell;
+        if(r===sr && c===sc) cell.classList.add('selected');
+        else{
+          const sameRow=r===sr, sameCol=c===sc;
+          const sameBox=Math.floor(r/3)===Math.floor(sr/3)&&Math.floor(c/3)===Math.floor(sc/3);
+          if(sameRow||sameCol||sameBox) cell.classList.add('highlight-rc');
+          const selVal=state.board[sr][sc]||state.given[sr][sc];
+          const cellVal=state.board[r][c]||state.given[r][c];
+          if(selVal && cellVal && selVal===cellVal) cell.classList.add('highlight-same');
+        }
+      }
+      // Error check
+      const val=state.board[r][c];
+      if(val && !state.given[r][c] && hasConflict(r,c,val)){
+        cell.classList.add('error');
+      }
+      cell.addEventListener('click',()=>selectCell(r,c));
+      cell.addEventListener('touchend',(e)=>{e.preventDefault();selectCell(r,c)});
+      grid.appendChild(cell);
+    }
+  }
+}
+
+function hasConflict(r,c,val){
+  for(let i=0;i<9;i++){
+    if(i!==c){const v=state.board[r][i]||state.given[r][i];if(v===val) return true}
+    if(i!==r){const v=state.board[i][c]||state.given[i][c];if(v===val) return true}
+  }
+  const br=Math.floor(r/3)*3,bc=Math.floor(c/3)*3;
+  for(let i=br;i<br+3;i++) for(let j=bc;j<bc+3;j++){
+    if(i!==r||j!==c){const v=state.board[i][j]||state.given[i][j];if(v===val) return true}
+  }
+  return false;
+}
+
+// ===== RENDER PALETTE =====
+function renderPalette(){
+  const pal=document.getElementById('number-palette');
+  pal.innerHTML='';
+  for(let n=1;n<=9;n++){
+    const btn=document.createElement('div');
+    btn.className='num-btn';
+    if(!state.notesMode) btn.classList.add('question-block');
+    if(state.espanolMode){
+      btn.textContent=NUM_WORDS[n];
+      btn.style.fontSize=`calc(var(--cell-size)*0.25)`;
+    }else{
+      btn.textContent=state.notesMode?n:'?';
+    }
+    btn.addEventListener('click',()=>handleNumberInput(n));
+    btn.addEventListener('touchend',(e)=>{e.preventDefault();handleNumberInput(n)});
+    pal.appendChild(btn);
+  }
+  // Erase button
+  const eraseBtn=document.createElement('div');
+  eraseBtn.className='num-btn';
+  eraseBtn.textContent='✕';
+  eraseBtn.style.background='linear-gradient(180deg,#666,#333)';
+  eraseBtn.addEventListener('click',()=>eraseCell());
+  eraseBtn.addEventListener('touchend',(e)=>{e.preventDefault();eraseCell()});
+  pal.appendChild(eraseBtn);
+}
+
+// ===== CELL SELECTION =====
+function selectCell(r,c){
+  Audio.click();
+  state.selectedCell=[r,c];
+  renderGrid();
+}
+
+// ===== NUMBER INPUT =====
+function handleNumberInput(n){
+  if(!state.selectedCell||!state.gameActive) return;
+  const [r,c]=state.selectedCell;
+  if(state.given[r][c]) return; // can't change givens
+
+  if(state.notesMode){
+    // Toggle pencil mark directly — no challenge
+    if(state.board[r][c]) return; // can't pencil on filled
+    if(state.pencil[r][c].has(n)) state.pencil[r][c].delete(n);
+    else state.pencil[r][c].add(n);
+    Audio.click();
+    renderGrid();
+    return;
+  }
+
+  // Challenge mode!
+  state.challengeTarget={row:r,col:c,num:n};
+  showChallenge(n);
+}
+
+function eraseCell(){
+  if(!state.selectedCell||!state.gameActive) return;
+  const [r,c]=state.selectedCell;
+  if(state.given[r][c]) return;
+  if(state.board[r][c]){
+    state.undoStack.push({type:'place',row:r,col:c,val:state.board[r][c],pencil:new Set(state.pencil[r][c])});
+    state.board[r][c]=0;
+    Audio.click();
+    renderGrid();
+  }
+}
+
+// ===== CHALLENGE DISPLAY =====
+function showChallenge(num){
+  const challenge=generateChallenge(num);
+  const modal=document.getElementById('challenge-modal');
+  const content=document.getElementById('challenge-content');
+  content.innerHTML='';
+
+  const title=document.createElement('h2');
+  title.textContent=`❓ Challenge for ${state.espanolMode?NUM_WORDS[num]:num} ❓`;
+  content.appendChild(title);
+
+  if(challenge.note){
+    const note=document.createElement('p');
+    note.style.cssText='font-size:0.7rem;color:#aaa;margin-bottom:5px';
+    note.textContent=challenge.note;
+    content.appendChild(note);
+  }
+
+  const q=document.createElement('div');
+  q.className='challenge-question';
+  q.textContent=challenge.question;
+  content.appendChild(q);
+
+  if(challenge.type==='choice'){
+    const opts=document.createElement('div');
+    opts.className='challenge-options';
+    challenge.options.forEach(opt=>{
+      const btn=document.createElement('button');
+      btn.className='challenge-opt';
+      btn.textContent=opt;
+      btn.addEventListener('click',()=>handleChallengeAnswer(btn,opt,challenge,opts));
+      opts.appendChild(btn);
+    });
+    content.appendChild(opts);
+  }else if(challenge.type==='input'){
+    const inp=document.createElement('input');
+    inp.className='challenge-input';
+    inp.placeholder=challenge.hint||'Type in Spanish...';
+    inp.autocomplete='off';inp.autocorrect='off';inp.autocapitalize='off';
+    content.appendChild(inp);
+    const submit=document.createElement('button');
+    submit.className='btn gold';submit.style.marginTop='8px';
+    submit.textContent='✓ Submit';
+    submit.addEventListener('click',()=>{
+      const answer=inp.value.trim().toLowerCase();
+      handleInputAnswer(answer,challenge,content);
+    });
+    content.appendChild(submit);
+    inp.addEventListener('keydown',e=>{if(e.key==='Enter') submit.click()});
+    setTimeout(()=>inp.focus(),100);
+  }else if(challenge.type==='scramble'){
+    renderScrambleChallenge(challenge,content);
+  }
+
+  modal.classList.add('show');
+}
+
+function renderScrambleChallenge(challenge,content){
+  const sourceArea=document.createElement('div');
+  sourceArea.className='scramble-area';
+  sourceArea.id='scramble-source';
+
+  const targetArea=document.createElement('div');
+  targetArea.className='scramble-area';
+  targetArea.id='scramble-target';
+
+  const answer=challenge.answer;
+  const placed=Array(answer.length).fill(null);
+
+  // Create slots
+  for(let i=0;i<answer.length;i++){
+    const slot=document.createElement('div');
+    slot.className='scramble-slot';
+    slot.dataset.index=i;
+    slot.addEventListener('click',()=>{
+      if(placed[i]!==null){
+        // Remove from slot
+        const tileIdx=placed[i];
+        placed[i]=null;
+        slot.textContent='';slot.classList.remove('filled');
+        const tiles=sourceArea.querySelectorAll('.scramble-tile');
+        tiles[tileIdx].classList.remove('placed');
+      }
+    });
+    targetArea.appendChild(slot);
+  }
+
+  // Create tiles
+  challenge.scrambled.forEach((letter,idx)=>{
+    const tile=document.createElement('div');
+    tile.className='scramble-tile';
+    tile.textContent=letter;
+    tile.dataset.tileIndex=idx;
+    tile.addEventListener('click',()=>{
+      if(tile.classList.contains('placed')) return;
+      // Find first empty slot
+      const slotIdx=placed.indexOf(null);
+      if(slotIdx===-1) return;
+      placed[slotIdx]=idx;
+      tile.classList.add('placed');
+      const slots=targetArea.querySelectorAll('.scramble-slot');
+      slots[slotIdx].textContent=letter;
+      slots[slotIdx].classList.add('filled');
+      Audio.click();
+      // Check if complete
+      if(!placed.includes(null)){
+        const attempt=placed.map(i=>challenge.scrambled[i]).join('');
+        setTimeout(()=>handleScrambleResult(attempt,challenge,content),300);
+      }
+    });
+    // Touch drag support
+    tile.addEventListener('touchend',e=>{
+      e.preventDefault();
+      tile.click();
+    });
+    sourceArea.appendChild(tile);
+  });
+
+  content.appendChild(targetArea);
+  content.appendChild(document.createElement('br'));
+  content.appendChild(sourceArea);
+}
+
+function handleScrambleResult(attempt,challenge,container){
+  const correct=attempt===challenge.answer;
+  showChallengeResult(correct,challenge,container);
+}
+
+function handleChallengeAnswer(btn,selected,challenge,optsContainer){
+  const correct=selected.toLowerCase()===challenge.answer.toLowerCase();
+  optsContainer.querySelectorAll('.challenge-opt').forEach(b=>{
+    b.style.pointerEvents='none';
+    if(b.textContent.toLowerCase()===challenge.answer.toLowerCase()) b.classList.add('correct');
+    if(b===btn && !correct) b.classList.add('wrong');
+  });
+  setTimeout(()=>showChallengeResult(correct,challenge,btn.closest('#challenge-content')),600);
+}
+
+function handleInputAnswer(answer,challenge,container){
+  const correct=answer===challenge.answer.toLowerCase();
+  showChallengeResult(correct,challenge,container);
+}
+
+function showChallengeResult(correct,challenge,container){
+  recordAnswer(challenge.word,correct);
+  const fb=document.createElement('div');
+  fb.className='feedback '+(correct?'correct-fb':'wrong-fb');
+
+  if(correct){
+    fb.textContent='✅ ¡Correcto! +1 🪙';
+    state.coins++;
+    stats.totalCorrect++;
+    stats.currentStreak++;
+    if(stats.currentStreak>stats.bestStreak) stats.bestStreak=stats.currentStreak;
+    state.wordsThisGame++;
+    Audio.coin();
+
+    // Place the number
+    const {row,col,num}=state.challengeTarget;
+    state.undoStack.push({type:'place',row,col,val:state.board[row][col],pencil:new Set(state.pencil[row][col])});
+    state.board[row][col]=num;
+    state.pencil[row][col]=new Set();
+    // Auto-remove pencil marks in same row/col/box
+    for(let i=0;i<9;i++){
+      state.pencil[row][i].delete(num);
+      state.pencil[i][col].delete(num);
+    }
+    const br=Math.floor(row/3)*3,bc=Math.floor(col/3)*3;
+    for(let i=br;i<br+3;i++) for(let j=bc;j<bc+3;j++) state.pencil[i][j].delete(num);
+  }else{
+    fb.innerHTML=`❌ The answer was: <strong>${challenge.answer}</strong> — -1 🪙`;
+    state.coins=Math.max(0,state.coins-1);
+    stats.totalWrong++;
+    stats.currentStreak=0;
+    Audio.wrong();
+  }
+
+  container.appendChild(fb);
+  updateTopBar();
+  saveStats();
+
+  setTimeout(()=>{
+    document.getElementById('challenge-modal').classList.remove('show');
+    renderGrid();
+    renderPalette();
+
+    if(correct){
+      // Animate the placed cell
+      const cellEl=document.querySelector(`.cell[data-row="${state.challengeTarget.row}"][data-col="${state.challengeTarget.col}"]`);
+      if(cellEl) cellEl.classList.add('just-placed');
+
+      // Spawn coin animation
+      spawnCoinAnim(cellEl);
+
+      // Check completions
+      checkCompletions();
+      checkWin();
+    }
+
+    // Check for study mode
+    if(state.coins<=0 && !correct){
+      setTimeout(()=>enterStudyMode(),500);
+    }
+  },correct?800:1500);
+}
+
+// ===== STUDY MODE =====
+function enterStudyMode(){
+  state.studyActive=true;
+  state.studyCoins=0;
+  document.getElementById('study-overlay').classList.add('show');
+  document.getElementById('study-pipe-fill').style.width='0%';
+  document.getElementById('study-coins').textContent='0';
+  showStudyCard();
+}
+
+function showStudyCard(){
+  if(state.studyCoins>=5){
+    exitStudyMode();
+    return;
+  }
+  const card=document.getElementById('study-card');
+  const opts=document.getElementById('study-options');
+  card.innerHTML='';opts.innerHTML='';
+
+  // Pick a word that needs practice
+  const allWords=[];
+  for(const cat in VOCAB){
+    for(const w in VOCAB[cat]){
+      const m=getMastery(w);
+      allWords.push({spa:w,en:VOCAB[cat][w].en,emoji:VOCAB[cat][w].emoji||'',
+        weight:Math.max(1,6-m.stars)+(m.wrong>m.correct?3:0)});
+    }
+  }
+  const weighted=[];
+  allWords.forEach(w=>{for(let i=0;i<w.weight;i++) weighted.push(w)});
+  const target=weighted[Math.floor(Math.random()*weighted.length)];
+
+  const wordEl=document.createElement('div');
+  wordEl.className='word';
+  wordEl.textContent=`${target.emoji} ${target.spa}`;
+  card.appendChild(wordEl);
+
+  const hint=document.createElement('div');
+  hint.className='hint';
+  hint.textContent='What does this mean in English?';
+  card.appendChild(hint);
+
+  // Options: correct + 3 wrong
+  const wrongOpts=shuffleArray(allWords.filter(w=>w.en!==target.en)).slice(0,3).map(w=>w.en);
+  const options=shuffleArray([target.en,...wrongOpts]);
+
+  options.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='challenge-opt';
+    btn.textContent=opt;
+    btn.addEventListener('click',()=>{
+      const correct=opt===target.en;
+      opts.querySelectorAll('.challenge-opt').forEach(b=>{
+        b.style.pointerEvents='none';
+        if(b.textContent===target.en) b.classList.add('correct');
+        if(b===btn && !correct) b.classList.add('wrong');
+      });
+      recordAnswer(target.spa,correct);
+      if(correct){
+        state.studyCoins++;
+        Audio.studyCorrect();
+      }else{
+        Audio.wrong();
+      }
+      document.getElementById('study-coins').textContent=state.studyCoins;
+      document.getElementById('study-pipe-fill').style.width=`${state.studyCoins/5*100}%`;
+      setTimeout(showStudyCard,800);
+    });
+    opts.appendChild(btn);
+  });
+}
+
+function exitStudyMode(){
+  state.studyActive=false;
+  state.coins=state.studyCoins;
+  document.getElementById('study-overlay').classList.remove('show');
+  Audio.fanfare();
+  updateTopBar();
+}
+
+// ===== COMPLETION CHECKS =====
+function checkCompletions(){
+  // Check rows
+  for(let r=0;r<9;r++){
+    let full=true;
+    for(let c=0;c<9;c++){if(!(state.board[r][c]||state.given[r][c])){full=false;break}}
+    if(full){
+      let valid=true;
+      const seen=new Set();
+      for(let c=0;c<9;c++){
+        const v=state.board[r][c]||state.given[r][c];
+        if(seen.has(v)){valid=false;break}
+        seen.add(v);
+      }
+      if(valid && seen.size===9) showPhiloPopup();
+    }
+  }
+  // Check cols
+  for(let c=0;c<9;c++){
+    let full=true;
+    for(let r=0;r<9;r++){if(!(state.board[r][c]||state.given[r][c])){full=false;break}}
+    if(full){
+      let valid=true;
+      const seen=new Set();
+      for(let r=0;r<9;r++){
+        const v=state.board[r][c]||state.given[r][c];
+        if(seen.has(v)){valid=false;break}
+        seen.add(v);
+      }
+      if(valid && seen.size===9) showPhiloPopup();
+    }
+  }
+  // Check boxes
+  for(let br=0;br<9;br+=3){
+    for(let bc=0;bc<9;bc+=3){
+      let full=true;
+      for(let i=br;i<br+3;i++) for(let j=bc;j<bc+3;j++){
+        if(!(state.board[i][j]||state.given[i][j])){full=false;break}
+      }
+      if(full){
+        let valid=true;const seen=new Set();
+        for(let i=br;i<br+3;i++) for(let j=bc;j<bc+3;j++){
+          const v=state.board[i][j]||state.given[i][j];
+          if(seen.has(v)){valid=false;break}
+          seen.add(v);
+        }
+        if(valid && seen.size===9) showPhiloPopup();
+      }
+    }
+  }
+}
+
+let philoTimeout=null;
+function showPhiloPopup(){
+  // Don't spam
+  if(document.querySelector('.philo-popup')) return;
+  const quote=PHILO_QUOTES[state.philoIndex%PHILO_QUOTES.length];
+  state.philoIndex++;
+  Audio.fanfare();
+  const popup=document.createElement('div');
+  popup.className='philo-popup';
+  popup.textContent=quote;
+  document.body.appendChild(popup);
+  philoTimeout=setTimeout(()=>{
+    popup.classList.add('fade-out');
+    setTimeout(()=>popup.remove(),500);
+  },4000);
+  popup.addEventListener('click',()=>{
+    clearTimeout(philoTimeout);
+    popup.classList.add('fade-out');
+    setTimeout(()=>popup.remove(),500);
+  });
+}
+
+function checkWin(){
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    if(!state.given[r][c] && state.board[r][c]!==state.solution[r][c]) return;
+  }
+  // WIN!
+  state.gameActive=false;
+  if(state.timerInterval) clearInterval(state.timerInterval);
+  stats.gamesCompleted++;
+  saveStats();
+  saveBestTime();
+  setTimeout(()=>showVictory(),500);
+}
+
+function saveBestTime(){
+  try{
+    const key='mario_sudoku_best_'+state.difficulty;
+    const prev=parseInt(localStorage.getItem(key))||Infinity;
+    if(state.timerSeconds<prev) localStorage.setItem(key,state.timerSeconds);
+  }catch(e){}
+}
+
+// ===== VICTORY =====
+function showVictory(){
+  Audio.complete();
+  startFireworks();
+  const modal=document.getElementById('victory-modal');
+  const content=document.getElementById('victory-content');
+  const accuracy=stats.totalCorrect+stats.totalWrong>0?
+    Math.round(stats.totalCorrect/(stats.totalCorrect+stats.totalWrong)*100):100;
+  const minutes=Math.floor(state.timerSeconds/60);
+  const seconds=state.timerSeconds%60;
+  const philo=VICTORY_PHILOS[state.completionPhiloIndex%VICTORY_PHILOS.length];
+  state.completionPhiloIndex++;
+
+  content.innerHTML=`
+    <div class="victory-stats">
+      <div><div class="label">⏱ Time</div><div class="val">${minutes}:${seconds.toString().padStart(2,'0')}</div></div>
+      <div><div class="label">🎯 Accuracy</div><div class="val">${accuracy}%</div></div>
+      <div><div class="label">📚 Words Learned</div><div class="val">${state.wordsThisGame}</div></div>
+      <div><div class="label">🔥 Difficulty</div><div class="val">${state.difficulty.toUpperCase()}</div></div>
+    </div>
+    <div class="philo-section">
+      <div class="philo-title">📜 ${philo.title}</div>
+      <p>${philo.text}</p>
+    </div>
+    <button class="btn gold" style="margin-top:12px;font-size:1rem;padding:10px 20px" onclick="G.closeVictory()">
+      🎮 Play Again!
+    </button>
+  `;
+  modal.classList.add('show');
+}
+
+// ===== FIREWORKS / PARTICLES =====
+const particles=[];
+let animFrame=null;
+function startFireworks(){
+  const canvas=document.getElementById('particles-canvas');
+  canvas.width=window.innerWidth;canvas.height=window.innerHeight;
+  const ctx=canvas.getContext('2d');
+  const colors=['#E52521','#43B047','#F5C722','#5C94FC','#FFD700','#FF69B4'];
+
+  function burst(x,y){
+    for(let i=0;i<30;i++){
+      const angle=Math.random()*Math.PI*2;
+      const speed=2+Math.random()*4;
+      particles.push({
+        x,y,vx:Math.cos(angle)*speed,vy:Math.sin(angle)*speed,
+        life:1,color:colors[Math.floor(Math.random()*colors.length)],
+        size:2+Math.random()*3,
+      });
+    }
+  }
+
+  function addStar(){
+    particles.push({
+      x:Math.random()*canvas.width,y:-10,vx:(Math.random()-0.5)*2,vy:1+Math.random()*2,
+      life:1,color:'#FFD700',size:3,star:true,
+    });
+  }
+
+  let burstCount=0;
+  const burstInterval=setInterval(()=>{
+    burst(Math.random()*canvas.width,Math.random()*canvas.height*0.6);
+    if(++burstCount>8) clearInterval(burstInterval);
+  },400);
+
+  const starInterval=setInterval(()=>addStar(),100);
+  setTimeout(()=>clearInterval(starInterval),5000);
+
+  function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    for(let i=particles.length-1;i>=0;i--){
+      const p=particles[i];
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.life-=0.015;
+      if(p.life<=0){particles.splice(i,1);continue}
+      ctx.globalAlpha=p.life;
+      ctx.fillStyle=p.color;
+      if(p.star){
+        ctx.font=`${p.size*4}px serif`;
+        ctx.fillText('⭐',p.x,p.y);
+      }else{
+        ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();
+      }
+    }
+    ctx.globalAlpha=1;
+    if(particles.length>0) animFrame=requestAnimationFrame(animate);
+  }
+  animate();
+}
+
+function spawnCoinAnim(el){
+  if(!el) return;
+  const coin=document.createElement('div');
+  coin.className='coin-anim';
+  coin.textContent='🪙';
+  const rect=el.getBoundingClientRect();
+  coin.style.left=rect.left+rect.width/2-10+'px';
+  coin.style.top=rect.top+'px';
+  coin.style.position='fixed';
+  document.body.appendChild(coin);
+  setTimeout(()=>coin.remove(),800);
+}
+
+// ===== TIMER =====
+function startTimer(){
+  if(state.timerInterval) clearInterval(state.timerInterval);
+  state.timerSeconds=0;
+  state.timerInterval=setInterval(()=>{
+    if(!state.gameActive) return;
+    state.timerSeconds++;
+    const m=Math.floor(state.timerSeconds/60);
+    const s=state.timerSeconds%60;
+    document.getElementById('timer').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+  },1000);
+}
+
+// ===== TOP BAR =====
+function updateTopBar(){
+  document.getElementById('coin-count').textContent=state.coins;
+  document.getElementById('streak-count').textContent=stats.currentStreak;
+  const accuracy=stats.totalCorrect+stats.totalWrong>0?
+    Math.round(stats.totalCorrect/(stats.totalCorrect+stats.totalWrong)*100):100;
+  document.getElementById('accuracy-display').textContent=accuracy+'%';
+}
+
+// ===== WORD BANK =====
+G.toggleWordBank=function(){
+  document.getElementById('word-bank').classList.toggle('open');
+  renderWordBank();
+};
+
+let wbFilter='all';
+G.filterWB=function(f){
+  wbFilter=f;
+  document.querySelectorAll('#wb-filter .btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+  renderWordBank();
+};
+
+function renderWordBank(){
+  const container=document.getElementById('wb-entries');
+  container.innerHTML='';
+  const fill=document.getElementById('wb-mastery-fill');
+  fill.style.width=getTotalMastery()+'%';
+
+  const stageNum=getStage();
+  const categories=['numbers'];
+  if(stageNum>=2) categories.push('colors');
+  if(stageNum>=3) categories.push('animals','food','family');
+  if(stageNum>=4) categories.push('phrases','verbs');
+
+  for(const cat of categories){
+    const catEl=document.createElement('div');
+    catEl.className='wb-cat';
+    catEl.textContent=cat.toUpperCase();
+    container.appendChild(catEl);
+
+    for(const [spa,data] of Object.entries(VOCAB[cat])){
+      const m=getMastery(spa);
+      if(wbFilter==='mastered' && m.stars<5) continue;
+      if(wbFilter==='practice' && m.stars>=5) continue;
+
+      const entry=document.createElement('div');
+      entry.className='wb-entry';
+      entry.innerHTML=`
+        <span>${data.emoji||''}</span>
+        <span class="spa">${spa}</span>
+        <span class="eng">${data.en}</span>
+        <span class="stars">${getStarsStr(m.stars)}</span>
+      `;
+      entry.title=`Example: "Yo tengo ${spa}" (I have ${data.en})`;
+      container.appendChild(entry);
+    }
+  }
+}
+
+// ===== KEYBOARD =====
+document.addEventListener('keydown',e=>{
+  if(!state.gameActive) return;
+  if(document.getElementById('challenge-modal').classList.contains('show')) return;
+  if(state.studyActive) return;
+
+  const key=e.key;
+  if(key>='1' && key<='9'){
+    handleNumberInput(parseInt(key));
+  }else if(key==='Backspace'||key==='Delete'){
+    eraseCell();
+  }else if(key==='ArrowUp'||key==='ArrowDown'||key==='ArrowLeft'||key==='ArrowRight'){
+    e.preventDefault();
+    if(!state.selectedCell) state.selectedCell=[4,4];
+    let [r,c]=state.selectedCell;
+    if(key==='ArrowUp') r=Math.max(0,r-1);
+    if(key==='ArrowDown') r=Math.min(8,r+1);
+    if(key==='ArrowLeft') c=Math.max(0,c-1);
+    if(key==='ArrowRight') c=Math.min(8,c+1);
+    selectCell(r,c);
+  }else if(key==='n'||key==='N'){
+    G.toggleNotes();
+  }
+});
+
+// ===== PUBLIC METHODS =====
+G.newGame=function(diff){
+  diff=diff||'easy';
+  state.difficulty=diff;
+  state.coins=15;
+  state.undoStack=[];
+  state.selectedCell=null;
+  state.notesMode=false;
+  state.gameActive=true;
+  state.wordsThisGame=0;
+  state.challengeTarget=null;
+  state.studyActive=false;
+
+  document.getElementById('btn-notes').classList.remove('active');
+  document.querySelectorAll('#diff-row .btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+diff)?.classList.add('active');
+
+  // Generate puzzle
+  const {puzzle,solution}=generatePuzzle(diff);
+  state.puzzle=puzzle;
+  state.solution=solution;
+  state.board=puzzle.map(r=>[...r]);
+  state.given=puzzle.map(r=>r.map(v=>v));
+  state.pencil=Array.from({length:9},()=>Array.from({length:9},()=>new Set()));
+
+  startTimer();
+  updateTopBar();
+  renderGrid();
+  renderPalette();
+
+  // Close any open modals
+  document.getElementById('victory-modal').classList.remove('show');
+  document.getElementById('challenge-modal').classList.remove('show');
+  document.getElementById('study-overlay').classList.remove('show');
+
+  // Clear particles
+  particles.length=0;
+  const canvas=document.getElementById('particles-canvas');
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+};
+
+G.undo=function(){
+  if(!state.undoStack.length||!state.gameActive) return;
+  const action=state.undoStack.pop();
+  if(action.type==='place'){
+    state.board[action.row][action.col]=action.val;
+    state.pencil[action.row][action.col]=action.pencil;
+    Audio.click();
+    renderGrid();
+  }
+};
+
+G.toggleNotes=function(){
+  state.notesMode=!state.notesMode;
+  const btn=document.getElementById('btn-notes');
+  btn.classList.toggle('active',state.notesMode);
+  renderPalette();
+};
+
+G.checkErrors=function(){
+  if(!state.gameActive) return;
+  let errorCount=0;
+  for(let r=0;r<9;r++) for(let c=0;c<9;c++){
+    if(state.board[r][c] && !state.given[r][c]){
+      if(state.board[r][c]!==state.solution[r][c]){
+        errorCount++;
+        const cell=document.querySelector(`.cell[data-row="${r}"][data-col="${c}"]`);
+        if(cell){cell.classList.add('error','conflict-highlight');setTimeout(()=>cell.classList.remove('conflict-highlight'),2000)}
+      }
+    }
+  }
+  if(errorCount===0){
+    Audio.coin();
+    // Quick flash green
+    const grid=document.getElementById('sudoku-grid');
+    grid.style.boxShadow='0 0 20px var(--luigi-green)';
+    setTimeout(()=>grid.style.boxShadow='',1000);
+  }else{
+    Audio.wrong();
+  }
+};
+
+G.toggleEspanol=function(){
+  state.espanolMode=!state.espanolMode;
+  const btn=document.getElementById('btn-espanol');
+  btn.classList.toggle('active',state.espanolMode);
+  btn.textContent=state.espanolMode?'🌟 EN':'🌟 ES';
+  updateI18N();
+  renderGrid();
+  renderPalette();
+};
+
+G.showHelp=function(){
+  document.getElementById('help-modal').classList.add('show');
+};
+G.closeHelp=function(){
+  document.getElementById('help-modal').classList.remove('show');
+};
+G.closeVictory=function(){
+  document.getElementById('victory-modal').classList.remove('show');
+  G.newGame(state.difficulty);
+};
+
+// ===== INIT =====
+loadMastery();
+loadStats();
+G.newGame('easy');
+updateI18N();
+
+// Resize handler for canvas
+window.addEventListener('resize',()=>{
+  const canvas=document.getElementById('particles-canvas');
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+});
+</script>
+</body>
+</html>

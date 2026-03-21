@@ -22,6 +22,8 @@ const games = [
   { title: "SwirlyBrew: First Sip", subtitle: "Idle Drink Tycoon", icon: "🍹", href: "games/swirlybrew/v1.html", category: "Idle", added: 20 },
   { title: "SwirlyBrew: Golden Pour", subtitle: "Idle Drink Tycoon", icon: "🥂", href: "games/swirlybrew/v2.html", category: "Idle", added: 21 },
   { title: "SwirlyBrew: Grand Elixir", subtitle: "Idle Drink Tycoon", icon: "🧪", href: "games/swirlybrew/index.html", category: "Idle", added: 22 },
+  { title: "Mario's Spider Web", subtitle: "Spanish Solitaire", icon: "🕷️", href: "games/mario-spider-solitaire/index.html", category: "Educational", added: 23 },
+  { title: "Mario's Number Kingdom", subtitle: "Spanish Sudoku", icon: "🔢", href: "games/mario-sudoku/index.html", category: "Educational", added: 24 },
 ];
 
 const grid = document.getElementById('game-grid');

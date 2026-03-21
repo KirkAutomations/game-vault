@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Mario's Spider Web ⭐</title>
+<style>
+/* ============ RESET & BASE ============ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --mario-red:#E52521;--luigi-green:#43B047;--coin-gold:#F5C722;
+  --sky-blue:#5C94FC;--brick-brown:#C84C0C;--dark-brown:#7A3A0A;
+  --pipe-green:#3CB043;--pipe-dark:#2D8A2E;--star-yellow:#FFD700;
+  --bg-sky:#5C94FC;--bg-sky2:#A0C4FF;
+  --card-w:min(9vw,80px);--card-h:min(13vw,115px);
+  --card-radius:6px;--card-gap:2px;
+  --font-pixel:'Segoe UI',Tahoma,sans-serif;
+}
+html,body{
+  width:100%;height:100%;overflow:hidden;
+  font-family:var(--font-pixel);
+  background:linear-gradient(180deg,var(--bg-sky) 0%,var(--bg-sky2) 60%,#90EE90 60%,#43B047 100%);
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  user-select:none;-webkit-user-select:none;
+}
+
+/* ============ CLOUDS ============ */
+.cloud{position:fixed;color:rgba(255,255,255,0.85);font-size:3rem;z-index:0;animation:cloudFloat linear infinite;pointer-events:none}
+@keyframes cloudFloat{0%{transform:translateX(110vw)}100%{transform:translateX(-20vw)}}
+
+/* ============ PIPES ============ */
+.pipe{position:fixed;bottom:0;width:50px;z-index:0;pointer-events:none}
+.pipe-body{width:100%;height:60px;background:var(--pipe-green);border:3px solid var(--pipe-dark);border-radius:4px 4px 0 0}
+.pipe-top{width:60px;height:20px;background:var(--pipe-green);border:3px solid var(--pipe-dark);border-radius:4px 4px 0 0;margin-left:-5px}
+
+/* ============ TOP BAR ============ */
+#topBar{
+  position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between;
+  background:linear-gradient(180deg,var(--brick-brown),var(--dark-brown));
+  padding:4px 8px;color:white;flex-wrap:wrap;gap:4px;min-height:44px;
+  border-bottom:3px solid #5A2D0C;
+  box-shadow:0 2px 8px rgba(0,0,0,0.3);
+}
+#topBar .title{font-size:1.1rem;font-weight:bold;text-shadow:2px 2px 0 rgba(0,0,0,0.4);letter-spacing:1px}
+.stat{display:flex;align-items:center;gap:3px;font-size:0.85rem;font-weight:bold;white-space:nowrap}
+.stat .emoji{font-size:1.1rem}
+.btn{
+  background:var(--coin-gold);color:#333;border:2px solid #C8A200;border-radius:6px;
+  padding:4px 10px;font-weight:bold;font-size:0.8rem;cursor:pointer;
+  text-shadow:none;box-shadow:0 2px 0 #B8960A;
+  transition:transform 0.1s,box-shadow 0.1s;
+}
+.btn:active{transform:translateY(2px);box-shadow:none}
+.btn-red{background:var(--mario-red);color:white;border-color:#B01E1E;box-shadow:0 2px 0 #8A1818}
+.btn-green{background:var(--luigi-green);color:white;border-color:#2D8A2E;box-shadow:0 2px 0 #1E6B1F}
+
+/* ============ PROGRESS BAR ============ */
+#progressWrap{
+  width:100%;height:14px;background:#3A2005;border-radius:7px;overflow:hidden;
+  border:1px solid #5A2D0C;margin:2px 0;
+}
+#progressBar{height:100%;background:linear-gradient(90deg,var(--coin-gold),#FFE066);border-radius:7px;transition:width 0.5s;width:0%}
+#progressLabel{font-size:0.65rem;color:#FFE066;text-align:center;margin-top:1px}
+
+/* ============ GAME AREA ============ */
+#gameArea{
+  position:relative;z-index:5;display:flex;flex-direction:column;
+  height:calc(100vh - 80px);padding:4px;overflow:hidden;
+}
+#columns{
+  display:flex;gap:var(--card-gap);flex:1;justify-content:center;
+  padding:0 2px;overflow:hidden;
+}
+.column{
+  flex:1;max-width:calc(var(--card-w) + 8px);min-width:30px;
+  position:relative;min-height:100px;
+  border-radius:var(--card-radius);
+  background:rgba(0,0,0,0.08);
+  padding:2px;
+}
+.column.highlight{background:rgba(67,176,71,0.35);box-shadow:0 0 8px var(--luigi-green)}
+.column.selected-col{background:rgba(92,148,252,0.3)}
+
+/* ============ CARDS ============ */
+.card{
+  width:100%;aspect-ratio:5/7;border-radius:var(--card-radius);
+  position:relative;cursor:pointer;
+  transition:transform 0.15s,box-shadow 0.15s,margin-top 0.15s;
+  margin-top:-75%;
+  box-shadow:1px 1px 3px rgba(0,0,0,0.3);
+  font-size:clamp(0.7rem,2vw,1rem);
+}
+.card:first-child{margin-top:0}
+.card.face-down .card-inner{
+  background:linear-gradient(135deg,var(--coin-gold),#FFE066);
+  border:2px solid #C8A200;display:flex;align-items:center;justify-content:center;
+  border-radius:var(--card-radius);width:100%;height:100%;
+  box-shadow:inset 0 0 10px rgba(200,160,0,0.5);
+}
+.card.face-down .q-mark{
+  font-size:clamp(1.2rem,4vw,2.2rem);font-weight:900;color:var(--brick-brown);
+  text-shadow:1px 1px 0 rgba(0,0,0,0.2);
+}
+.card.face-up .card-inner{
+  background:white;border:2px solid #ccc;border-radius:var(--card-radius);
+  width:100%;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:2px;
+  position:relative;
+}
+.card.face-up .card-rank{font-weight:bold;color:#333;font-size:clamp(0.8rem,2.5vw,1.3rem)}
+.card.face-up .card-suit{font-size:clamp(1rem,3vw,1.8rem)}
+.card.face-up .card-corner{
+  position:absolute;font-size:clamp(0.5rem,1.5vw,0.7rem);
+  font-weight:bold;color:#333;line-height:1;
+}
+.card.face-up .corner-tl{top:2px;left:3px}
+.card.face-up .corner-br{bottom:2px;right:3px;transform:rotate(180deg)}
+.card.selected{
+  transform:translateY(-6px);
+  box-shadow:0 4px 12px rgba(229,37,33,0.5);
+  outline:3px solid var(--mario-red);
+  z-index:50;
+}
+.card.drag-ghost{
+  position:fixed;z-index:1000;pointer-events:none;opacity:0.9;
+  width:var(--card-w);
+}
+.card-flip{animation:cardFlip 0.4s ease}
+@keyframes cardFlip{
+  0%{transform:scaleX(1)}50%{transform:scaleX(0)}100%{transform:scaleX(1)}
+}
+
+/* ============ STOCK PILE ============ */
+#stockArea{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:4px 8px;min-height:44px;
+}
+#stockPile{
+  width:var(--card-w);aspect-ratio:5/7;border-radius:var(--card-radius);
+  background:linear-gradient(135deg,var(--coin-gold),#FFE066);
+  border:3px solid #C8A200;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:clamp(1.2rem,4vw,2rem);font-weight:900;
+  color:var(--brick-brown);box-shadow:2px 2px 6px rgba(0,0,0,0.3);
+  transition:transform 0.15s;position:relative;
+}
+#stockPile:active{transform:scale(0.95)}
+#stockPile.empty{opacity:0.3;cursor:default}
+#stockCount{
+  position:absolute;bottom:-2px;right:-2px;background:var(--mario-red);
+  color:white;font-size:0.6rem;padding:1px 4px;border-radius:8px;
+  border:1px solid white;
+}
+#completedArea{display:flex;gap:4px;align-items:center}
+.completed-seq{
+  width:calc(var(--card-w)*0.7);aspect-ratio:5/7;border-radius:var(--card-radius);
+  background:linear-gradient(135deg,var(--luigi-green),#66DD66);
+  border:2px solid #2D8A2E;display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;box-shadow:1px 1px 4px rgba(0,0,0,0.3);
+  animation:seqPop 0.5s ease;
+}
+@keyframes seqPop{0%{transform:scale(0)}60%{transform:scale(1.2)}100%{transform:scale(1)}}
+
+/* ============ WORD BANK SIDEBAR ============ */
+#wordBankToggle{
+  position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:200;
+  background:var(--coin-gold);border:2px solid #C8A200;
+  border-right:none;border-radius:8px 0 0 8px;
+  padding:8px 4px;cursor:pointer;font-size:1.2rem;
+  box-shadow:-2px 2px 6px rgba(0,0,0,0.2);
+  writing-mode:vertical-rl;text-orientation:mixed;
+  font-weight:bold;color:var(--brick-brown);
+}
+#wordBank{
+  position:fixed;right:-320px;top:0;width:300px;height:100%;z-index:190;
+  background:rgba(58,32,5,0.97);color:white;overflow-y:auto;
+  transition:right 0.3s ease;padding:8px;padding-top:50px;
+  border-left:3px solid var(--coin-gold);
+}
+#wordBank.open{right:0}
+#wordBank h3{color:var(--coin-gold);margin:10px 0 5px;font-size:0.9rem;border-bottom:1px solid #5A2D0C;padding-bottom:3px}
+.wb-word{
+  display:flex;align-items:center;gap:6px;padding:4px;
+  border-radius:4px;font-size:0.8rem;cursor:pointer;
+  transition:background 0.2s;
+}
+.wb-word:hover{background:rgba(255,255,255,0.1)}
+.wb-emoji{font-size:1rem;width:22px;text-align:center}
+.wb-text{flex:1}
+.wb-text .es{color:var(--coin-gold);font-weight:bold}
+.wb-text .en{color:#ccc;font-size:0.7rem}
+.wb-stars{color:var(--star-yellow);font-size:0.7rem;white-space:nowrap}
+#wordBankClose{
+  position:absolute;top:8px;right:8px;background:var(--mario-red);
+  color:white;border:none;border-radius:50%;width:28px;height:28px;
+  cursor:pointer;font-size:1rem;font-weight:bold;
+}
+
+/* ============ MODALS ============ */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;
+  display:flex;align-items:center;justify-content:center;
+  opacity:0;pointer-events:none;transition:opacity 0.3s;
+  padding:10px;
+}
+.modal-overlay.show{opacity:1;pointer-events:auto}
+.modal{
+  background:linear-gradient(180deg,#FFF8E1,#FFF3C4);
+  border:4px solid var(--coin-gold);border-radius:12px;
+  padding:20px;max-width:420px;width:100%;
+  box-shadow:0 8px 32px rgba(0,0,0,0.4),inset 0 0 20px rgba(255,215,0,0.1);
+  text-align:center;position:relative;
+  animation:modalBounce 0.4s ease;
+  max-height:90vh;overflow-y:auto;
+}
+@keyframes modalBounce{
+  0%{transform:scale(0.5) translateY(-30px);opacity:0}
+  60%{transform:scale(1.05);opacity:1}
+  100%{transform:scale(1)}
+}
+.modal h2{color:var(--brick-brown);font-size:1.3rem;margin-bottom:10px;text-shadow:1px 1px 0 rgba(0,0,0,0.1)}
+.modal p{color:#555;font-size:0.95rem;margin:8px 0;line-height:1.4}
+
+/* ============ CHALLENGE MODAL ============ */
+#challengeModal .q-block{
+  background:linear-gradient(135deg,var(--coin-gold),#FFE066);
+  border:3px solid #C8A200;border-radius:10px;padding:15px;margin:10px 0;
+  animation:qBlockBounce 0.5s ease;position:relative;
+  box-shadow:0 4px 0 #B8960A;
+}
+@keyframes qBlockBounce{
+  0%{transform:translateY(20px)}
+  40%{transform:translateY(-10px)}
+  70%{transform:translateY(3px)}
+  100%{transform:translateY(0)}
+}
+.q-block .question{font-size:1.1rem;font-weight:bold;color:var(--brick-brown);margin:8px 0}
+.q-block .q-emoji{font-size:2.5rem;display:block;margin:5px 0}
+.color-swatch{
+  width:60px;height:60px;border-radius:8px;margin:8px auto;
+  border:3px solid #333;box-shadow:0 2px 6px rgba(0,0,0,0.3);
+}
+.choices{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.choice-btn{
+  background:white;border:3px solid #ddd;border-radius:8px;
+  padding:12px 8px;font-size:1rem;font-weight:bold;cursor:pointer;
+  transition:all 0.15s;color:#333;min-height:48px;
+}
+.choice-btn:hover{border-color:var(--sky-blue);background:#E8F4FF}
+.choice-btn:active{transform:scale(0.95)}
+.choice-btn.correct{background:#C8F7C8;border-color:var(--luigi-green);animation:correctPulse 0.5s}
+.choice-btn.wrong{background:#FFD0D0;border-color:var(--mario-red);animation:wrongShake 0.4s}
+@keyframes correctPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.challenge-result{
+  margin-top:10px;padding:10px;border-radius:8px;font-weight:bold;
+  font-size:0.95rem;display:none;
+}
+.challenge-result.show{display:block;animation:resultFade 0.3s}
+@keyframes resultFade{0%{opacity:0;transform:translateY(-5px)}100%{opacity:1;transform:translateY(0)}}
+.result-correct{background:#C8F7C8;color:#1A6B1A}
+.result-wrong{background:#FFD0D0;color:#B01E1E}
+.power-star-badge{
+  display:inline-block;background:linear-gradient(135deg,var(--star-yellow),#FFA500);
+  border-radius:50%;width:32px;height:32px;line-height:32px;
+  font-size:1.2rem;margin:4px;animation:starSpin 1s linear infinite;
+}
+@keyframes starSpin{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}
+
+/* ============ PHILOSOPHY MODAL ============ */
+#philosophyModal .modal{
+  border-color:var(--star-yellow);
+  background:linear-gradient(180deg,#1A0A30,#2D1B69);
+  color:white;
+}
+#philosophyModal .phil-text{
+  font-size:1rem;line-height:1.6;color:#E8E0FF;
+  padding:15px;background:rgba(255,255,255,0.08);
+  border-radius:8px;margin:10px 0;
+}
+#philosophyModal h2{color:var(--star-yellow)}
+
+/* ============ REVIEW MODAL ============ */
+#reviewModal .review-list{text-align:left;max-height:300px;overflow-y:auto}
+.review-item{
+  display:flex;align-items:center;gap:8px;padding:6px;
+  border-bottom:1px solid #eee;font-size:0.9rem;
+}
+.review-item .ri-emoji{font-size:1.3rem}
+.review-item .ri-correct{color:var(--luigi-green);font-weight:bold}
+
+/* ============ HOW TO PLAY MODAL ============ */
+#helpModal .modal{max-width:500px;text-align:left;font-size:0.85rem}
+#helpModal h3{color:var(--mario-red);margin:10px 0 5px}
+#helpModal ul{margin-left:18px;margin-bottom:8px}
+#helpModal li{margin:3px 0;color:#555}
+
+/* ============ WIN MODAL ============ */
+#winModal .modal{
+  border-color:var(--star-yellow);
+  background:linear-gradient(180deg,#1A0A30,#2D1B69);
+  color:white;
+}
+#winModal h2{color:var(--star-yellow);font-size:1.6rem}
+#winModal .win-stats{
+  display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:15px 0;
+}
+.win-stat{background:rgba(255,255,255,0.1);border-radius:8px;padding:10px}
+.win-stat .ws-val{font-size:1.5rem;font-weight:bold;color:var(--coin-gold)}
+.win-stat .ws-label{font-size:0.75rem;color:#aaa}
+
+/* ============ STAR PARTICLES ============ */
+.star-particle{
+  position:fixed;pointer-events:none;z-index:600;font-size:1.5rem;
+  animation:starFly 1s ease-out forwards;
+}
+@keyframes starFly{
+  0%{opacity:1;transform:translate(0,0) scale(1) rotate(0deg)}
+  100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(0.3) rotate(720deg)}
+}
+
+/* ============ COIN ANIMATION ============ */
+.coin-anim{
+  position:fixed;pointer-events:none;z-index:600;font-size:1.5rem;
+  animation:coinUp 0.8s ease-out forwards;
+}
+@keyframes coinUp{
+  0%{opacity:1;transform:translateY(0)}
+  100%{opacity:0;transform:translateY(-60px)}
+}
+
+/* ============ RESPONSIVE ============ */
+@media(max-width:600px){
+  :root{--card-w:9vw;--card-h:13vw}
+  .card{margin-top:-78%}
+  #topBar{padding:3px 5px}
+  .stat{font-size:0.7rem}
+  .btn{padding:3px 6px;font-size:0.7rem}
+  .modal{padding:14px;max-width:95vw}
+  #wordBank{width:260px}
+}
+@media(min-width:1024px){
+  :root{--card-w:75px;--card-h:108px}
+  .card{margin-top:-72%}
+}
+</style>
+</head>
+<body>
+
+<!-- CLOUDS -->
+<div class="cloud" style="top:5%;font-size:3rem;animation-duration:25s;animation-delay:-5s">☁️</div>
+<div class="cloud" style="top:12%;font-size:2.5rem;animation-duration:35s;animation-delay:-15s">☁️</div>
+<div class="cloud" style="top:8%;font-size:4rem;animation-duration:30s;animation-delay:-22s">☁️</div>
+<div class="cloud" style="top:18%;font-size:2rem;animation-duration:40s;animation-delay:-8s">☁️</div>
+
+<!-- PIPES -->
+<div class="pipe" style="left:5%"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+<div class="pipe" style="left:50%"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+<div class="pipe" style="left:90%"><div class="pipe-top"></div><div class="pipe-body"></div></div>
+
+<!-- TOP BAR -->
+<div id="topBar">
+  <div class="title">🎮 Mario's Spider Web ⭐</div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="stat"><span class="emoji">🪙</span><span id="coinCount">10</span></div>
+    <div class="stat"><span class="emoji">🔥</span><span id="streakCount">0</span></div>
+    <div class="stat"><span class="emoji">⭐</span><span id="starCount">0</span></div>
+    <div class="stat"><span class="emoji">👆</span><span id="moveCount">0</span></div>
+    <div class="stat"><span class="emoji">⏱️</span><span id="timer">0:00</span></div>
+  </div>
+  <div style="display:flex;gap:4px;flex-wrap:wrap">
+    <button class="btn btn-green" onclick="showHelp()">❓</button>
+    <button class="btn" onclick="giveHint()">💡</button>
+    <button class="btn" onclick="undoMove()">↩️</button>
+    <button class="btn btn-red" onclick="confirmNewGame()">🆕</button>
+  </div>
+  <div style="width:100%">
+    <div id="progressWrap"><div id="progressBar"></div></div>
+    <div id="progressLabel">Words Mastered: 0 / 0</div>
+  </div>
+</div>
+
+<!-- GAME AREA -->
+<div id="gameArea">
+  <div id="columns"></div>
+  <div id="stockArea">
+    <div id="stockPile" onclick="dealFromStock()">?<span id="stockCount">50</span></div>
+    <div id="completedArea"></div>
+  </div>
+</div>
+
+<!-- WORD BANK -->
+<div id="wordBankToggle" onclick="toggleWordBank()">📖 Words</div>
+<div id="wordBank">
+  <button id="wordBankClose" onclick="toggleWordBank()">✕</button>
+  <h2 style="color:var(--coin-gold);font-size:1rem;margin-bottom:8px">📖 Word Bank</h2>
+  <div id="wordBankContent"></div>
+</div>
+
+<!-- CHALLENGE MODAL -->
+<div id="challengeModal" class="modal-overlay">
+  <div class="modal">
+    <h2>❓ Block Challenge!</h2>
+    <div class="q-block">
+      <div id="challengeEmoji" class="q-emoji"></div>
+      <div id="challengeColorSwatch" class="color-swatch" style="display:none"></div>
+      <div id="challengeQuestion" class="question"></div>
+    </div>
+    <div id="challengeChoices" class="choices"></div>
+    <div id="challengeResult" class="challenge-result"></div>
+  </div>
+</div>
+
+<!-- PHILOSOPHY MODAL -->
+<div id="philosophyModal" class="modal-overlay">
+  <div class="modal">
+    <h2>🌟 Power Star Wisdom! 🌟</h2>
+    <div id="philosophyText" class="phil-text"></div>
+    <button class="btn btn-green" onclick="closePhilosophy()" style="margin-top:12px;font-size:1rem;padding:10px 24px">Cool! 🌟</button>
+  </div>
+</div>
+
+<!-- REVIEW MODAL -->
+<div id="reviewModal" class="modal-overlay">
+  <div class="modal">
+    <h2>📚 Study Review! 🍄</h2>
+    <p>You ran out of coins! Let's review the words you missed:</p>
+    <div id="reviewList" class="review-list"></div>
+    <p style="margin-top:10px">Here are <b>3 coins</b> to keep playing! 🪙🪙🪙</p>
+    <button class="btn btn-green" onclick="closeReview()" style="margin-top:10px;font-size:1rem;padding:10px 24px">Got it! 💪</button>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div id="helpModal" class="modal-overlay">
+  <div class="modal">
+    <h2>🎮 How to Play / Cómo Jugar</h2>
+    <h3>🃏 Spider Solitaire Rules</h3>
+    <ul>
+      <li>Build columns of cards in <b>descending order</b> (K, Q, J, 10, 9... A)</li>
+      <li><b>Tap</b> a card to select, then <b>tap</b> where to move it (or <b>drag</b>!)</li>
+      <li>Complete a K→A sequence to clear it! Do this 8 times to win 🏆</li>
+      <li>Tap the <b>? stock pile</b> to deal 10 new cards (all columns must have cards)</li>
+      <li>Only face-up cards in descending order can move together</li>
+    </ul>
+    <h3>🧠 Spanish Challenges / Desafíos en Español</h3>
+    <ul>
+      <li>Every move requires answering a <b>Spanish question</b>! 🇪🇸</li>
+      <li><b>Correct</b> ✅ = Move executes + earn a coin</li>
+      <li><b>Wrong</b> ❌ = See the answer, move denied, lose a coin</li>
+      <li>Get <b>5 in a row</b> = earn a ⭐ <b>Power Star</b> (free move!)</li>
+      <li>Words get harder as you play — you'll learn <b>numbers, colors, animals, food, family,</b> and <b>common phrases!</b></li>
+    </ul>
+    <h3>🌟 Tips / Consejos</h3>
+    <ul>
+      <li>Check your <b>📖 Word Bank</b> to review learned words</li>
+      <li>Master a word (3 correct) to earn a ⭐ on it!</li>
+      <li>Completing sequences reveals <b>philosophy wisdom!</b> 🏛️</li>
+    </ul>
+    <div style="text-align:center;margin-top:12px">
+      <button class="btn btn-green" onclick="closeHelp()" style="font-size:1rem;padding:10px 24px">Let's Play! 🎮</button>
+    </div>
+  </div>
+</div>
+
+<!-- WIN MODAL -->
+<div id="winModal" class="modal-overlay">
+  <div class="modal">
+    <h2>🏆 YOU WIN! 🏆</h2>
+    <p>🎮 Mama Mia! You cleared all 8 sequences! 🍄⭐🔥</p>
+    <div id="winStats" class="win-stats"></div>
+    <button class="btn btn-green" onclick="newGame()" style="margin-top:12px;font-size:1.1rem;padding:12px 28px">Play Again! 🎮</button>
+  </div>
+</div>
+
+<script>
+// ============ AUDIO ENGINE ============
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function ensureAudio(){if(!audioCtx)audioCtx=new AudioCtx()}
+function playTone(freq,dur,type='square',vol=0.15){
+  ensureAudio();
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+  o.type=type;o.frequency.value=freq;
+  g.gain.setValueAtTime(vol,audioCtx.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);
+  o.connect(g);g.connect(audioCtx.destination);
+  o.start();o.stop(audioCtx.currentTime+dur);
+}
+function sfxCoin(){playTone(988,0.1);setTimeout(()=>playTone(1319,0.15),100)}
+function sfxWrong(){playTone(200,0.15,'sawtooth',0.12);setTimeout(()=>playTone(150,0.2,'sawtooth',0.1),150)}
+function sfxFanfare(){
+  [0,150,300,450,600].forEach((d,i)=>{
+    setTimeout(()=>playTone([523,659,784,1047,1319][i],0.2,'square',0.12),d);
+  });
+}
+function sfxDeal(){playTone(440,0.08);setTimeout(()=>playTone(550,0.08),80)}
+function sfxSelect(){playTone(660,0.06,'square',0.08)}
+function sfxStar(){
+  [0,100,200,300,400,500].forEach((d,i)=>{
+    setTimeout(()=>playTone([784,880,988,1047,1175,1319][i],0.15,'sine',0.1),d);
+  });
+}
+
+// ============ VOCABULARY DATA ============
+const VOCAB = {
+  numbers: [
+    {es:'uno',en:'one',emoji:'1️⃣',val:1},{es:'dos',en:'two',emoji:'2️⃣',val:2},
+    {es:'tres',en:'three',emoji:'3️⃣',val:3},{es:'cuatro',en:'four',emoji:'4️⃣',val:4},
+    {es:'cinco',en:'five',emoji:'5️⃣',val:5},{es:'seis',en:'six',emoji:'6️⃣',val:6},
+    {es:'siete',en:'seven',emoji:'7️⃣',val:7},{es:'ocho',en:'eight',emoji:'8️⃣',val:8},
+    {es:'nueve',en:'nine',emoji:'9️⃣',val:9},{es:'diez',en:'ten',emoji:'🔟',val:10}
+  ],
+  colors: [
+    {es:'rojo',en:'red',emoji:'🔴',color:'#E52521'},{es:'azul',en:'blue',emoji:'🔵',color:'#2255DD'},
+    {es:'verde',en:'green',emoji:'🟢',color:'#43B047'},{es:'amarillo',en:'yellow',emoji:'🟡',color:'#F5C722'},
+    {es:'negro',en:'black',emoji:'⚫',color:'#222222'},{es:'blanco',en:'white',emoji:'⚪',color:'#FFFFFF'}
+  ],
+  animals: [
+    {es:'perro',en:'dog',emoji:'🐕'},{es:'gato',en:'cat',emoji:'🐱'},
+    {es:'pez',en:'fish',emoji:'🐟'},{es:'pájaro',en:'bird',emoji:'🐦'},
+    {es:'mariposa',en:'butterfly',emoji:'🦋'},{es:'tortuga',en:'turtle',emoji:'🐢'},
+    {es:'conejo',en:'rabbit',emoji:'🐰'},{es:'oso',en:'bear',emoji:'🐻'},
+    {es:'león',en:'lion',emoji:'🦁'},{es:'ratón',en:'mouse',emoji:'🐭'}
+  ],
+  food: [
+    {es:'manzana',en:'apple',emoji:'🍎'},{es:'plátano',en:'banana',emoji:'🍌'},
+    {es:'leche',en:'milk',emoji:'🥛'},{es:'agua',en:'water',emoji:'💧'},
+    {es:'pan',en:'bread',emoji:'🍞'},{es:'queso',en:'cheese',emoji:'🧀'},
+    {es:'huevo',en:'egg',emoji:'🥚'},{es:'arroz',en:'rice',emoji:'🍚'},
+    {es:'pollo',en:'chicken',emoji:'🍗'},{es:'naranja',en:'orange',emoji:'🍊'}
+  ],
+  family: [
+    {es:'mamá',en:'mom',emoji:'👩'},{es:'papá',en:'dad',emoji:'👨'},
+    {es:'hermano',en:'brother',emoji:'👦'},{es:'hermana',en:'sister',emoji:'👧'},
+    {es:'abuelo',en:'grandpa',emoji:'👴'},{es:'abuela',en:'grandma',emoji:'👵'},
+    {es:'hijo',en:'son',emoji:'👦'},{es:'hija',en:'daughter',emoji:'👧'},
+    {es:'tío',en:'uncle',emoji:'👨'},{es:'tía',en:'aunt',emoji:'👩'},
+    {es:'primo',en:'cousin',emoji:'🧒'}
+  ],
+  phrases: [
+    {es:'buenos días',en:'good morning',emoji:'🌅'},
+    {es:'buenas noches',en:'good night',emoji:'🌙'},
+    {es:'por favor',en:'please',emoji:'🙏'},
+    {es:'gracias',en:'thank you',emoji:'😊'},
+    {es:'de nada',en:'you\'re welcome',emoji:'👍'},
+    {es:'lo siento',en:'I\'m sorry',emoji:'😔'},
+    {es:'con permiso',en:'excuse me',emoji:'🚶'},
+    {es:'¿cómo estás?',en:'how are you?',emoji:'👋'},
+    {es:'me llamo',en:'my name is',emoji:'🏷️'},
+    {es:'tengo hambre',en:'I\'m hungry',emoji:'🍽️'}
+  ]
+};
+
+const FILL_BLANKS = [
+  {sentence:'El ___ es rojo',hint:'The ___ is red',answer:'tomate',options:['tomate','cielo','hierba','mar'],emoji:'🍅'},
+  {sentence:'La ___ es amarilla',hint:'The ___ is yellow',answer:'banana',options:['banana','manzana','uva','fresa'],emoji:'🍌'},
+  {sentence:'El ___ es grande',hint:'The ___ is big',answer:'oso',options:['oso','ratón','pez','pájaro'],emoji:'🐻'},
+  {sentence:'La ___ tiene alas',hint:'The ___ has wings',answer:'mariposa',options:['mariposa','tortuga','pez','conejo'],emoji:'🦋'},
+  {sentence:'El ___ da leche',hint:'The ___ gives milk',answer:'vaca',options:['vaca','gato','perro','pez'],emoji:'🐄'},
+  {sentence:'Yo bebo ___',hint:'I drink ___',answer:'agua',options:['agua','pan','arroz','queso'],emoji:'💧'},
+  {sentence:'Me gusta el ___',hint:'I like ___',answer:'queso',options:['queso','cielo','sol','mar'],emoji:'🧀'},
+  {sentence:'El ___ es mi amigo',hint:'The ___ is my friend',answer:'perro',options:['perro','sol','cielo','pan'],emoji:'🐕'}
+];
+
+const PHILOSOPHY = [
+  "⭐ Callicles told Socrates: 'The strong should live boldly!' He believed people should follow their true nature, not just follow rules because everyone else does. What do YOU think — should you always follow the rules?",
+  "🍄 Socrates asked: 'Is it better to do wrong, or to have wrong done to you?' He thought doing wrong hurts YOUR soul more than anything. Even if nobody catches you!",
+  "🔥 In Plato's book 'The Gorgias,' Callicles and Socrates had a BIG debate. Callicles said: strong people deserve more. Socrates said: wise people deserve respect. Who's right?",
+  "🏰 In the real world, countries sometimes act like Callicles — the strongest countries make the rules. This idea is called 'Realism.' Is that fair? What would Socrates say?",
+  "⭐ Socrates believed that self-control is the REAL superpower. Not muscles, not money — but being the boss of yourself. Like Mario choosing NOT to stomp every Goomba!",
+  "🌟 Callicles believed nature gives some people more talent, and they should USE it fully. Like how Mario is naturally brave — should he hide that?",
+  "💫 Countries protect themselves first — just like you'd protect your family first. Realists say that's not selfish, that's just how the world works.",
+  "🎮 2,400 years ago, Plato wrote conversations between smart people arguing about BIG ideas. We STILL argue about the same things today. That's pretty cool!"
+];
+
+// ============ GAME STATE ============
+let G = {
+  columns: [],       // array of 10 arrays of {rank,faceUp}
+  stock: [],         // remaining stock cards
+  completed: 0,      // sequences completed
+  moves: 0,          // total attempted moves (for level calc)
+  moveCount: 0,      // displayed moves
+  coins: 10,
+  streak: 0,
+  stars: 0,          // power stars (free moves)
+  selected: null,    // {col, cardIdx}
+  undoStack: [],
+  timerStart: null,
+  timerInterval: null,
+  timerSeconds: 0,
+  philosophyIdx: 0,
+  missedWords: [],   // for review
+  dragState: null,
+};
+
+// Word mastery: loaded from localStorage
+let mastery = {}; // key "cat:es" -> {correct:0, streak:0, mastered:false, encountered:true}
+
+function loadMastery(){
+  try{const d=localStorage.getItem('marioSpiderMastery');if(d)mastery=JSON.parse(d)}catch(e){}
+}
+function saveMastery(){
+  try{localStorage.setItem('marioSpiderMastery',JSON.stringify(mastery))}catch(e){}
+}
+function getMastery(cat,es){
+  const k=cat+':'+es;
+  if(!mastery[k])mastery[k]={correct:0,streak:0,mastered:false,encountered:false};
+  return mastery[k];
+}
+function markEncountered(cat,es){
+  const m=getMastery(cat,es);m.encountered=true;saveMastery();
+}
+function markCorrect(cat,es){
+  const m=getMastery(cat,es);m.correct++;m.streak++;
+  if(m.streak>=3)m.mastered=true;
+  saveMastery();
+}
+function markWrong(cat,es){
+  const m=getMastery(cat,es);m.streak=0;m.mastered=false;saveMastery();
+}
+
+// ============ CARD RANKS ============
+const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+const RANK_NAMES = {A:'Ace',2:'2',3:'3',4:'4',5:'5',6:'6',7:'7',8:'8',9:'9',10:'10',J:'Jack',Q:'Queen',K:'King'};
+function rankVal(r){return RANKS.indexOf(r)}
+
+// ============ DECK & DEAL ============
+function createDeck(){
+  let deck=[];
+  for(let d=0;d<8;d++) // 8 suits of 13 = 104
+    for(let r=0;r<13;r++)
+      deck.push({rank:RANKS[r],faceUp:false});
+  return shuffle(deck);
+}
+function shuffle(arr){
+  for(let i=arr.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [arr[i],arr[j]]=[arr[j],arr[i]];
+  }
+  return arr;
+}
+
+function newGame(){
+  closeAllModals();
+  if(G.timerInterval)clearInterval(G.timerInterval);
+  
+  const deck=createDeck();
+  G.columns=[];G.stock=[];G.completed=0;G.moves=0;G.moveCount=0;
+  G.coins=10;G.streak=0;G.stars=0;G.selected=null;G.undoStack=[];
+  G.timerSeconds=0;G.timerStart=Date.now();G.missedWords=[];G.dragState=null;
+  
+  // Deal: first 4 cols get 6, last 6 get 5, top card face-up
+  let idx=0;
+  for(let c=0;c<10;c++){
+    const count=c<4?6:5;
+    const col=[];
+    for(let i=0;i<count;i++){
+      const card=deck[idx++];
+      card.faceUp=(i===count-1);
+      col.push(card);
+    }
+    G.columns.push(col);
+  }
+  // Remaining 50 go to stock
+  G.stock=deck.slice(idx);
+  
+  G.timerInterval=setInterval(updateTimer,1000);
+  render();
+  updateStats();
+}
+
+function confirmNewGame(){
+  if(G.moves>3){
+    if(confirm('Start a new game? Current progress will be lost!'))newGame();
+  } else newGame();
+}
+
+// ============ RENDERING ============
+function render(){
+  const colsEl=document.getElementById('columns');
+  colsEl.innerHTML='';
+  
+  for(let c=0;c<10;c++){
+    const colDiv=document.createElement('div');
+    colDiv.className='column';
+    colDiv.dataset.col=c;
+    
+    if(G.columns[c].length===0){
+      // Empty column placeholder
+      colDiv.style.minHeight='40px';
+    }
+    
+    G.columns[c].forEach((card,i)=>{
+      const cardDiv=document.createElement('div');
+      cardDiv.className='card '+(card.faceUp?'face-up':'face-down');
+      cardDiv.dataset.col=c;
+      cardDiv.dataset.idx=i;
+      
+      if(G.selected && G.selected.col===c && i>=G.selected.cardIdx){
+        cardDiv.classList.add('selected');
+      }
+      
+      const inner=document.createElement('div');
+      inner.className='card-inner';
+      
+      if(card.faceUp){
+        inner.innerHTML=`
+          <span class="card-corner corner-tl">${card.rank}<br>♠</span>
+          <span class="card-rank">${card.rank}</span>
+          <span class="card-suit">♠</span>
+          <span class="card-corner corner-br">${card.rank}<br>♠</span>
+        `;
+      } else {
+        inner.innerHTML='<span class="q-mark">?</span>';
+      }
+      
+      cardDiv.appendChild(inner);
+      
+      // Events
+      if(card.faceUp){
+        cardDiv.addEventListener('pointerdown',(e)=>onCardPointerDown(e,c,i));
+        cardDiv.addEventListener('click',(e)=>onCardClick(e,c,i));
+      }
+      
+      colDiv.appendChild(cardDiv);
+    });
+    
+    // Click on empty column
+    colDiv.addEventListener('click',(e)=>{
+      if(e.target===colDiv || e.target.closest('.card')===null){
+        onColumnClick(c);
+      }
+    });
+    
+    colsEl.appendChild(colDiv);
+  }
+  
+  // Stock
+  const stockEl=document.getElementById('stockPile');
+  stockEl.className=G.stock.length===0?'empty':'';
+  document.getElementById('stockCount').textContent=G.stock.length;
+  
+  // Completed
+  const compEl=document.getElementById('completedArea');
+  compEl.innerHTML='';
+  for(let i=0;i<G.completed;i++){
+    const s=document.createElement('div');
+    s.className='completed-seq';
+    s.textContent='⭐';
+    compEl.appendChild(s);
+  }
+}
+
+function updateStats(){
+  document.getElementById('coinCount').textContent=G.coins;
+  document.getElementById('streakCount').textContent=G.streak;
+  document.getElementById('starCount').textContent=G.stars;
+  document.getElementById('moveCount').textContent=G.moveCount;
+  updateProgressBar();
+  updateWordBank();
+}
+
+function updateTimer(){
+  G.timerSeconds=Math.floor((Date.now()-G.timerStart)/1000);
+  const m=Math.floor(G.timerSeconds/60);
+  const s=G.timerSeconds%60;
+  document.getElementById('timer').textContent=m+':'+(s<10?'0':'')+s;
+}
+
+function updateProgressBar(){
+  let total=0,mastered=0;
+  for(const k in mastery){
+    if(mastery[k].encountered){total++;if(mastery[k].mastered)mastered++}
+  }
+  const pct=total?Math.round(mastered/total*100):0;
+  document.getElementById('progressBar').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`Words Mastered: ${mastered} / ${total} ⭐`;
+}
+
+// ============ WORD BANK ============
+function toggleWordBank(){
+  document.getElementById('wordBank').classList.toggle('open');
+}
+function updateWordBank(){
+  const el=document.getElementById('wordBankContent');
+  let html='';
+  const cats=[
+    {key:'numbers',label:'🔢 Numbers / Números',data:VOCAB.numbers},
+    {key:'colors',label:'🎨 Colors / Colores',data:VOCAB.colors},
+    {key:'animals',label:'🐾 Animals / Animales',data:VOCAB.animals},
+    {key:'food',label:'🍎 Food / Comida',data:VOCAB.food},
+    {key:'family',label:'👨‍👩‍👧‍👦 Family / Familia',data:VOCAB.family},
+    {key:'phrases',label:'💬 Phrases / Frases',data:VOCAB.phrases}
+  ];
+  for(const cat of cats){
+    const encountered=cat.data.filter(w=>getMastery(cat.key,w.es).encountered);
+    if(encountered.length===0)continue;
+    html+=`<h3>${cat.label}</h3>`;
+    for(const w of encountered){
+      const m=getMastery(cat.key,w.es);
+      const stars=m.mastered?'⭐⭐⭐':'⭐'.repeat(Math.min(m.streak,2))+'☆'.repeat(Math.max(0,3-Math.min(m.streak,2)-0));
+      const starDisp=m.mastered?'⭐⭐⭐':('⭐'.repeat(Math.min(m.streak,3))+'☆'.repeat(3-Math.min(m.streak,3)));
+      html+=`<div class="wb-word" onclick="showWordSentence('${w.es}','${w.en}','${w.emoji}')">
+        <span class="wb-emoji">${w.emoji}</span>
+        <span class="wb-text"><span class="es">${w.es}</span><br><span class="en">${w.en}</span></span>
+        <span class="wb-stars">${starDisp}</span>
+      </div>`;
+    }
+  }
+  el.innerHTML=html||'<p style="color:#aaa;text-align:center;margin-top:20px">Play moves to discover words! 🎮</p>';
+}
+
+function showWordSentence(es,en,emoji){
+  const sentences={
+    'uno':'Yo tengo uno. (I have one.)','dos':'Tengo dos manos. (I have two hands.)',
+    'tres':'Hay tres gatos. (There are three cats.)','cuatro':'Cuatro estaciones. (Four seasons.)',
+    'cinco':'Cinco dedos. (Five fingers.)','seis':'Seis es par. (Six is even.)',
+    'siete':'Siete días. (Seven days.)','ocho':'Ocho patas. (Eight legs.)',
+    'nueve':'Nueve planetas. (Nine planets.)','diez':'Diez dedos de pie. (Ten toes.)',
+    'rojo':'El tomate es rojo. (The tomato is red.)','azul':'El cielo es azul. (The sky is blue.)',
+    'verde':'La hierba es verde. (The grass is green.)','amarillo':'El sol es amarillo. (The sun is yellow.)',
+    'negro':'El gato negro. (The black cat.)','blanco':'La nieve es blanca. (The snow is white.)',
+    'perro':'El perro es mi amigo. (The dog is my friend.)','gato':'El gato duerme. (The cat sleeps.)',
+    'pez':'El pez nada. (The fish swims.)','pájaro':'El pájaro canta. (The bird sings.)',
+    'mariposa':'La mariposa vuela. (The butterfly flies.)','tortuga':'La tortuga es lenta. (The turtle is slow.)',
+    'conejo':'El conejo salta. (The rabbit jumps.)','oso':'El oso es grande. (The bear is big.)',
+    'león':'El león ruge. (The lion roars.)','ratón':'El ratón es pequeño. (The mouse is small.)',
+    'manzana':'Yo como una manzana. (I eat an apple.)','plátano':'El plátano es amarillo. (The banana is yellow.)',
+    'leche':'Yo bebo leche. (I drink milk.)','agua':'El agua es clara. (The water is clear.)',
+    'pan':'Me gusta el pan. (I like bread.)','queso':'El queso es rico. (The cheese is tasty.)',
+    'huevo':'Un huevo frito. (A fried egg.)','arroz':'Arroz con pollo. (Rice with chicken.)',
+    'pollo':'El pollo es sabroso. (The chicken is tasty.)','naranja':'La naranja es dulce. (The orange is sweet.)',
+    'mamá':'Mi mamá es genial. (My mom is great.)','papá':'Mi papá es fuerte. (My dad is strong.)',
+    'hermano':'Mi hermano juega. (My brother plays.)','hermana':'Mi hermana lee. (My sister reads.)',
+    'abuelo':'Mi abuelo cocina. (My grandpa cooks.)','abuela':'Mi abuela canta. (My grandma sings.)',
+    'hijo':'El hijo estudia. (The son studies.)','hija':'La hija baila. (The daughter dances.)',
+    'tío':'Mi tío viaja. (My uncle travels.)','tía':'Mi tía sonríe. (My aunt smiles.)',
+    'primo':'Mi primo es divertido. (My cousin is fun.)',
+    'buenos días':'¡Buenos días, amigo! (Good morning, friend!)',
+    'buenas noches':'Buenas noches, dulces sueños. (Good night, sweet dreams.)',
+    'por favor':'Agua, por favor. (Water, please.)','gracias':'¡Muchas gracias! (Thank you very much!)',
+    'de nada':'—Gracias. —De nada. (—Thanks. —You\'re welcome.)',
+    'lo siento':'Lo siento mucho. (I\'m very sorry.)',
+    'con permiso':'Con permiso, necesito pasar. (Excuse me, I need to pass.)',
+    '¿cómo estás?':'¡Hola! ¿Cómo estás? (Hi! How are you?)',
+    'me llamo':'Me llamo Mario. (My name is Mario.)',
+    'tengo hambre':'Tengo mucha hambre. (I\'m very hungry.)'
+  };
+  const s=sentences[es]||`${emoji} ${es} = ${en}`;
+  alert(`${emoji} ${es}\n\n${s}`);
+}
+
+// ============ INTERACTION: SELECT & MOVE ============
+function getMovableStartIdx(col,fromIdx){
+  // From fromIdx, check all cards are face-up and descending
+  const cards=G.columns[col];
+  if(!cards[fromIdx]||!cards[fromIdx].faceUp)return -1;
+  for(let i=fromIdx;i<cards.length-1;i++){
+    if(!cards[i+1].faceUp)return -1;
+    if(rankVal(cards[i].rank)!==rankVal(cards[i+1].rank)+1)return -1;
+  }
+  return fromIdx;
+}
+
+function isValidMove(fromCol,fromIdx,toCol){
+  const fromCards=G.columns[fromCol];
+  const toCards=G.columns[toCol];
+  const movingCard=fromCards[fromIdx];
+  
+  if(toCards.length===0)return true; // any card to empty
+  const topCard=toCards[toCards.length-1];
+  if(!topCard.faceUp)return false;
+  return rankVal(topCard.rank)===rankVal(movingCard.rank)+1;
+}
+
+function onCardClick(e,col,idx){
+  e.stopPropagation();
+  if(G.dragState&&G.dragState.dragged)return;
+  
+  const startIdx=getMovableStartIdx(col,idx);
+  if(startIdx<0)return;
+  
+  if(G.selected){
+    if(G.selected.col===col && G.selected.cardIdx===idx){
+      // Deselect
+      G.selected=null;
+      sfxSelect();
+      render();
+      return;
+    }
+    // Try to move to this column
+    attemptMove(G.selected.col,G.selected.cardIdx,col);
+  } else {
+    G.selected={col,cardIdx:startIdx};
+    sfxSelect();
+    render();
+  }
+}
+
+function onColumnClick(col){
+  if(G.selected){
+    attemptMove(G.selected.col,G.selected.cardIdx,col);
+  }
+}
+
+// ============ DRAG AND DROP ============
+let dragGhosts=[];
+function onCardPointerDown(e,col,idx){
+  const startIdx=getMovableStartIdx(col,idx);
+  if(startIdx<0)return;
+  
+  const startX=e.clientX,startY=e.clientY;
+  let moved=false;
+  
+  G.dragState={col,cardIdx:startIdx,dragged:false,startX,startY};
+  
+  const onMove=(ev)=>{
+    const dx=ev.clientX-startX,dy=ev.clientY-startY;
+    if(!moved && Math.abs(dx)+Math.abs(dy)<8)return;
+    moved=true;
+    G.dragState.dragged=true;
+    
+    // Create ghosts if not yet
+    if(dragGhosts.length===0){
+      const cards=G.columns[col];
+      for(let i=startIdx;i<cards.length;i++){
+        const ghost=document.createElement('div');
+        ghost.className='card face-up drag-ghost';
+        const c=cards[i];
+        ghost.innerHTML=`<div class="card-inner">
+          <span class="card-corner corner-tl">${c.rank}<br>♠</span>
+          <span class="card-rank">${c.rank}</span>
+          <span class="card-suit">♠</span>
+          <span class="card-corner corner-br">${c.rank}<br>♠</span>
+        </div>`;
+        document.body.appendChild(ghost);
+        dragGhosts.push(ghost);
+      }
+      // Hide originals
+      document.querySelectorAll(`.column[data-col="${col}"] .card`).forEach((el,i2)=>{
+        if(i2>=startIdx)el.style.opacity='0.3';
+      });
+    }
+    
+    dragGhosts.forEach((g,i)=>{
+      g.style.left=(ev.clientX-30)+'px';
+      g.style.top=(ev.clientY-20+i*22)+'px';
+    });
+    
+    // Highlight target column
+    document.querySelectorAll('.column').forEach(c2=>{
+      c2.classList.remove('highlight');
+      const r=c2.getBoundingClientRect();
+      if(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom){
+        const tc=parseInt(c2.dataset.col);
+        if(tc!==col && isValidMove(col,startIdx,tc)){
+          c2.classList.add('highlight');
+        }
+      }
+    });
+  };
+  
+  const onUp=(ev)=>{
+    document.removeEventListener('pointermove',onMove);
+    document.removeEventListener('pointerup',onUp);
+    
+    dragGhosts.forEach(g=>g.remove());
+    dragGhosts=[];
+    document.querySelectorAll('.card').forEach(c=>c.style.opacity='');
+    document.querySelectorAll('.column').forEach(c=>c.classList.remove('highlight'));
+    
+    if(!moved){G.dragState=null;return}
+    
+    // Find target column
+    let targetCol=-1;
+    document.querySelectorAll('.column').forEach(c2=>{
+      const r=c2.getBoundingClientRect();
+      if(ev.clientX>=r.left&&ev.clientX<=r.right&&ev.clientY>=r.top&&ev.clientY<=r.bottom){
+        targetCol=parseInt(c2.dataset.col);
+      }
+    });
+    
+    G.dragState=null;
+    G.selected=null;
+    
+    if(targetCol>=0 && targetCol!==col){
+      attemptMove(col,startIdx,targetCol);
+    } else {
+      render();
+    }
+  };
+  
+  document.addEventListener('pointermove',onMove);
+  document.addEventListener('pointerup',onUp);
+}
+
+// ============ MOVE LOGIC WITH CHALLENGE ============
+let pendingMove=null;
+
+function attemptMove(fromCol,fromIdx,toCol){
+  G.selected=null;
+  
+  if(!isValidMove(fromCol,fromIdx,toCol)){
+    render();
+    return;
+  }
+  
+  G.moves++;
+  
+  // Check for power star (free move)
+  if(G.stars>0){
+    G.stars--;
+    executeMove(fromCol,fromIdx,toCol);
+    return;
+  }
+  
+  // Show challenge
+  pendingMove={fromCol,fromIdx,toCol};
+  showChallenge();
+}
+
+function executeMove(fromCol,fromIdx,toCol){
+  // Save undo
+  G.undoStack.push(JSON.parse(JSON.stringify({columns:G.columns,completed:G.completed,moveCount:G.moveCount})));
+  if(G.undoStack.length>30)G.undoStack.shift();
+  
+  // Move cards
+  const moving=G.columns[fromCol].splice(fromIdx);
+  G.columns[toCol].push(...moving);
+  G.moveCount++;
+  
+  // Auto-flip
+  const fromCards=G.columns[fromCol];
+  if(fromCards.length>0 && !fromCards[fromCards.length-1].faceUp){
+    fromCards[fromCards.length-1].faceUp=true;
+  }
+  
+  // Check for complete sequence K->A
+  checkCompleteSequence(toCol);
+  
+  render();
+  updateStats();
+  
+  // Check win
+  if(G.completed>=8){
+    setTimeout(showWin,800);
+  }
+}
+
+function checkCompleteSequence(col){
+  const cards=G.columns[col];
+  if(cards.length<13)return;
+  
+  // Check last 13 cards are K->A face-up
+  const start=cards.length-13;
+  for(let i=0;i<13;i++){
+    if(!cards[start+i].faceUp)return;
+    if(cards[start+i].rank!==RANKS[12-i])return;
+  }
+  
+  // Remove sequence!
+  cards.splice(start,13);
+  G.completed++;
+  
+  // Auto-flip
+  if(cards.length>0&&!cards[cards.length-1].faceUp){
+    cards[cards.length-1].faceUp=true;
+  }
+  
+  sfxFanfare();
+  spawnStarParticles();
+  
+  // Show philosophy
+  setTimeout(()=>showPhilosophy(),1200);
+}
+
+function undoMove(){
+  if(G.undoStack.length===0)return;
+  const state=G.undoStack.pop();
+  G.columns=state.columns;
+  G.completed=state.completed;
+  G.moveCount=state.moveCount;
+  G.selected=null;
+  render();
+  updateStats();
+}
+
+// ============ DEAL FROM STOCK ============
+function dealFromStock(){
+  if(G.stock.length===0)return;
+  
+  // All columns must have at least 1 card
+  for(let c=0;c<10;c++){
+    if(G.columns[c].length===0){
+      alert('🍄 All columns must have at least one card before dealing!');
+      return;
+    }
+  }
+  
+  // Save undo
+  G.undoStack.push(JSON.parse(JSON.stringify({columns:G.columns,completed:G.completed,moveCount:G.moveCount})));
+  
+  // Deal 10 cards face-up
+  for(let c=0;c<10;c++){
+    if(G.stock.length===0)break;
+    const card=G.stock.shift();
+    card.faceUp=true;
+    G.columns[c].push(card);
+  }
+  
+  sfxDeal();
+  
+  // Check for completed sequences
+  for(let c=0;c<10;c++) checkCompleteSequence(c);
+  
+  G.selected=null;
+  render();
+  updateStats();
+}
+
+// ============ HINT SYSTEM ============
+function giveHint(){
+  // Find a valid move
+  for(let fc=0;fc<10;fc++){
+    const cards=G.columns[fc];
+    for(let fi=cards.length-1;fi>=0;fi--){
+      if(!cards[fi].faceUp)break;
+      if(fi>0 && cards[fi-1].faceUp && rankVal(cards[fi-1].rank)===rankVal(cards[fi].rank)+1) continue;
+      // This is the start of a movable group
+      for(let tc=0;tc<10;tc++){
+        if(tc===fc)continue;
+        if(isValidMove(fc,fi,tc)){
+          // Prioritize non-empty columns (avoid just moving to empty)
+          if(G.columns[tc].length>0||(fi===0)){
+            // Highlight
+            G.selected={col:fc,cardIdx:fi};
+            render();
+            // Flash target
+            const colEls=document.querySelectorAll('.column');
+            colEls[tc].classList.add('highlight');
+            setTimeout(()=>{colEls[tc].classList.remove('highlight');G.selected=null;render()},1500);
+            sfxSelect();
+            return;
+          }
+        }
+      }
+      break; // only check the topmost movable group
+    }
+  }
+  alert('💡 No obvious moves! Try dealing from the stock pile.');
+}
+
+// ============ CHALLENGE SYSTEM ============
+function getUnlockedCategories(){
+  const m=G.moves;
+  const cats=['numbers','colors'];
+  if(m>=11)cats.push('animals');
+  if(m>=26)cats.push('food');
+  if(m>=41)cats.push('family');
+  if(m>=61)cats.push('phrases');
+  return cats;
+}
+
+function pickWeightedWord(cats){
+  // Collect all words from unlocked categories, weight wrong ones higher
+  let pool=[];
+  for(const cat of cats){
+    const words=VOCAB[cat]||[];
+    for(const w of words){
+      const m=getMastery(cat,w.es);
+      let weight=1;
+      if(m.encountered&&!m.mastered)weight=3;
+      if(m.encountered&&m.streak===0&&m.correct>0)weight=5; // recently wrong
+      for(let i=0;i<weight;i++)pool.push({...w,cat});
+    }
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
+}
+
+function pickDistractors(correct,cat,field,count=3){
+  const words=VOCAB[cat]||[];
+  let options=words.filter(w=>w[field]!==correct[field]).map(w=>w[field]);
+  // If not enough, pull from other cats
+  if(options.length<count){
+    const allCats=getUnlockedCategories();
+    for(const c of allCats){
+      if(c===cat)continue;
+      (VOCAB[c]||[]).forEach(w=>{if(w[field])options.push(w[field])});
+    }
+  }
+  shuffle(options);
+  return options.slice(0,count);
+}
+
+function generateChallenge(){
+  const cats=getUnlockedCategories();
+  
+  // Choose type based on available categories and weighting
+  let types=[1,2,3,7];
+  if(cats.includes('colors'))types.push(6);
+  if(cats.includes('numbers'))types.push(5);
+  types.push(4); // fill in blank always available
+  
+  const type=types[Math.floor(Math.random()*types.length)];
+  
+  switch(type){
+    case 1: return genTranslateToSpanish(cats);
+    case 2: return genTranslateToEnglish(cats);
+    case 3: return genPictureMatch(cats);
+    case 4: return genFillBlank();
+    case 5: return genNumberMath();
+    case 6: return genColorMatch();
+    case 7: return genPhraseBuilder(cats);
+    default: return genTranslateToSpanish(cats);
+  }
+}
+
+function genTranslateToSpanish(cats){
+  const w=pickWeightedWord(cats);
+  const distractors=pickDistractors(w,w.cat,'es');
+  const options=shuffle([w.es,...distractors]);
+  markEncountered(w.cat,w.es);
+  return {
+    type:'translate_es',question:`How do you say '${w.en}' in Spanish?`,
+    emoji:w.emoji,correct:w.es,options,
+    cat:w.cat,es:w.es,explanation:`${w.emoji} ${w.en} = ${w.es}`
+  };
+}
+
+function genTranslateToEnglish(cats){
+  const w=pickWeightedWord(cats);
+  const distractors=pickDistractors(w,w.cat,'en');
+  const options=shuffle([w.en,...distractors]);
+  markEncountered(w.cat,w.es);
+  return {
+    type:'translate_en',question:`¿Qué significa '${w.es}'?`,
+    emoji:w.emoji,correct:w.en,options,
+    cat:w.cat,es:w.es,explanation:`${w.emoji} ${w.es} = ${w.en}`
+  };
+}
+
+function genPictureMatch(cats){
+  const w=pickWeightedWord(cats);
+  const distractors=pickDistractors(w,w.cat,'es');
+  const options=shuffle([w.es,...distractors]);
+  markEncountered(w.cat,w.es);
+  return {
+    type:'picture',question:'What is this in Spanish?',
+    emoji:w.emoji,showEmoji:true,correct:w.es,options,
+    cat:w.cat,es:w.es,explanation:`${w.emoji} = ${w.es} (${w.en})`
+  };
+}
+
+function genFillBlank(){
+  const fb=FILL_BLANKS[Math.floor(Math.random()*FILL_BLANKS.length)];
+  const options=shuffle([...fb.options]);
+  return {
+    type:'fill',question:`${fb.sentence}`,subtext:`(${fb.hint})`,
+    emoji:fb.emoji,correct:fb.answer,options,
+    cat:'fill',es:fb.answer,explanation:`${fb.emoji} ${fb.sentence.replace('___',fb.answer)}`
+  };
+}
+
+function genNumberMath(){
+  const nums=VOCAB.numbers;
+  const a=Math.floor(Math.random()*5)+1;
+  const b=Math.floor(Math.random()*5)+1;
+  const sum=a+b;
+  if(sum>10)return genTranslateToSpanish(getUnlockedCategories());
+  
+  const aWord=nums[a-1].es;
+  const bWord=nums[b-1].es;
+  const ansWord=nums[sum-1].es;
+  
+  // Mark these encountered
+  markEncountered('numbers',aWord);
+  markEncountered('numbers',bWord);
+  markEncountered('numbers',ansWord);
+  
+  const wrongNums=nums.filter(n=>n.es!==ansWord).map(n=>n.es);
+  shuffle(wrongNums);
+  const options=shuffle([ansWord,...wrongNums.slice(0,3)]);
+  
+  // Capitalize first letter
+  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  
+  return {
+    type:'math',question:`${cap(aWord)} + ${cap(bWord)} = ?`,
+    emoji:'🔢',correct:ansWord,options:options.map(cap),correctDisplay:cap(ansWord),
+    cat:'numbers',es:ansWord,explanation:`${cap(aWord)} (${a}) + ${cap(bWord)} (${b}) = ${cap(ansWord)} (${sum})`
+  };
+}
+
+function genColorMatch(){
+  const c=VOCAB.colors[Math.floor(Math.random()*VOCAB.colors.length)];
+  const distractors=VOCAB.colors.filter(x=>x.es!==c.es).map(x=>x.es);
+  shuffle(distractors);
+  const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+  const options=shuffle([c.es,...distractors.slice(0,3)]).map(cap);
+  markEncountered('colors',c.es);
+  return {
+    type:'color',question:'¿De qué color es?',
+    color:c.color,correct:cap(c.es),options,
+    cat:'colors',es:c.es,explanation:`${c.emoji} This color is ${c.en} = ${c.es}`
+  };
+}
+
+function genPhraseBuilder(cats){
+  if(!cats.includes('phrases'))return genTranslateToSpanish(cats);
+  const w=VOCAB.phrases[Math.floor(Math.random()*VOCAB.phrases.length)];
+  const distractors=VOCAB.phrases.filter(x=>x.es!==w.es).map(x=>x.es);
+  shuffle(distractors);
+  const options=shuffle([w.es,...distractors.slice(0,3)]);
+  markEncountered('phrases',w.es);
+  return {
+    type:'phrase',question:`How do you say '${w.en}'?`,
+    emoji:w.emoji,correct:w.es,options,
+    cat:'phrases',es:w.es,explanation:`${w.emoji} ${w.en} = ${w.es}`
+  };
+}
+
+let currentChallenge=null;
+
+function showChallenge(){
+  currentChallenge=generateChallenge();
+  const c=currentChallenge;
+  
+  const emojiEl=document.getElementById('challengeEmoji');
+  const swatchEl=document.getElementById('challengeColorSwatch');
+  const qEl=document.getElementById('challengeQuestion');
+  const choicesEl=document.getElementById('challengeChoices');
+  const resultEl=document.getElementById('challengeResult');
+  
+  resultEl.style.display='none';
+  resultEl.className='challenge-result';
+  
+  // Emoji
+  if(c.showEmoji){
+    emojiEl.textContent=c.emoji;
+    emojiEl.style.display='block';
+  } else if(c.emoji&&c.type!=='color'){
+    emojiEl.textContent=c.emoji;
+    emojiEl.style.display='block';
+  } else {
+    emojiEl.style.display='none';
+  }
+  
+  // Color swatch
+  if(c.type==='color'){
+    swatchEl.style.display='block';
+    swatchEl.style.backgroundColor=c.color;
+    if(c.color==='#FFFFFF'){
+      swatchEl.style.border='3px solid #333';
+    } else {
+      swatchEl.style.border='3px solid #333';
+    }
+    emojiEl.style.display='none';
+  } else {
+    swatchEl.style.display='none';
+  }
+  
+  // Question
+  let qHTML=c.question;
+  if(c.subtext)qHTML+=`<br><span style="font-size:0.8rem;color:#888">${c.subtext}</span>`;
+  qEl.innerHTML=qHTML;
+  
+  // Choices
+  choicesEl.innerHTML='';
+  c.options.forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='choice-btn';
+    btn.textContent=opt;
+    btn.onclick=()=>answerChallenge(opt,btn);
+    choicesEl.appendChild(btn);
+  });
+  
+  document.getElementById('challengeModal').classList.add('show');
+}
+
+function answerChallenge(answer,btn){
+  if(currentChallenge.answered)return;
+  currentChallenge.answered=true;
+  
+  const c=currentChallenge;
+  const correct=(c.type==='math'||c.type==='color')
+    ? answer===c.correctDisplay || answer===c.correct || answer.toLowerCase()===c.correct.toLowerCase()
+    : answer===c.correct;
+  
+  const resultEl=document.getElementById('challengeResult');
+  
+  // Highlight buttons
+  document.querySelectorAll('.choice-btn').forEach(b=>{
+    const bText=b.textContent;
+    const isCorrectBtn=(c.type==='math'||c.type==='color')
+      ? bText===c.correctDisplay || bText===c.correct || bText.toLowerCase()===c.correct.toLowerCase()
+      : bText===c.correct;
+    if(isCorrectBtn) b.classList.add('correct');
+    if(b===btn && !correct) b.classList.add('wrong');
+    b.onclick=null;
+  });
+  
+  if(correct){
+    sfxCoin();
+    G.coins++;
+    G.streak++;
+    if(G.streak%5===0){
+      G.stars++;
+      sfxStar();
+      spawnCoinAnim('⭐');
+    }
+    spawnCoinAnim('🪙');
+    markCorrect(c.cat,c.es);
+    resultEl.innerHTML=`✅ ¡Correcto! 🎉 +1 🪙${G.streak%5===0?' +1 ⭐ Power Star!':''}`;
+    resultEl.className='challenge-result show result-correct';
+    
+    setTimeout(()=>{
+      document.getElementById('challengeModal').classList.remove('show');
+      if(pendingMove){
+        executeMove(pendingMove.fromCol,pendingMove.fromIdx,pendingMove.toCol);
+        pendingMove=null;
+      }
+      updateStats();
+    },800);
+  } else {
+    sfxWrong();
+    G.coins--;
+    G.streak=0;
+    markWrong(c.cat,c.es);
+    G.missedWords.push({es:c.es,correct:c.correct,explanation:c.explanation});
+    resultEl.innerHTML=`❌ The answer is: <b>${c.correct}</b><br>${c.explanation}`;
+    resultEl.className='challenge-result show result-wrong';
+    
+    setTimeout(()=>{
+      document.getElementById('challengeModal').classList.remove('show');
+      pendingMove=null;
+      render();
+      updateStats();
+      
+      // Check for out of coins
+      if(G.coins<=0){
+        G.coins=3;
+        setTimeout(showReview,400);
+      }
+    },1800);
+  }
+}
+
+// ============ REVIEW MODAL ============
+function showReview(){
+  const list=document.getElementById('reviewList');
+  const recent=G.missedWords.slice(-10);
+  list.innerHTML=recent.map(w=>
+    `<div class="review-item">
+      <span class="ri-emoji">📝</span>
+      <span>${w.explanation}</span>
+    </div>`
+  ).join('');
+  document.getElementById('reviewModal').classList.add('show');
+}
+function closeReview(){
+  document.getElementById('reviewModal').classList.remove('show');
+  updateStats();
+}
+
+// ============ PHILOSOPHY MODAL ============
+function showPhilosophy(){
+  const text=PHILOSOPHY[G.philosophyIdx%PHILOSOPHY.length];
+  G.philosophyIdx++;
+  document.getElementById('philosophyText').textContent=text;
+  document.getElementById('philosophyModal').classList.add('show');
+}
+function closePhilosophy(){
+  document.getElementById('philosophyModal').classList.remove('show');
+}
+
+// ============ HELP MODAL ============
+function showHelp(){document.getElementById('helpModal').classList.add('show')}
+function closeHelp(){document.getElementById('helpModal').classList.remove('show')}
+
+// ============ WIN MODAL ============
+function showWin(){
+  sfxFanfare();
+  setTimeout(sfxStar,800);
+  
+  let total=0,mast=0;
+  for(const k in mastery){if(mastery[k].encountered){total++;if(mastery[k].mastered)mast++}}
+  
+  const stats=document.getElementById('winStats');
+  stats.innerHTML=`
+    <div class="win-stat"><div class="ws-val">${G.moveCount}</div><div class="ws-label">Moves</div></div>
+    <div class="win-stat"><div class="ws-val">${formatTime(G.timerSeconds)}</div><div class="ws-label">Time</div></div>
+    <div class="win-stat"><div class="ws-val">${G.coins}</div><div class="ws-label">Coins 🪙</div></div>
+    <div class="win-stat"><div class="ws-val">${mast}/${total}</div><div class="ws-label">Words Mastered ⭐</div></div>
+  `;
+  document.getElementById('winModal').classList.add('show');
+  spawnStarParticles(30);
+}
+
+function formatTime(s){const m=Math.floor(s/60);const sec=s%60;return m+':'+(sec<10?'0':'')+sec}
+
+// ============ ANIMATIONS ============
+function spawnStarParticles(count=12){
+  const emojis=['⭐','🌟','💫','✨','🔥','🍄'];
+  for(let i=0;i<count;i++){
+    setTimeout(()=>{
+      const el=document.createElement('div');
+      el.className='star-particle';
+      el.textContent=emojis[Math.floor(Math.random()*emojis.length)];
+      el.style.left=Math.random()*80+10+'vw';
+      el.style.top=Math.random()*60+20+'vh';
+      el.style.setProperty('--dx',(Math.random()-0.5)*200+'px');
+      el.style.setProperty('--dy',(Math.random()-0.5)*200+'px');
+      document.body.appendChild(el);
+      setTimeout(()=>el.remove(),1000);
+    },i*80);
+  }
+}
+
+function spawnCoinAnim(emoji='🪙'){
+  const el=document.createElement('div');
+  el.className='coin-anim';
+  el.textContent=emoji;
+  el.style.left='50%';el.style.top='40%';
+  document.body.appendChild(el);
+  setTimeout(()=>el.remove(),800);
+}
+
+// ============ CLOSE MODALS ============
+function closeAllModals(){
+  document.querySelectorAll('.modal-overlay').forEach(m=>m.classList.remove('show'));
+}
+
+// Click outside modal to close (except challenge)
+document.querySelectorAll('.modal-overlay').forEach(overlay=>{
+  overlay.addEventListener('click',(e)=>{
+    if(e.target===overlay){
+      if(overlay.id!=='challengeModal') overlay.classList.remove('show');
+    }
+  });
+});
+
+// ============ INIT ============
+loadMastery();
+newGame();
+// Show help on first ever visit
+if(!localStorage.getItem('marioSpiderPlayed')){
+  setTimeout(showHelp,500);
+  localStorage.setItem('marioSpiderPlayed','1');
+}
+</script>
+</body>
+</html>
