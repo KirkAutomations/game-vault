@@ -1,0 +1,2263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>The Spelling Bee - Frozen Theme</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;700;900&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --frost-light: #e8f4fd;
+  --frost-mid: #a8d8ea;
+  --frost-blue: #5bb3d9;
+  --ice-blue: #3a9bc7;
+  --deep-blue: #1a5276;
+  --purple-ice: #7b68ee;
+  --snow-white: #ffffff;
+  --gold-star: #ffd700;
+  --frost-pink: #f0c9cf;
+  --success-green: #4ade80;
+  --error-red: #ff6b6b;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background: linear-gradient(180deg, #0a1628 0%, #1a3a5c 30%, #2d6a9f 60%, #5bb3d9 100%);
+  color: var(--snow-white);
+  min-height: 100vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Snowflake animation */
+.snowflakes {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.snowflake {
+  position: absolute;
+  top: -20px;
+  color: rgba(255,255,255,0.7);
+  font-size: 1.2em;
+  animation: snowfall linear infinite;
+  text-shadow: 0 0 5px rgba(200,230,255,0.8);
+}
+
+@keyframes snowfall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(105vh) rotate(360deg); opacity: 0.3; }
+}
+
+/* Aurora effect */
+.aurora {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 40%;
+  background: linear-gradient(120deg,
+    rgba(123,104,238,0.1) 0%,
+    rgba(91,179,217,0.15) 25%,
+    rgba(72,209,204,0.1) 50%,
+    rgba(123,104,238,0.15) 75%,
+    rgba(91,179,217,0.1) 100%);
+  animation: aurora-shift 8s ease-in-out infinite alternate;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes aurora-shift {
+  0% { transform: translateX(-10%) skewX(-5deg); }
+  100% { transform: translateX(10%) skewX(5deg); }
+}
+
+/* Main container */
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 15px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 10px 0;
+}
+
+.title {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2.2em;
+  background: linear-gradient(180deg, #ffffff 0%, #a8d8ea 50%, #7b68ee 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: none;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  line-height: 1.1;
+}
+
+.title .bee-icon {
+  -webkit-text-fill-color: var(--gold-star);
+  font-size: 0.9em;
+}
+
+.subtitle {
+  font-size: 0.85em;
+  color: var(--frost-mid);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 8px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  border-radius: 15px;
+  margin: 8px 0;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.stat {
+  text-align: center;
+}
+
+.stat-value {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.4em;
+  color: var(--gold-star);
+}
+
+.stat-label {
+  font-size: 0.65em;
+  color: var(--frost-mid);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+/* Level badge */
+.level-badge {
+  text-align: center;
+  margin: 5px 0;
+}
+
+.level-badge span {
+  background: linear-gradient(135deg, var(--purple-ice), var(--ice-blue));
+  padding: 4px 18px;
+  border-radius: 20px;
+  font-size: 0.8em;
+  font-weight: 700;
+  display: inline-block;
+  border: 2px solid rgba(255,255,255,0.3);
+  box-shadow: 0 0 15px rgba(123,104,238,0.4);
+}
+
+/* Game screens */
+.screen {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  animation: fadeIn 0.5s ease;
+}
+
+.screen.active {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Welcome screen */
+.welcome-screen {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 15px;
+}
+
+.frozen-castle {
+  font-size: 4em;
+  animation: float 3s ease-in-out infinite;
+  filter: drop-shadow(0 5px 15px rgba(91,179,217,0.5));
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+.welcome-text h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.5em;
+  margin-bottom: 8px;
+}
+
+.welcome-text p {
+  color: var(--frost-mid);
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+.level-select {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  max-width: 320px;
+}
+
+.level-btn {
+  padding: 14px 20px;
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 15px;
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(10px);
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-size: 1em;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.level-btn:hover, .level-btn:active {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.03);
+  border-color: var(--gold-star);
+  box-shadow: 0 0 20px rgba(255,215,0,0.2);
+}
+
+.level-btn .icon { font-size: 1.6em; }
+.level-btn .info { text-align: left; }
+.level-btn .info .name { display: block; }
+.level-btn .info .desc {
+  display: block;
+  font-size: 0.75em;
+  font-weight: 400;
+  color: var(--frost-mid);
+}
+
+/* Game screen */
+.game-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Word display with picture */
+.word-card {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  padding: 15px;
+  text-align: center;
+  border: 2px solid rgba(255,255,255,0.15);
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.word-image {
+  font-size: 3.5em;
+  margin-bottom: 5px;
+  animation: float 3s ease-in-out infinite;
+}
+
+.word-hint {
+  font-size: 0.85em;
+  color: var(--frost-mid);
+  margin-bottom: 8px;
+}
+
+.speak-btn {
+  background: linear-gradient(135deg, var(--purple-ice), var(--ice-blue));
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  font-size: 1.4em;
+  cursor: pointer;
+  color: white;
+  box-shadow: 0 4px 15px rgba(123,104,238,0.4);
+  transition: all 0.3s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.speak-btn:hover, .speak-btn:active {
+  transform: scale(1.1);
+  box-shadow: 0 4px 25px rgba(123,104,238,0.6);
+}
+
+.real-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 10px;
+  background: linear-gradient(135deg, rgba(74,222,128,0.2), rgba(74,222,128,0.1));
+  border: 1px solid rgba(74,222,128,0.4);
+  border-radius: 10px;
+  font-size: 0.7em;
+  font-weight: 700;
+  color: #4ade80;
+  letter-spacing: 0.5px;
+}
+
+.speak-btn.speaking {
+  animation: pulse-glow 1s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 4px 15px rgba(123,104,238,0.4); }
+  50% { box-shadow: 0 4px 30px rgba(123,104,238,0.8); transform: scale(1.1); }
+}
+
+/* Letter tiles */
+.letter-display {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-height: 52px;
+  padding: 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 15px;
+  border: 2px dashed rgba(255,255,255,0.15);
+  align-items: center;
+}
+
+.letter-slot {
+  width: 42px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.5em;
+  transition: all 0.3s;
+  position: relative;
+}
+
+.letter-slot.empty {
+  background: rgba(255,255,255,0.08);
+  border: 2px dashed rgba(255,255,255,0.2);
+}
+
+.letter-slot.filled {
+  background: linear-gradient(135deg, rgba(123,104,238,0.6), rgba(91,179,217,0.6));
+  border: 2px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 10px rgba(123,104,238,0.3);
+  animation: popIn 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+}
+
+@keyframes popIn {
+  0% { transform: scale(0); }
+  100% { transform: scale(1); }
+}
+
+.letter-slot.correct {
+  background: linear-gradient(135deg, #4ade80, #22c55e) !important;
+  border-color: #86efac !important;
+  box-shadow: 0 0 15px rgba(74,222,128,0.5);
+}
+
+.letter-slot.wrong {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a) !important;
+  border-color: #fca5a5 !important;
+  animation: shake 0.5s ease;
+  box-shadow: 0 0 15px rgba(255,107,107,0.5);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-8px); }
+  75% { transform: translateX(8px); }
+}
+
+/* Scrambled letter buttons */
+.letter-choices {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 5px;
+}
+
+.letter-choice {
+  width: 48px;
+  height: 52px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+  border: 2px solid rgba(255,255,255,0.25);
+  color: white;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.4em;
+  cursor: pointer;
+  transition: all 0.2s;
+  backdrop-filter: blur(5px);
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.letter-choice:hover {
+  background: linear-gradient(180deg, rgba(255,255,255,0.3), rgba(255,255,255,0.1));
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.letter-choice:active {
+  transform: scale(0.95);
+}
+
+.letter-choice.used {
+  opacity: 0.25;
+  pointer-events: none;
+  transform: scale(0.9);
+}
+
+/* Action buttons */
+.action-bar {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.action-btn {
+  padding: 10px 22px;
+  border-radius: 25px;
+  border: 2px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.1);
+  color: white;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 0.9em;
+  cursor: pointer;
+  transition: all 0.3s;
+  backdrop-filter: blur(5px);
+}
+
+.action-btn:hover, .action-btn:active {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.05);
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, var(--purple-ice), var(--ice-blue));
+  border-color: rgba(255,255,255,0.3);
+}
+
+.skip-btn {
+  background: rgba(255,107,107,0.2) !important;
+  border-color: rgba(255,107,107,0.4) !important;
+}
+
+.top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  position: relative;
+  z-index: 10;
+}
+
+.home-btn {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
+  border: 3px solid rgba(255,255,255,0.5);
+  border-radius: 16px;
+  padding: 12px 22px;
+  font-size: 1.1em;
+  font-family: 'Fredoka One', cursive;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 15px rgba(255,107,107,0.5);
+}
+
+.home-btn:hover, .home-btn:active {
+  background: linear-gradient(135deg, #ff4757, #dd3b3b);
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(255,107,107,0.6);
+}
+
+.music-toggle {
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: 50%;
+  width: 42px; height: 42px;
+  font-size: 1.3em;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.music-toggle:hover, .music-toggle:active {
+  background: rgba(255,255,255,0.2);
+  transform: scale(1.1);
+}
+
+.lives-display {
+  font-size: 1.4em;
+  letter-spacing: 3px;
+}
+
+.lives-display .lost-life {
+  opacity: 0.2;
+  filter: grayscale(1);
+}
+
+/* Progress bar */
+.progress-section {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.progress-bar-container {
+  background: rgba(0,0,0,0.3);
+  border-radius: 10px;
+  height: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 10px;
+  background: linear-gradient(90deg, var(--purple-ice), var(--frost-blue), var(--gold-star));
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(123,104,238,0.4);
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.75em;
+  color: var(--frost-mid);
+  margin-top: 4px;
+}
+
+/* Celebration overlay */
+.celebration {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 100;
+  background: rgba(10,22,40,0.9);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+  padding: 20px;
+}
+
+.celebration.active {
+  display: flex;
+  animation: fadeIn 0.5s ease;
+}
+
+.celebration .trophy {
+  font-size: 4em;
+  animation: float 2s ease-in-out infinite;
+}
+
+.celebration h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2em;
+  background: linear-gradient(135deg, var(--gold-star), #fbbf24, var(--gold-star));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.celebration .final-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.celebration .final-stat {
+  text-align: center;
+}
+
+.celebration .final-stat .val {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2em;
+  color: var(--gold-star);
+}
+
+.celebration .final-stat .lbl {
+  font-size: 0.8em;
+  color: var(--frost-mid);
+}
+
+.stars-display {
+  font-size: 2.5em;
+  letter-spacing: 5px;
+}
+
+.star-earned { color: var(--gold-star); text-shadow: 0 0 10px rgba(255,215,0,0.6); }
+.star-empty { color: rgba(255,255,255,0.2); }
+
+/* You Lose overlay */
+.lose-screen {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 100;
+  background: rgba(30,10,10,0.92);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 15px;
+  text-align: center;
+  padding: 20px;
+}
+
+.lose-screen.active {
+  display: flex;
+  animation: fadeIn 0.5s ease;
+}
+
+.lose-screen .lose-icon {
+  font-size: 4em;
+  animation: shake 0.6s ease;
+}
+
+.lose-screen h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2.2em;
+  background: linear-gradient(135deg, #ff6b6b, #ff4757, #ff6b6b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.lose-screen .correct-word {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.8em;
+  color: var(--frost-mid);
+  margin: 5px 0;
+}
+
+.lose-screen .correct-word span {
+  color: var(--gold-star);
+  text-transform: uppercase;
+}
+
+.lose-screen .lose-stats {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.lose-screen .lose-stat {
+  text-align: center;
+}
+
+.lose-screen .lose-stat .val {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2em;
+  color: var(--frost-mid);
+}
+
+.lose-screen .lose-stat .lbl {
+  font-size: 0.8em;
+  color: rgba(255,255,255,0.5);
+}
+
+.lose-message {
+  color: var(--frost-mid);
+  font-size: 0.95em;
+  max-width: 300px;
+  line-height: 1.4;
+}
+
+/* Confetti */
+.confetti-piece {
+  position: fixed;
+  width: 10px;
+  height: 10px;
+  top: -10px;
+  z-index: 101;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(110vh) rotate(720deg); opacity: 0; }
+}
+
+/* Word correct celebration */
+.word-celebration {
+  display: none;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  font-size: 1.2em;
+  font-family: 'Fredoka One', cursive;
+  text-align: center;
+  animation: wordCelebrate 1.5s ease forwards;
+  pointer-events: none;
+}
+
+.word-celebration.show {
+  display: block;
+}
+
+@keyframes wordCelebrate {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+  20% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+  40% { transform: translate(-50%, -50%) scale(1); }
+  80% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1.1); }
+}
+
+/* Responsive */
+@media (max-width: 400px) {
+  .title { font-size: 1.7em; }
+  .letter-slot { width: 36px; height: 42px; font-size: 1.3em; }
+  .letter-choice { width: 42px; height: 46px; font-size: 1.2em; }
+  .word-image { font-size: 2.8em; }
+  .stat-value { font-size: 1.2em; }
+}
+
+@media (min-height: 800px) {
+  .word-card { padding: 20px; }
+  .word-image { font-size: 4em; }
+}
+
+/* Icicle top decoration */
+.icicles {
+  position: fixed;
+  top: 0; left: 0; width: 100%;
+  height: 30px;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(168,216,234,0.3), transparent);
+}
+
+/* Frozen sparkle on correct */
+.sparkle {
+  position: absolute;
+  pointer-events: none;
+  font-size: 1.2em;
+  animation: sparkle-pop 0.8s ease forwards;
+}
+
+@keyframes sparkle-pop {
+  0% { opacity: 1; transform: scale(0) translate(0, 0); }
+  50% { opacity: 1; transform: scale(1.2) translate(var(--tx), var(--ty)); }
+  100% { opacity: 0; transform: scale(0.5) translate(calc(var(--tx) * 1.5), calc(var(--ty) * 1.5)); }
+}
+
+/* Hint button */
+/* Countdown overlay */
+.countdown-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 150;
+  background: rgba(10,22,40,0.85);
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.countdown-overlay.active {
+  display: flex;
+}
+
+.countdown-number {
+  font-family: 'Fredoka One', cursive;
+  font-size: 8em;
+  color: var(--gold-star);
+  text-shadow: 0 0 40px rgba(255,215,0,0.6), 0 0 80px rgba(123,104,238,0.4);
+  animation: countdown-pop 0.8s ease;
+}
+
+.countdown-go {
+  font-family: 'Fredoka One', cursive;
+  font-size: 4em;
+  background: linear-gradient(135deg, #4ade80, #22c55e);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  filter: drop-shadow(0 0 20px rgba(74,222,128,0.6));
+  animation: countdown-pop 0.6s ease;
+}
+
+@keyframes countdown-pop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.3); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.hint-btn {
+  background: rgba(255,215,0,0.15) !important;
+  border-color: rgba(255,215,0,0.4) !important;
+  color: var(--gold-star) !important;
+}
+
+/* Secret game */
+.secret-game {
+  display: none;
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  z-index: 200;
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 40%, #2a2a6e 100%);
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+
+.secret-game.active { display: block; }
+
+.secret-hud {
+  position: absolute;
+  top: 10px; left: 0; right: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 15px;
+  z-index: 210;
+}
+
+.secret-hud .shud-item {
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.2em;
+  color: white;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.5);
+}
+
+.secret-hud .shud-score { color: var(--gold-star); }
+.secret-hud .shud-timer { color: var(--frost-mid); }
+
+.secret-close {
+  background: rgba(255,107,107,0.8);
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 36px; height: 36px;
+  color: white;
+  font-size: 1.2em;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.catch-item {
+  position: absolute;
+  font-size: 2em;
+  cursor: pointer;
+  transition: transform 0.1s;
+  z-index: 205;
+  filter: drop-shadow(0 2px 6px rgba(100,180,255,0.6));
+}
+
+.catch-item:active { transform: scale(1.5); }
+
+.catch-pop {
+  position: absolute;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1.2em;
+  color: var(--gold-star);
+  pointer-events: none;
+  animation: catch-pop-up 0.8s ease forwards;
+  z-index: 206;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+}
+
+@keyframes catch-pop-up {
+  0% { opacity: 1; transform: translateY(0) scale(1); }
+  100% { opacity: 0; transform: translateY(-60px) scale(1.5); }
+}
+
+.secret-end {
+  display: none;
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.8);
+  z-index: 220;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  text-align: center;
+}
+
+.secret-end.active { display: flex; }
+
+.secret-end h2 {
+  font-family: 'Fredoka One', cursive;
+  font-size: 2em;
+  color: var(--gold-star);
+}
+
+.secret-end .se-score {
+  font-family: 'Fredoka One', cursive;
+  font-size: 3em;
+  color: white;
+}
+
+.secret-title {
+  position: absolute;
+  top: 55px;
+  width: 100%;
+  text-align: center;
+  font-family: 'Fredoka One', cursive;
+  font-size: 1em;
+  color: rgba(255,255,255,0.4);
+  z-index: 210;
+  pointer-events: none;
+}
+</style>
+</head>
+<body>
+
+<div class="aurora"></div>
+<div class="icicles"></div>
+<div class="snowflakes" id="snowflakes"></div>
+
+<div class="container">
+  <!-- Header -->
+  <div class="header">
+    <div class="title"><span class="bee-icon" id="beeIcon" style="cursor:pointer" onclick="tapBee()">&#x1F41D;</span> The Spelling Bee</div>
+    <div class="subtitle">A Frozen Spelling Adventure</div>
+  </div>
+
+  <!-- Welcome Screen -->
+  <div class="screen active" id="welcomeScreen">
+    <div class="welcome-screen">
+      <div class="frozen-castle">&#x1F3F0;</div>
+      <div class="welcome-text">
+        <h2>Welcome, Young Speller!</h2>
+        <p>Help Elsa spell words to unlock the magic of the frozen kingdom! Pick your level to begin.</p>
+      </div>
+      <div class="level-select">
+        <button class="level-btn" onclick="startGame('baby')">
+          <span class="icon">&#x1F476;</span>
+          <span class="info">
+            <span class="name">Baby Ice (Ages 2-3)</span>
+            <span class="desc">Tiny 2 letter words, super easy!</span>
+          </span>
+        </button>
+        <button class="level-btn" onclick="startGame('easy')">
+          <span class="icon">&#x2744;&#xFE0F;</span>
+          <span class="info">
+            <span class="name">Snowflake (Ages 4-5)</span>
+            <span class="desc">3-4 letter words with pictures</span>
+          </span>
+        </button>
+        <button class="level-btn" onclick="startGame('medium')">
+          <span class="icon">&#x26C4;</span>
+          <span class="info">
+            <span class="name">Snowman (Ages 5-6)</span>
+            <span class="desc">4-5 letter words, a bit harder!</span>
+          </span>
+        </button>
+        <button class="level-btn" onclick="startGame('hard')">
+          <span class="icon">&#x1F451;</span>
+          <span class="info">
+            <span class="name">Ice Queen (Ages 6-7)</span>
+            <span class="desc">5-6 letter words for champions!</span>
+          </span>
+        </button>
+      </div>
+      <button class="level-btn" onclick="playSong()" id="songBtn" style="border-color:rgba(255,215,0,0.4); background:rgba(255,215,0,0.1);">
+        <span class="icon">&#x1F3B5;</span>
+        <span class="info">
+          <span class="name" style="color:var(--gold-star);">Play the Spelling Bee Songs!</span>
+          <span class="desc">5 fun frozen tunes to sing along to</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Game Screen -->
+  <div class="screen" id="gameScreen">
+    <div class="top-bar">
+      <button class="home-btn" onclick="goHome()">&#x1F3E0; Back</button>
+      <button class="music-toggle" id="musicToggle" onclick="toggleMusic()">&#x1F3B5;</button>
+      <button class="music-toggle" onclick="nextSong()" title="Next song">&#x23ED;&#xFE0F;</button>
+      <div class="lives-display" id="livesDisplay">&#x2764;&#xFE0F; &#x2764;&#xFE0F; &#x2764;&#xFE0F;</div>
+    </div>
+    <div class="stats-bar">
+      <div class="stat">
+        <div class="stat-value" id="scoreVal">0</div>
+        <div class="stat-label">Score</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="streakVal">0</div>
+        <div class="stat-label">Streak</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="coinsVal">20</div>
+        <div class="stat-label">Coins &#x1FA99;</div>
+      </div>
+      <div class="stat">
+        <div class="stat-value" id="starsVal">0</div>
+        <div class="stat-label">Stars &#x2B50;</div>
+      </div>
+    </div>
+
+    <div class="level-badge"><span id="levelLabel">Snowflake Level</span></div>
+
+    <div class="game-area">
+      <div class="word-card">
+        <div class="word-image" id="wordImage">&#x1F431;</div>
+        <div class="word-hint" id="wordHint">Tap the speaker to hear the word!</div>
+        <button class="speak-btn" id="speakBtn" onclick="speakWord()">&#x1F50A;</button>
+        <div class="real-badge">&#x1F3A4; Real Voice</div>
+      </div>
+
+      <div class="letter-display" id="letterDisplay"></div>
+
+      <div class="letter-choices" id="letterChoices"></div>
+
+      <div class="action-bar">
+        <button class="action-btn hint-btn" onclick="giveHint()">&#x1F4A1; Hint (5&#x1FA99;)</button>
+        <button class="action-btn" onclick="clearLetters()">&#x21A9;&#xFE0F; Undo</button>
+        <button class="action-btn skip-btn" onclick="skipWord()">&#x23ED;&#xFE0F; Skip (10&#x1FA99;)</button>
+      </div>
+
+      <div class="progress-section">
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <div class="progress-text" id="progressText">Word 1 of 10</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Celebration Screen -->
+  <div class="celebration" id="celebration">
+    <div class="trophy">&#x1F3C6;</div>
+    <h2>Amazing Job!</h2>
+    <div class="stars-display" id="starsDisplay"></div>
+    <div class="final-stats">
+      <div class="final-stat">
+        <div class="val" id="finalScore">0</div>
+        <div class="lbl">Score</div>
+      </div>
+      <div class="final-stat">
+        <div class="val" id="finalCorrect">0</div>
+        <div class="lbl">Correct</div>
+      </div>
+      <div class="final-stat">
+        <div class="val" id="finalBest">0</div>
+        <div class="lbl">Best Streak</div>
+      </div>
+    </div>
+    <p style="color: var(--frost-mid); font-size:0.9em;" id="celebMessage">You're a spelling superstar!</p>
+    <button class="action-btn primary" onclick="goHome()" style="font-size:1.1em; padding:14px 40px; margin-top:8px;">&#x1F3E0; Play Again</button>
+  </div>
+
+  <!-- You Lose Screen -->
+  <div class="lose-screen" id="loseScreen">
+    <div class="lose-icon">&#x2744;&#xFE0F;&#x1F494;</div>
+    <h2>You Lose!</h2>
+    <div class="correct-word">The word was: <span id="loseCorrectWord"></span></div>
+    <div class="correct-word" style="font-size:2.5em;" id="loseWordEmoji"></div>
+    <div class="lose-stats">
+      <div class="lose-stat">
+        <div class="val" id="loseScore">0</div>
+        <div class="lbl">Score</div>
+      </div>
+      <div class="lose-stat">
+        <div class="val" id="loseCorrect">0</div>
+        <div class="lbl">Words Spelled</div>
+      </div>
+    </div>
+    <p class="lose-message" id="loseMessage">Don't give up! Even Elsa had to practice her magic!</p>
+    <button class="action-btn primary" onclick="goHomeFromLose()" style="font-size:1.1em; padding:14px 40px; margin-top:8px;">&#x1F3E0; Try Again</button>
+  </div>
+</div>
+
+<div class="countdown-overlay" id="countdownOverlay">
+  <div id="countdownContent"></div>
+</div>
+<div class="word-celebration" id="wordCelebration"></div>
+
+<!-- Secret Catch the Snowflakes Game -->
+<div class="secret-game" id="secretGame">
+  <div class="secret-hud">
+    <button class="secret-close" onclick="closeSecretGame()">X</button>
+    <div class="shud-item shud-score" id="secretScore">0</div>
+    <div class="shud-item shud-timer" id="secretTimer">30s</div>
+  </div>
+  <div class="secret-title">Tap the snowflakes!</div>
+  <div class="secret-end" id="secretEnd">
+    <h2>Time's Up!</h2>
+    <div class="se-score" id="secretFinalScore">0</div>
+    <p style="color:var(--frost-mid)">snowflakes caught!</p>
+    <button class="action-btn primary" onclick="startSecretGame()" style="font-size:1.1em;padding:14px 30px;">Again!</button>
+    <button class="action-btn" onclick="closeSecretGame()" style="margin-top:5px;">Back to Spelling</button>
+  </div>
+</div>
+
+<!-- Audio context for sound effects -->
+<script>
+// ==================== WORD DATA ====================
+const wordData = {
+  baby: [
+    { word: "go", emoji: "\u{1F3C3}", hint: "Run run run!" },
+    { word: "no", emoji: "\u{1F645}", hint: "Shake your head" },
+    { word: "hi", emoji: "\u{1F44B}", hint: "You wave and say this" },
+    { word: "up", emoji: "\u{2B06}\u{FE0F}", hint: "The sky is this way" },
+    { word: "me", emoji: "\u{1F476}", hint: "Point to yourself" },
+    { word: "it", emoji: "\u{1F449}", hint: "Point at a thing" },
+    { word: "on", emoji: "\u{1F4A1}", hint: "Turn the light this way" },
+    { word: "in", emoji: "\u{1F4E6}", hint: "Put the toy inside the box" },
+    { word: "am", emoji: "\u{1F60A}", hint: "I __ happy!" },
+    { word: "an", emoji: "\u{1F34E}", hint: "I want __ apple" },
+    { word: "at", emoji: "\u{1F3E0}", hint: "I am __ home" },
+    { word: "is", emoji: "\u{2B50}", hint: "This __ fun!" },
+    { word: "do", emoji: "\u{1F4AA}", hint: "I can __ it!" },
+    { word: "so", emoji: "\u{1F929}", hint: "That is __ cool!" },
+    { word: "to", emoji: "\u{27A1}\u{FE0F}", hint: "Go __ the park" },
+    { word: "we", emoji: "\u{1F46B}", hint: "You and me together" },
+    { word: "he", emoji: "\u{1F466}", hint: "A boy" },
+    { word: "my", emoji: "\u{2764}\u{FE0F}", hint: "This is __ toy" },
+    { word: "be", emoji: "\u{1F41D}", hint: "A buzzing bug, or to exist!" },
+    { word: "if", emoji: "\u{1F914}", hint: "__ I could fly!" },
+  ],
+  easy: [
+    { word: "cat", emoji: "\u{1F431}", hint: "A furry pet that says meow" },
+    { word: "dog", emoji: "\u{1F436}", hint: "A pet that says woof" },
+    { word: "sun", emoji: "\u{2600}\u{FE0F}", hint: "It shines in the sky" },
+    { word: "hat", emoji: "\u{1F3A9}", hint: "You wear it on your head" },
+    { word: "cup", emoji: "\u{2615}", hint: "You drink from this" },
+    { word: "bed", emoji: "\u{1F6CF}\u{FE0F}", hint: "You sleep in this" },
+    { word: "fish", emoji: "\u{1F41F}", hint: "It swims in water" },
+    { word: "ball", emoji: "\u{26BD}", hint: "Round toy you can throw" },
+    { word: "star", emoji: "\u{2B50}", hint: "It twinkles in the night sky" },
+    { word: "tree", emoji: "\u{1F333}", hint: "It has leaves and branches" },
+    { word: "bird", emoji: "\u{1F426}", hint: "It flies in the sky" },
+    { word: "cake", emoji: "\u{1F382}", hint: "Sweet treat for birthdays" },
+    { word: "frog", emoji: "\u{1F438}", hint: "Green and says ribbit" },
+    { word: "moon", emoji: "\u{1F319}", hint: "You see it at night" },
+    { word: "rain", emoji: "\u{1F327}\u{FE0F}", hint: "Water falling from clouds" },
+    { word: "book", emoji: "\u{1F4D6}", hint: "You read stories in this" },
+    { word: "duck", emoji: "\u{1F986}", hint: "It says quack quack" },
+    { word: "bear", emoji: "\u{1F43B}", hint: "Big furry forest animal" },
+    { word: "hand", emoji: "\u{270B}", hint: "You wave with this" },
+    { word: "boat", emoji: "\u{26F5}", hint: "It floats on water" },
+  ],
+  medium: [
+    { word: "apple", emoji: "\u{1F34E}", hint: "A red or green fruit" },
+    { word: "happy", emoji: "\u{1F60A}", hint: "How you feel when you smile" },
+    { word: "house", emoji: "\u{1F3E0}", hint: "Where your family lives" },
+    { word: "water", emoji: "\u{1F4A7}", hint: "You drink this every day" },
+    { word: "snake", emoji: "\u{1F40D}", hint: "Long and slithery animal" },
+    { word: "cloud", emoji: "\u{2601}\u{FE0F}", hint: "White and fluffy in the sky" },
+    { word: "heart", emoji: "\u{2764}\u{FE0F}", hint: "Shape that means love" },
+    { word: "piano", emoji: "\u{1F3B9}", hint: "Musical instrument with keys" },
+    { word: "queen", emoji: "\u{1F478}", hint: "She wears a crown" },
+    { word: "horse", emoji: "\u{1F434}", hint: "You can ride this animal" },
+    { word: "train", emoji: "\u{1F682}", hint: "It rides on tracks" },
+    { word: "candy", emoji: "\u{1F36C}", hint: "A sweet treat" },
+    { word: "mouse", emoji: "\u{1F42D}", hint: "Small animal that squeaks" },
+    { word: "plane", emoji: "\u{2708}\u{FE0F}", hint: "It flies in the sky" },
+    { word: "snow", emoji: "\u{2744}\u{FE0F}", hint: "Frozen white flakes" },
+    { word: "light", emoji: "\u{1F4A1}", hint: "Helps you see in the dark" },
+    { word: "paint", emoji: "\u{1F3A8}", hint: "Colorful stuff for making art" },
+    { word: "tiger", emoji: "\u{1F42F}", hint: "Big striped wild cat" },
+    { word: "sheep", emoji: "\u{1F411}", hint: "Fluffy farm animal" },
+    { word: "smile", emoji: "\u{1F604}", hint: "What your mouth does when happy" },
+  ],
+  hard: [
+    { word: "frozen", emoji: "\u{2744}\u{FE0F}", hint: "Very cold, turned to ice" },
+    { word: "castle", emoji: "\u{1F3F0}", hint: "Where kings and queens live" },
+    { word: "flower", emoji: "\u{1F33B}", hint: "It blooms in the garden" },
+    { word: "rabbit", emoji: "\u{1F430}", hint: "Hops around with long ears" },
+    { word: "rocket", emoji: "\u{1F680}", hint: "It flies to outer space" },
+    { word: "bridge", emoji: "\u{1F309}", hint: "Cross a river on this" },
+    { word: "prince", emoji: "\u{1F934}", hint: "A king's son" },
+    { word: "turtle", emoji: "\u{1F422}", hint: "Slow animal with a shell" },
+    { word: "winter", emoji: "\u{26C4}", hint: "The coldest season" },
+    { word: "planet", emoji: "\u{1FA90}", hint: "Earth is one of these" },
+    { word: "dragon", emoji: "\u{1F409}", hint: "Breathes fire, has wings" },
+    { word: "garden", emoji: "\u{1F33F}", hint: "Where flowers and veggies grow" },
+    { word: "bubble", emoji: "\u{1FAE7}", hint: "Round and pops easily" },
+    { word: "candle", emoji: "\u{1F56F}\u{FE0F}", hint: "Has a flame on top" },
+    { word: "sunset", emoji: "\u{1F305}", hint: "When the sun goes down" },
+    { word: "spider", emoji: "\u{1F577}\u{FE0F}", hint: "Eight legs, makes webs" },
+    { word: "monkey", emoji: "\u{1F435}", hint: "Swings from trees, loves bananas" },
+    { word: "pencil", emoji: "\u{270F}\u{FE0F}", hint: "You write and draw with this" },
+    { word: "pirate", emoji: "\u{1F3F4}\u{200D}\u{2620}\u{FE0F}", hint: "Sails the sea looking for treasure" },
+    { word: "jungle", emoji: "\u{1F334}", hint: "A thick, wild forest" },
+  ]
+};
+
+// ==================== GAME STATE ====================
+let game = {
+  level: 'easy',
+  words: [],
+  currentIndex: 0,
+  currentWord: null,
+  enteredLetters: [],
+  score: 0,
+  streak: 0,
+  bestStreak: 0,
+  stars: 0,
+  correctCount: 0,
+  totalWords: 10,
+  hintsUsed: 0,
+  lives: 3,
+  coins: 20
+};
+
+// ==================== SOUND EFFECTS ====================
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx;
+
+function getAudioCtx() {
+  if (!audioCtx) audioCtx = new AudioCtx();
+  return audioCtx;
+}
+
+function playTone(freq, duration, type = 'sine', volume = 0.15) {
+  try {
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.value = volume;
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch(e) {}
+}
+
+function playCorrectSound() {
+  playTone(523, 0.15);
+  setTimeout(() => playTone(659, 0.15), 100);
+  setTimeout(() => playTone(784, 0.25), 200);
+}
+
+function playWrongSound() {
+  playTone(200, 0.3, 'sawtooth', 0.08);
+}
+
+function playLetterSound() {
+  playTone(600 + Math.random() * 200, 0.08, 'sine', 0.1);
+}
+
+function playWinSound() {
+  const notes = [523, 659, 784, 1047];
+  notes.forEach((n, i) => setTimeout(() => playTone(n, 0.3, 'sine', 0.12), i * 150));
+}
+
+function playStarSound() {
+  playTone(880, 0.1);
+  setTimeout(() => playTone(1100, 0.2), 80);
+}
+
+// ==================== TEXT TO SPEECH ====================
+// Pick the most natural/realistic voice available
+let bestVoice = null;
+
+function loadBestVoice() {
+  const voices = window.speechSynthesis.getVoices();
+  if (!voices.length) return;
+  // Prefer natural/premium voices
+  const preferred = [
+    'Google US English', 'Google UK English Female', 'Google UK English Male',
+    'Microsoft Zira', 'Microsoft David', 'Samantha', 'Karen', 'Daniel',
+    'Alex', 'Moira', 'Tessa', 'Fiona'
+  ];
+  for (const name of preferred) {
+    const v = voices.find(v => v.name.includes(name));
+    if (v) { bestVoice = v; return; }
+  }
+  // Fallback: any en-US voice
+  const enVoice = voices.find(v => v.lang.startsWith('en'));
+  if (enVoice) bestVoice = enVoice;
+}
+
+window.speechSynthesis.onvoiceschanged = loadBestVoice;
+loadBestVoice();
+
+function speakWord() {
+  if (!game.currentWord) return;
+  const btn = document.getElementById('speakBtn');
+  btn.classList.add('speaking');
+
+  const utterance = new SpeechSynthesisUtterance(game.currentWord.word);
+  utterance.rate = 0.7;
+  utterance.pitch = 1.0;
+  utterance.volume = 1;
+  utterance.lang = 'en-US';
+  if (bestVoice) utterance.voice = bestVoice;
+
+  utterance.onend = () => btn.classList.remove('speaking');
+  utterance.onerror = () => btn.classList.remove('speaking');
+
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(utterance);
+}
+
+function speakText(text) {
+  const u = new SpeechSynthesisUtterance(text);
+  u.rate = 0.9;
+  u.pitch = 1.0;
+  u.volume = 1;
+  u.lang = 'en-US';
+  if (bestVoice) u.voice = bestVoice;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(u);
+}
+
+// ==================== SNOWFLAKES ====================
+function createSnowflakes() {
+  const container = document.getElementById('snowflakes');
+  const flakes = ['\u2744', '\u2745', '\u2746', '\u00B7', '*'];
+  for (let i = 0; i < 30; i++) {
+    const flake = document.createElement('div');
+    flake.className = 'snowflake';
+    flake.textContent = flakes[Math.floor(Math.random() * flakes.length)];
+    flake.style.left = Math.random() * 100 + '%';
+    flake.style.fontSize = (0.5 + Math.random() * 1.2) + 'em';
+    flake.style.opacity = 0.3 + Math.random() * 0.5;
+    flake.style.animationDuration = (5 + Math.random() * 10) + 's';
+    flake.style.animationDelay = Math.random() * 10 + 's';
+    container.appendChild(flake);
+  }
+}
+
+// ==================== CONFETTI ====================
+function launchConfetti(count = 50) {
+  const colors = ['#ffd700', '#7b68ee', '#5bb3d9', '#4ade80', '#ff6b6b', '#f0c9cf', '#a8d8ea'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = Math.random() * 100 + '%';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    piece.style.width = (6 + Math.random() * 8) + 'px';
+    piece.style.height = (6 + Math.random() * 8) + 'px';
+    piece.style.animationDuration = (2 + Math.random() * 3) + 's';
+    piece.style.animationDelay = Math.random() * 1 + 's';
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 5000);
+  }
+}
+
+// ==================== SPARKLE EFFECT ====================
+function createSparkles(element) {
+  const sparkles = ['\u2728', '\u2744\uFE0F', '\u2B50', '\u{1F4AB}'];
+  for (let i = 0; i < 5; i++) {
+    const s = document.createElement('span');
+    s.className = 'sparkle';
+    s.textContent = sparkles[Math.floor(Math.random() * sparkles.length)];
+    s.style.setProperty('--tx', (Math.random() * 60 - 30) + 'px');
+    s.style.setProperty('--ty', (Math.random() * -40 - 10) + 'px');
+    s.style.left = Math.random() * 100 + '%';
+    s.style.top = Math.random() * 100 + '%';
+    element.style.position = 'relative';
+    element.appendChild(s);
+    setTimeout(() => s.remove(), 800);
+  }
+}
+
+// ==================== GAME LOGIC ====================
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function startGame(level) {
+  game.level = level;
+  game.score = 0;
+  game.streak = 0;
+  game.bestStreak = 0;
+  game.stars = 0;
+  game.correctCount = 0;
+  game.currentIndex = 0;
+  game.hintsUsed = 0;
+  game.lives = 3;
+  game.coins = 20;
+
+  const pool = shuffleArray(wordData[level]);
+  game.words = pool.slice(0, game.totalWords);
+
+  const labels = { baby: '\u{1F476} Baby Ice Level', easy: '\u2744\uFE0F Snowflake Level', medium: '\u26C4 Snowman Level', hard: '\u{1F451} Ice Queen Level' };
+  document.getElementById('levelLabel').textContent = labels[level];
+
+  showScreen('gameScreen');
+  updateStats();
+
+  // 3-2-1-GO countdown
+  const overlay = document.getElementById('countdownOverlay');
+  const content = document.getElementById('countdownContent');
+  overlay.classList.add('active');
+
+  const steps = [
+    { text: '3', cls: 'countdown-number', delay: 0 },
+    { text: '2', cls: 'countdown-number', delay: 800 },
+    { text: '1', cls: 'countdown-number', delay: 1600 },
+    { text: 'GO!', cls: 'countdown-go', delay: 2400 },
+  ];
+
+  steps.forEach(step => {
+    setTimeout(() => {
+      content.innerHTML = `<div class="${step.cls}">${step.text}</div>`;
+      playTone(step.text === 'GO!' ? 880 : 440, 0.2);
+    }, step.delay);
+  });
+
+  setTimeout(() => {
+    overlay.classList.remove('active');
+    loadWord();
+    speakText("Let's spell some words!");
+  }, 3200);
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function loadWord() {
+  if (game.currentIndex >= game.words.length) {
+    endGame();
+    return;
+  }
+
+  game.currentWord = game.words[game.currentIndex];
+  game.enteredLetters = [];
+
+  // Update display
+  document.getElementById('wordImage').textContent = game.currentWord.emoji;
+  document.getElementById('wordHint').textContent = game.currentWord.hint;
+
+  // Create letter slots
+  const display = document.getElementById('letterDisplay');
+  display.innerHTML = '';
+  for (let i = 0; i < game.currentWord.word.length; i++) {
+    const slot = document.createElement('div');
+    slot.className = 'letter-slot empty';
+    slot.dataset.index = i;
+    display.appendChild(slot);
+  }
+
+  // Create scrambled letter choices (word letters + a few decoys)
+  const wordLetters = game.currentWord.word.split('');
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz';
+  let decoyCount = Math.min(3, 8 - wordLetters.length);
+  if (game.level === 'baby') decoyCount = 1;
+  else if (game.level === 'easy') decoyCount = Math.min(2, 6 - wordLetters.length);
+
+  const decoys = [];
+  while (decoys.length < Math.max(0, decoyCount)) {
+    const l = alphabet[Math.floor(Math.random() * 26)];
+    if (!wordLetters.includes(l) && !decoys.includes(l)) decoys.push(l);
+  }
+
+  const allLetters = shuffleArray([...wordLetters, ...decoys]);
+
+  const choices = document.getElementById('letterChoices');
+  choices.innerHTML = '';
+  allLetters.forEach((letter, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'letter-choice';
+    btn.textContent = letter.toUpperCase();
+    btn.dataset.letter = letter;
+    btn.dataset.idx = idx;
+    btn.onclick = () => pickLetter(btn);
+    choices.appendChild(btn);
+  });
+
+  // Update progress
+  const pct = (game.currentIndex / game.totalWords) * 100;
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('progressText').textContent = `Word ${game.currentIndex + 1} of ${game.totalWords}`;
+
+  // Auto-speak after short delay
+  setTimeout(speakWord, 500);
+}
+
+function pickLetter(btn) {
+  if (btn.classList.contains('used')) return;
+
+  const letter = btn.dataset.letter;
+  const idx = game.enteredLetters.length;
+  const word = game.currentWord.word;
+
+  if (idx >= word.length) return;
+
+  playLetterSound();
+
+  game.enteredLetters.push({ letter, btnIdx: btn.dataset.idx });
+  btn.classList.add('used');
+
+  // Fill slot
+  const slots = document.querySelectorAll('.letter-slot');
+  slots[idx].textContent = letter.toUpperCase();
+  slots[idx].className = 'letter-slot filled';
+
+  // Check if word is complete
+  if (game.enteredLetters.length === word.length) {
+    const entered = game.enteredLetters.map(e => e.letter).join('');
+    setTimeout(() => checkWord(entered), 300);
+  }
+}
+
+function checkWord(entered) {
+  const word = game.currentWord.word;
+  const slots = document.querySelectorAll('.letter-slot');
+
+  if (entered === word) {
+    // Correct!
+    slots.forEach(s => s.classList.add('correct'));
+    createSparkles(document.querySelector('.word-card'));
+    playCorrectSound();
+
+    game.streak++;
+    if (game.streak > game.bestStreak) game.bestStreak = game.streak;
+    game.correctCount++;
+
+    // Score: base + streak bonus
+    const points = 10 + (game.streak > 1 ? game.streak * 2 : 0);
+    game.score += points;
+
+    // Earn coins!
+    const coinEarn = 5 + (game.streak > 1 ? game.streak : 0);
+    game.coins += coinEarn;
+
+    // Stars every 3 correct
+    if (game.correctCount % 3 === 0) {
+      game.stars++;
+      playStarSound();
+    }
+
+    updateStats();
+
+    // Show celebration text
+    const msgs = [
+      '\u2744\uFE0F Amazing!', '\u{1F31F} Wonderful!', '\u26C4 Fantastic!',
+      '\u{1F386} Brilliant!', '\u{1F3C6} Superstar!', '\u2728 Magical!',
+      '\u{1F4AB} Awesome!', '\u2764\uFE0F Great job!'
+    ];
+    showWordCelebration(msgs[Math.floor(Math.random() * msgs.length)]);
+    speakText("Great job!");
+
+    setTimeout(() => {
+      game.currentIndex++;
+      loadWord();
+    }, 1500);
+
+  } else {
+    // Wrong — lose a life
+    slots.forEach((s, i) => {
+      if (entered[i] !== word[i]) {
+        s.classList.add('wrong');
+      } else {
+        s.classList.add('correct');
+      }
+    });
+    playWrongSound();
+    game.lives--;
+    game.streak = 0;
+    updateStats();
+
+    if (game.lives <= 0) {
+      // Game over!
+      setTimeout(() => {
+        showLoseScreen(word);
+      }, 1000);
+    } else {
+      // Still have lives — try again
+      speakText("Try again! " + game.lives + (game.lives === 1 ? " life" : " lives") + " left!");
+      setTimeout(() => {
+        game.enteredLetters = [];
+        slots.forEach(s => {
+          s.textContent = '';
+          s.className = 'letter-slot empty';
+        });
+        document.querySelectorAll('.letter-choice').forEach(b => b.classList.remove('used'));
+      }, 1200);
+    }
+  }
+}
+
+function clearLetters() {
+  if (game.enteredLetters.length === 0) return;
+
+  // Remove last letter
+  const last = game.enteredLetters.pop();
+  const slots = document.querySelectorAll('.letter-slot');
+  const slot = slots[game.enteredLetters.length];
+  slot.textContent = '';
+  slot.className = 'letter-slot empty';
+
+  // Un-use the button
+  const btn = document.querySelector(`.letter-choice[data-idx="${last.btnIdx}"]`);
+  if (btn) btn.classList.remove('used');
+
+  playTone(300, 0.08);
+}
+
+function giveHint() {
+  if (!game.currentWord) return;
+  const word = game.currentWord.word;
+  const idx = game.enteredLetters.length;
+  if (idx >= word.length) return;
+
+  if (game.coins < 5) {
+    speakText("Not enough coins!");
+    showWordCelebration('\u{1FA99} Need 5 coins!');
+    return;
+  }
+  game.coins -= 5;
+  game.hintsUsed++;
+  updateStats();
+
+  // Find the correct letter button and click it
+  const needed = word[idx];
+  const btns = document.querySelectorAll('.letter-choice:not(.used)');
+  for (const btn of btns) {
+    if (btn.dataset.letter === needed) {
+      btn.style.boxShadow = '0 0 15px var(--gold-star)';
+      btn.style.borderColor = 'var(--gold-star)';
+      setTimeout(() => {
+        btn.style.boxShadow = '';
+        btn.style.borderColor = '';
+      }, 1500);
+      break;
+    }
+  }
+
+  // Speak the letter
+  speakText(needed);
+}
+
+function skipWord() {
+  if (game.coins < 10) {
+    speakText("Not enough coins!");
+    showWordCelebration('\u{1FA99} Need 10 coins!');
+    return;
+  }
+  game.coins -= 10;
+  game.streak = 0;
+  updateStats();
+
+  // Briefly show correct answer
+  const word = game.currentWord.word;
+  const slots = document.querySelectorAll('.letter-slot');
+  word.split('').forEach((letter, i) => {
+    if (slots[i]) {
+      slots[i].textContent = letter.toUpperCase();
+      slots[i].className = 'letter-slot filled';
+    }
+  });
+
+  speakText("The word was " + word);
+
+  setTimeout(() => {
+    game.currentIndex++;
+    loadWord();
+  }, 2000);
+}
+
+function updateStats() {
+  document.getElementById('scoreVal').textContent = game.score;
+  document.getElementById('streakVal').textContent = game.streak;
+  document.getElementById('starsVal').textContent = game.stars;
+  document.getElementById('coinsVal').textContent = game.coins;
+  updateLives();
+}
+
+function updateLives() {
+  let html = '';
+  for (let i = 0; i < 3; i++) {
+    if (i < game.lives) {
+      html += '<span>&#x2764;&#xFE0F;</span> ';
+    } else {
+      html += '<span class="lost-life">&#x1F5A4;</span> ';
+    }
+  }
+  document.getElementById('livesDisplay').innerHTML = html;
+}
+
+function showWordCelebration(text) {
+  const el = document.getElementById('wordCelebration');
+  el.textContent = text;
+  el.className = 'word-celebration show';
+  setTimeout(() => el.className = 'word-celebration', 1500);
+}
+
+function endGame() {
+  // Calculate star rating (1-5)
+  const pct = game.correctCount / game.totalWords;
+  let starRating = 1;
+  if (pct >= 0.9) starRating = 5;
+  else if (pct >= 0.7) starRating = 4;
+  else if (pct >= 0.5) starRating = 3;
+  else if (pct >= 0.3) starRating = 2;
+
+  document.getElementById('finalScore').textContent = game.score;
+  document.getElementById('finalCorrect').textContent = game.correctCount + '/' + game.totalWords;
+  document.getElementById('finalBest').textContent = game.bestStreak;
+
+  let starsHTML = '';
+  for (let i = 0; i < 5; i++) {
+    starsHTML += i < starRating
+      ? '<span class="star-earned">\u2B50</span>'
+      : '<span class="star-empty">\u2B50</span>';
+  }
+  document.getElementById('starsDisplay').innerHTML = starsHTML;
+
+  const messages = [
+    "Keep practicing, you'll get even better!",
+    "Good effort! Try again to get more stars!",
+    "Nice work, young speller!",
+    "Great spelling! You're getting really good!",
+    "Incredible! You're a Frozen spelling champion!"
+  ];
+  document.getElementById('celebMessage').textContent = messages[starRating - 1];
+
+  document.getElementById('celebration').classList.add('active');
+  launchConfetti(80);
+  playWinSound();
+  speakText("Amazing job! You are a spelling superstar!");
+}
+
+function goHome() {
+  document.getElementById('celebration').classList.remove('active');
+  showScreen('welcomeScreen');
+}
+
+function showLoseScreen(correctWord) {
+  document.getElementById('loseCorrectWord').textContent = correctWord.toUpperCase();
+  document.getElementById('loseWordEmoji').textContent = game.currentWord.emoji;
+  document.getElementById('loseScore').textContent = game.score;
+  document.getElementById('loseCorrect').textContent = game.correctCount;
+
+  const messages = [
+    "Don't give up! Even Elsa had to practice her magic!",
+    "Oh no! The ice cracked! Try again, you can do it!",
+    "Brr! That was a tough one. Come back stronger!",
+    "The frozen kingdom believes in you! Try again!",
+    "Every great speller makes mistakes. Keep trying!"
+  ];
+  document.getElementById('loseMessage').textContent = messages[Math.floor(Math.random() * messages.length)];
+
+  document.getElementById('loseScreen').classList.add('active');
+  speakText("Oh no! You lose! The word was " + correctWord + ". Try again!");
+}
+
+function goHomeFromLose() {
+  document.getElementById('loseScreen').classList.remove('active');
+  showScreen('welcomeScreen');
+}
+
+// ==================== MUSIC SYSTEM (MULTIPLE SONGS) ====================
+let musicOn = false;
+let musicLoopTimer = null;
+let currentSongIndex = 0;
+
+const N = {
+  C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23, G4: 392.00, A4: 440.00, B4: 493.88,
+  C5: 523.25, D5: 587.33, E5: 659.25, F5: 698.46, G5: 783.99, A5: 880.00
+};
+
+const allSongs = [
+  {
+    name: "Spelling Bee Song",
+    wave: 'triangle',
+    lyrics: [
+      { text: "S, P, E, L, L, spelling is so fun!", delay: 0 },
+      { text: "Letters in the snow, catch them one by one!", delay: 3200 },
+      { text: "Frozen kingdom magic, words are everywhere!", delay: 6500 },
+      { text: "Spell them if you dare!", delay: 9800 },
+      { text: "SPELLING BEE!", delay: 11800 },
+    ],
+    melody: [
+      { note: N.C5, dur: 0.25 }, { note: N.D5, dur: 0.25 }, { note: N.E5, dur: 0.25 },
+      { note: N.D5, dur: 0.25 }, { note: N.C5, dur: 0.5 },
+      { note: N.G4, dur: 0.25 }, { note: N.A4, dur: 0.25 },
+      { note: N.G4, dur: 0.25 }, { note: N.E4, dur: 0.25 }, { note: N.C4, dur: 0.5 },
+      { note: 0, dur: 0.2 },
+      { note: N.E4, dur: 0.25 }, { note: N.F4, dur: 0.25 }, { note: N.G4, dur: 0.25 },
+      { note: N.A4, dur: 0.25 }, { note: N.G4, dur: 0.5 },
+      { note: N.E5, dur: 0.25 }, { note: N.D5, dur: 0.25 },
+      { note: N.C5, dur: 0.25 }, { note: N.B4, dur: 0.25 }, { note: N.C5, dur: 0.6 },
+      { note: 0, dur: 0.2 },
+      { note: N.C5, dur: 0.2 }, { note: N.C5, dur: 0.2 }, { note: N.D5, dur: 0.2 },
+      { note: N.E5, dur: 0.3 }, { note: N.D5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.A4, dur: 0.4 },
+      { note: N.G4, dur: 0.2 }, { note: N.A4, dur: 0.2 }, { note: N.B4, dur: 0.2 },
+      { note: N.C5, dur: 0.2 }, { note: N.D5, dur: 0.5 },
+      { note: 0, dur: 0.2 },
+      { note: N.E5, dur: 0.3 }, { note: N.D5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.G4, dur: 0.2 }, { note: N.C5, dur: 0.8 },
+      { note: 0, dur: 0.3 },
+      { note: N.C5, dur: 0.3 }, { note: N.E5, dur: 0.3 }, { note: N.G5, dur: 0.7 },
+      { note: 0, dur: 1.0 },
+    ]
+  },
+  {
+    name: "Frozen Dance",
+    wave: 'sine',
+    lyrics: [
+      { text: "Dancing in the snow, letters all around!", delay: 0 },
+      { text: "Spelling makes us smart, listen to the sound!", delay: 3000 },
+      { text: "A, B, C, D, E, F, G!", delay: 6000 },
+      { text: "Spelling is the best, come and dance with me!", delay: 8500 },
+    ],
+    melody: [
+      // Bouncy dance tune
+      { note: N.E5, dur: 0.2 }, { note: N.E5, dur: 0.2 }, { note: 0, dur: 0.1 },
+      { note: N.E5, dur: 0.2 }, { note: 0, dur: 0.1 }, { note: N.C5, dur: 0.2 },
+      { note: N.E5, dur: 0.3 }, { note: N.G5, dur: 0.4 }, { note: N.G4, dur: 0.4 },
+      { note: 0, dur: 0.2 },
+      { note: N.C5, dur: 0.3 }, { note: N.G4, dur: 0.3 }, { note: N.E4, dur: 0.3 },
+      { note: 0, dur: 0.15 },
+      { note: N.A4, dur: 0.25 }, { note: N.B4, dur: 0.25 }, { note: N.A4, dur: 0.2 },
+      { note: N.G4, dur: 0.3 },
+      { note: N.E5, dur: 0.3 }, { note: N.G5, dur: 0.25 }, { note: N.A5, dur: 0.3 },
+      { note: N.F5, dur: 0.25 }, { note: N.G5, dur: 0.3 },
+      { note: 0, dur: 0.15 },
+      { note: N.E5, dur: 0.25 }, { note: N.C5, dur: 0.25 }, { note: N.D5, dur: 0.25 },
+      { note: N.B4, dur: 0.4 },
+      { note: 0, dur: 0.2 },
+      // Repeat with variation
+      { note: N.C5, dur: 0.2 }, { note: N.C5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.D5, dur: 0.2 }, { note: N.E5, dur: 0.3 },
+      { note: N.D5, dur: 0.2 }, { note: N.C5, dur: 0.2 }, { note: N.D5, dur: 0.2 },
+      { note: 0, dur: 0.15 },
+      { note: N.G4, dur: 0.2 }, { note: N.A4, dur: 0.2 }, { note: N.B4, dur: 0.2 },
+      { note: N.C5, dur: 0.4 }, { note: N.E5, dur: 0.3 }, { note: N.C5, dur: 0.5 },
+      { note: 0, dur: 1.0 },
+    ]
+  },
+  {
+    name: "Snowflake Waltz",
+    wave: 'triangle',
+    lyrics: [
+      { text: "Snowflakes falling down, softly all around!", delay: 0 },
+      { text: "Every word we spell, makes a magic sound!", delay: 3500 },
+      { text: "Twirling, swirling, letters in the air!", delay: 7000 },
+      { text: "Spelling bee, spelling bee, everywhere!", delay: 10000 },
+    ],
+    melody: [
+      // Waltz feel - 3/4 time
+      { note: N.E5, dur: 0.4 }, { note: N.D5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.B4, dur: 0.4 }, { note: N.A4, dur: 0.2 }, { note: N.G4, dur: 0.2 },
+      { note: N.A4, dur: 0.6 }, { note: 0, dur: 0.2 },
+      { note: N.C5, dur: 0.4 }, { note: N.B4, dur: 0.2 }, { note: N.A4, dur: 0.2 },
+      { note: N.G4, dur: 0.4 }, { note: N.F4, dur: 0.2 }, { note: N.E4, dur: 0.2 },
+      { note: N.D4, dur: 0.6 }, { note: 0, dur: 0.2 },
+      { note: N.G4, dur: 0.3 }, { note: N.A4, dur: 0.3 }, { note: N.B4, dur: 0.3 },
+      { note: N.C5, dur: 0.4 }, { note: N.D5, dur: 0.2 },
+      { note: N.E5, dur: 0.6 }, { note: 0, dur: 0.2 },
+      { note: N.G5, dur: 0.3 }, { note: N.F5, dur: 0.3 }, { note: N.E5, dur: 0.3 },
+      { note: N.D5, dur: 0.3 }, { note: N.C5, dur: 0.3 },
+      { note: N.B4, dur: 0.2 }, { note: N.A4, dur: 0.2 }, { note: N.G4, dur: 0.6 },
+      { note: 0, dur: 0.2 },
+      { note: N.E4, dur: 0.3 }, { note: N.G4, dur: 0.3 }, { note: N.C5, dur: 0.3 },
+      { note: N.E5, dur: 0.5 }, { note: N.C5, dur: 0.7 },
+      { note: 0, dur: 1.0 },
+    ]
+  },
+  {
+    name: "Ice Castle Boogie",
+    wave: 'square',
+    lyrics: [
+      { text: "Boogie in the castle, spelling all day long!", delay: 0 },
+      { text: "Every letter matters, sing along this song!", delay: 3000 },
+      { text: "Jump and shout the letters, nice and loud!", delay: 6000 },
+      { text: "We're the spelling bee kids, make us proud!", delay: 9000 },
+    ],
+    melody: [
+      // Funky boogie
+      { note: N.C4, dur: 0.15 }, { note: N.E4, dur: 0.15 }, { note: N.G4, dur: 0.15 },
+      { note: N.C5, dur: 0.3 }, { note: 0, dur: 0.1 },
+      { note: N.B4, dur: 0.15 }, { note: N.A4, dur: 0.15 }, { note: N.G4, dur: 0.3 },
+      { note: 0, dur: 0.1 },
+      { note: N.F4, dur: 0.15 }, { note: N.A4, dur: 0.15 }, { note: N.C5, dur: 0.15 },
+      { note: N.E5, dur: 0.3 }, { note: N.D5, dur: 0.15 }, { note: N.C5, dur: 0.15 },
+      { note: 0, dur: 0.15 },
+      { note: N.G4, dur: 0.2 }, { note: N.A4, dur: 0.2 }, { note: N.B4, dur: 0.2 },
+      { note: N.C5, dur: 0.15 }, { note: N.D5, dur: 0.15 }, { note: N.E5, dur: 0.3 },
+      { note: 0, dur: 0.1 },
+      { note: N.E5, dur: 0.15 }, { note: N.D5, dur: 0.15 }, { note: N.C5, dur: 0.15 },
+      { note: N.D5, dur: 0.15 }, { note: N.E5, dur: 0.15 }, { note: N.G5, dur: 0.3 },
+      { note: 0, dur: 0.1 },
+      { note: N.G5, dur: 0.15 }, { note: N.E5, dur: 0.15 }, { note: N.C5, dur: 0.15 },
+      { note: N.G4, dur: 0.15 }, { note: N.E4, dur: 0.15 }, { note: N.C4, dur: 0.3 },
+      { note: 0, dur: 0.1 },
+      { note: N.C4, dur: 0.15 }, { note: N.D4, dur: 0.15 }, { note: N.E4, dur: 0.15 },
+      { note: N.G4, dur: 0.15 }, { note: N.C5, dur: 0.15 }, { note: N.E5, dur: 0.15 },
+      { note: N.G5, dur: 0.4 },
+      { note: 0, dur: 0.15 },
+      { note: N.E5, dur: 0.2 }, { note: N.C5, dur: 0.2 }, { note: N.G4, dur: 0.2 },
+      { note: N.C5, dur: 0.5 },
+      { note: 0, dur: 1.0 },
+    ]
+  },
+  {
+    name: "Olaf's Silly Tune",
+    wave: 'sawtooth',
+    lyrics: [
+      { text: "Do you wanna spell a snowman?", delay: 0 },
+      { text: "Letters jumping here and there!", delay: 2800 },
+      { text: "Silly Olaf loves to spell, and he does it really well!", delay: 5500 },
+      { text: "Spelling's warm like summer air!", delay: 9000 },
+    ],
+    melody: [
+      // Silly playful tune
+      { note: N.G4, dur: 0.3 }, { note: N.A4, dur: 0.15 }, { note: N.B4, dur: 0.15 },
+      { note: N.C5, dur: 0.3 }, { note: N.D5, dur: 0.15 }, { note: N.E5, dur: 0.15 },
+      { note: N.D5, dur: 0.3 }, { note: N.C5, dur: 0.3 },
+      { note: 0, dur: 0.2 },
+      { note: N.E5, dur: 0.2 }, { note: N.D5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.B4, dur: 0.2 }, { note: N.A4, dur: 0.2 }, { note: N.G4, dur: 0.4 },
+      { note: 0, dur: 0.2 },
+      { note: N.C5, dur: 0.15 }, { note: N.C5, dur: 0.15 }, { note: N.D5, dur: 0.3 },
+      { note: N.E5, dur: 0.15 }, { note: N.E5, dur: 0.15 }, { note: N.F5, dur: 0.3 },
+      { note: N.G5, dur: 0.2 }, { note: N.E5, dur: 0.2 }, { note: N.C5, dur: 0.2 },
+      { note: N.G4, dur: 0.4 },
+      { note: 0, dur: 0.15 },
+      { note: N.A4, dur: 0.15 }, { note: N.B4, dur: 0.15 },
+      { note: N.C5, dur: 0.15 }, { note: N.D5, dur: 0.15 },
+      { note: N.E5, dur: 0.3 }, { note: N.G5, dur: 0.2 },
+      { note: N.E5, dur: 0.15 }, { note: N.C5, dur: 0.15 },
+      { note: N.D5, dur: 0.3 }, { note: N.C5, dur: 0.5 },
+      { note: 0, dur: 0.2 },
+      { note: N.G5, dur: 0.15 }, { note: N.E5, dur: 0.15 },
+      { note: N.G5, dur: 0.15 }, { note: N.E5, dur: 0.15 },
+      { note: N.C5, dur: 0.5 },
+      { note: 0, dur: 1.0 },
+    ]
+  }
+];
+
+// Pre-compute durations
+allSongs.forEach(s => { s.totalDur = s.melody.reduce((sum, n) => sum + n.dur, 0); });
+
+function playMelodyOnce() {
+  if (!musicOn) return;
+  const ctx = getAudioCtx();
+  const song = allSongs[currentSongIndex];
+  let time = ctx.currentTime + 0.05;
+
+  song.melody.forEach(n => {
+    if (n.note > 0) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = song.wave;
+      osc.frequency.value = n.note;
+      gain.gain.value = song.wave === 'sawtooth' ? 0.05 : (song.wave === 'square' ? 0.06 : 0.1);
+      gain.gain.setValueAtTime(gain.gain.value, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + n.dur - 0.02);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(time);
+      osc.stop(time + n.dur);
+
+      const osc2 = ctx.createOscillator();
+      const gain2 = ctx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.value = n.note * 0.5;
+      gain2.gain.value = 0.04;
+      gain2.gain.exponentialRampToValueAtTime(0.001, time + n.dur - 0.02);
+      osc2.connect(gain2);
+      gain2.connect(ctx.destination);
+      osc2.start(time);
+      osc2.stop(time + n.dur);
+    }
+    time += n.dur;
+  });
+
+  // Beat
+  let beatTime = ctx.currentTime + 0.05;
+  for (let t = 0; t < song.totalDur - 1; t += 0.5) {
+    const noise = ctx.createOscillator();
+    const nGain = ctx.createGain();
+    noise.type = 'square';
+    noise.frequency.value = 80;
+    nGain.gain.value = 0.03;
+    nGain.gain.exponentialRampToValueAtTime(0.001, beatTime + t + 0.08);
+    noise.connect(nGain);
+    nGain.connect(ctx.destination);
+    noise.start(beatTime + t);
+    noise.stop(beatTime + t + 0.08);
+  }
+}
+
+function scheduleNextLoop() {
+  const song = allSongs[currentSongIndex];
+  musicLoopTimer = setTimeout(() => {
+    if (!musicOn) return;
+    // Move to next song
+    currentSongIndex = (currentSongIndex + 1) % allSongs.length;
+    updateMusicButtons();
+    playMelodyOnce();
+    scheduleNextLoop();
+  }, song.totalDur * 1000);
+}
+
+function startMusicLoop() {
+  musicOn = true;
+  playMelodyOnce();
+  scheduleNextLoop();
+  updateMusicButtons();
+}
+
+function stopMusic() {
+  musicOn = false;
+  clearTimeout(musicLoopTimer);
+  updateMusicButtons();
+}
+
+function toggleMusic() {
+  if (musicOn) stopMusic();
+  else startMusicLoop();
+}
+
+function nextSong() {
+  if (!musicOn) { playSong(); return; }
+  clearTimeout(musicLoopTimer);
+  currentSongIndex = (currentSongIndex + 1) % allSongs.length;
+  updateMusicButtons();
+  playMelodyOnce();
+  scheduleNextLoop();
+}
+
+function playSong() {
+  if (musicOn) { stopMusic(); return; }
+  startMusicLoop();
+  // Sing lyrics for current song
+  singLyrics();
+}
+
+function singLyrics() {
+  const song = allSongs[currentSongIndex];
+  if (!song.lyrics) return;
+  song.lyrics.forEach(l => {
+    setTimeout(() => {
+      if (!musicOn) return;
+      const u = new SpeechSynthesisUtterance(l.text);
+      u.rate = 1.05; u.pitch = 1.3; u.volume = 0.8; u.lang = 'en-US';
+      window.speechSynthesis.speak(u);
+    }, l.delay);
+  });
+  setTimeout(() => { if (musicOn) launchConfetti(30); }, song.totalDur * 1000 - 500);
+}
+
+function updateMusicButtons() {
+  const songBtn = document.getElementById('songBtn');
+  const muteBtn = document.getElementById('musicToggle');
+  const song = allSongs[currentSongIndex];
+  if (songBtn) {
+    songBtn.querySelector('.name').textContent = musicOn
+      ? '\u{1F507} Stop: ' + song.name
+      : '\u{1F3B5} Play the Spelling Bee Songs!';
+    songBtn.querySelector('.desc').textContent = musicOn
+      ? 'Tap again to stop, or pick a level to play!'
+      : allSongs.length + ' fun frozen tunes to sing along to';
+  }
+  if (muteBtn) {
+    muteBtn.textContent = musicOn ? '\u{1F507}' : '\u{1F3B5}';
+    muteBtn.title = musicOn ? 'Now: ' + song.name : 'Play music';
+  }
+}
+
+// ==================== SECRET GAME ====================
+let beeTaps = 0;
+let beeTimer = null;
+let secretState = { score: 0, timer: null, spawnTimer: null, active: false };
+
+function tapBee() {
+  beeTaps++;
+  const icon = document.getElementById('beeIcon');
+  icon.style.transform = 'scale(1.3)';
+  setTimeout(() => icon.style.transform = '', 150);
+  playTone(400 + beeTaps * 80, 0.1);
+
+  clearTimeout(beeTimer);
+  beeTimer = setTimeout(() => { beeTaps = 0; }, 2000);
+
+  if (beeTaps >= 5) {
+    beeTaps = 0;
+    openSecretGame();
+  }
+}
+
+function openSecretGame() {
+  document.getElementById('secretGame').classList.add('active');
+  document.getElementById('secretEnd').classList.remove('active');
+  speakText("Secret game! Catch the snowflakes!");
+  startSecretGame();
+}
+
+function startSecretGame() {
+  document.getElementById('secretEnd').classList.remove('active');
+  secretState.score = 0;
+  secretState.active = true;
+  document.getElementById('secretScore').textContent = '0';
+
+  // Remove any leftover items
+  document.querySelectorAll('.catch-item').forEach(e => e.remove());
+
+  // 30 second countdown
+  let timeLeft = 30;
+  document.getElementById('secretTimer').textContent = timeLeft + 's';
+
+  clearInterval(secretState.timer);
+  clearInterval(secretState.spawnTimer);
+
+  secretState.timer = setInterval(() => {
+    timeLeft--;
+    document.getElementById('secretTimer').textContent = timeLeft + 's';
+    if (timeLeft <= 0) {
+      endSecretGame();
+    }
+  }, 1000);
+
+  // Spawn falling items
+  secretState.spawnTimer = setInterval(() => {
+    if (secretState.active) spawnCatchItem();
+  }, 600);
+}
+
+function spawnCatchItem() {
+  const gameEl = document.getElementById('secretGame');
+  const items = ['\u2744\uFE0F', '\u2744\uFE0F', '\u2744\uFE0F', '\u2B50', '\u{1F48E}', '\u26C4', '\u{1F451}'];
+  const points = { '\u2744\uFE0F': 1, '\u2B50': 3, '\u{1F48E}': 5, '\u26C4': 2, '\u{1F451}': 10 };
+
+  const item = items[Math.floor(Math.random() * items.length)];
+  const el = document.createElement('div');
+  el.className = 'catch-item';
+  el.textContent = item;
+  el.style.left = (10 + Math.random() * 75) + '%';
+  el.style.top = '-40px';
+
+  const pts = points[item] || 1;
+  const speed = 2 + Math.random() * 3;
+
+  el.onclick = (e) => {
+    if (!secretState.active) return;
+    secretState.score += pts;
+    document.getElementById('secretScore').textContent = secretState.score;
+    playTone(800 + pts * 100, 0.12);
+
+    // Pop-up score
+    const pop = document.createElement('div');
+    pop.className = 'catch-pop';
+    pop.textContent = '+' + pts;
+    pop.style.left = e.clientX + 'px';
+    pop.style.top = e.clientY + 'px';
+    gameEl.appendChild(pop);
+    setTimeout(() => pop.remove(), 800);
+
+    el.remove();
+  };
+
+  // Touch support
+  el.ontouchstart = (e) => {
+    e.preventDefault();
+    el.onclick(e.touches[0]);
+  };
+
+  gameEl.appendChild(el);
+
+  // Animate falling
+  let posY = -40;
+  const fall = setInterval(() => {
+    posY += speed;
+    el.style.top = posY + 'px';
+    if (posY > window.innerHeight + 50) {
+      clearInterval(fall);
+      el.remove();
+    }
+    if (!secretState.active) {
+      clearInterval(fall);
+      el.remove();
+    }
+  }, 30);
+}
+
+function endSecretGame() {
+  secretState.active = false;
+  clearInterval(secretState.timer);
+  clearInterval(secretState.spawnTimer);
+  document.querySelectorAll('.catch-item').forEach(e => e.remove());
+
+  document.getElementById('secretFinalScore').textContent = secretState.score;
+  document.getElementById('secretEnd').classList.add('active');
+
+  if (secretState.score >= 50) {
+    speakText("Wow! " + secretState.score + " snowflakes! You're amazing!");
+  } else if (secretState.score >= 20) {
+    speakText("Nice! You caught " + secretState.score + " snowflakes!");
+  } else {
+    speakText("You caught " + secretState.score + ". Try to get more!");
+  }
+  launchConfetti(40);
+}
+
+function closeSecretGame() {
+  secretState.active = false;
+  clearInterval(secretState.timer);
+  clearInterval(secretState.spawnTimer);
+  document.querySelectorAll('.catch-item').forEach(e => e.remove());
+  document.getElementById('secretGame').classList.remove('active');
+}
+
+// ==================== INIT ====================
+createSnowflakes();
+
+// Prevent double-tap zoom on mobile
+document.addEventListener('touchend', (e) => {
+  if (e.target.tagName === 'BUTTON') e.preventDefault();
+}, { passive: false });
+</script>
+</body>
+</html>
