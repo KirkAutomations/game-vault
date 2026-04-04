@@ -25,6 +25,7 @@ const games = [
   { title: "Mario's Spider Web", subtitle: "Spanish Solitaire", icon: "🕷️", href: "games/mario-spider-solitaire/index.html", category: "Educational", added: 23 },
   { title: "Mario's Number Kingdom", subtitle: "Spanish Sudoku", icon: "🔢", href: "games/mario-sudoku/index.html", category: "Educational", added: 24 },
   { title: "The Spelling Beyond", subtitle: "Frozen Spelling Adventure", icon: "❄️", href: "games/spelling-bee/index.html", category: "Educational", added: 25 },
+  { title: "Efficiency Craft", subtitle: "Survival / Factory Sim", icon: "⚙️", href: "games/eie2/index.html", category: "Strategy", added: 26 },
 ];
 
 const grid = document.getElementById('game-grid');
