@@ -47,6 +47,7 @@ const games = [
   { title: "TROGDOR: Maze of Burnination", subtitle: "Navigate the Flames", icon: "🔥", href: "games/trogdor/08_maze_of_burnination.html", category: "Action", added: 45 },
   { title: "TROGDOR: Rampage", subtitle: "Total Destruction", icon: "💥", href: "games/trogdor/09_rampage.html", category: "Action", added: 46 },
   { title: "TROGDOR: Eternal Flame", subtitle: "The Final Chapter", icon: "🐉", href: "games/trogdor/10_eternal_flame.html", category: "Action", added: 47 },
+  { title: "EIE: Be A Food", subtitle: "3D Food Simulator", icon: "🍔", href: "games/eie-food-lab/index.html", category: "Strategy", added: 48 },
 ];
 
 const grid = document.getElementById('game-grid');
