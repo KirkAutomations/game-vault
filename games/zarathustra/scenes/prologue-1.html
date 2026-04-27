@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prologue §1 — The Descent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0; padding: 0;
+    background: #000;
+    color: #eae4d2;
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+    height: 100vh;
+    user-select: none;
+  }
+  canvas { display: block; width: 100vw; height: 100vh; }
+  #narration {
+    position: fixed;
+    bottom: 11vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(640px, 86vw);
+    padding: 1.15rem 1.6rem;
+    background: rgba(0,0,0,0.75);
+    border-left: 2px solid #d4a017;
+    font-size: clamp(1rem, 1.4vw, 1.25rem);
+    line-height: 1.65;
+    font-style: italic;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    pointer-events: none;
+    min-height: 2.5em;
+    z-index: 3;
+  }
+  #narration.visible { opacity: 1; }
+  #narration.vista { border-left-color: #e4c870; }
+  #narration.dialogue { border-left-color: #e4c870; white-space: pre-line; }
+  #narration .speaker {
+    display: block;
+    font-style: normal;
+    color: #d4a017;
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 0.55rem;
+  }
+  #prompt {
+    position: fixed;
+    bottom: 3vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #8a8678;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    text-transform: uppercase;
+    pointer-events: none;
+    text-align: center;
+    z-index: 3;
+  }
+  #prompt.visible { opacity: 0.9; }
+  #prompt .key { color: #d4a017; padding: 0 0.2rem; }
+
+  #hud {
+    position: fixed;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 2rem;
+    color: #eae4d2;
+    font-size: 0.95rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    z-index: 3;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    pointer-events: none;
+  }
+  #hud.visible { opacity: 0.9; }
+  #hud .hud-item {
+    background: rgba(0,0,0,0.55);
+    padding: 0.45rem 0.9rem;
+    border: 1px solid rgba(138,134,120,0.35);
+  }
+  #hud .hud-item .val {
+    color: #d4a017;
+    font-weight: 500;
+    font-size: 1.05rem;
+    margin-left: 0.25rem;
+  }
+  #hud .hud-item.honey .val { color: #f3c84a; }
+
+  #vistaPrompt {
+    position: fixed;
+    top: 10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #e4c870;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(228,200,112,0.5);
+    z-index: 3;
+  }
+  #vistaPrompt.visible { opacity: 1; }
+
+  #saintPrompt {
+    position: fixed;
+    top: 10vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #e4c870;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+    text-align: center;
+    padding: 0.5rem 1rem;
+    background: rgba(0,0,0,0.55);
+    border: 1px solid rgba(228,200,112,0.5);
+    z-index: 3;
+  }
+  #saintPrompt.visible { opacity: 1; }
+
+  #back {
+    position: fixed;
+    top: 1rem; left: 1rem;
+    color: #8a8678;
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.1em;
+    z-index: 5;
+  }
+  #back:hover { color: #d4a017; }
+  #chapter {
+    position: fixed;
+    top: 1rem; right: 1.2rem;
+    color: #6a6658;
+    font-size: 0.75rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    z-index: 5;
+  }
+  #end {
+    position: fixed; inset: 0;
+    background: #000;
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 2.5s ease;
+    z-index: 10;
+    padding: 2rem;
+  }
+  #end.visible { opacity: 1; pointer-events: all; }
+  #end .final {
+    font-size: clamp(1.4rem, 2.5vw, 2rem);
+    font-style: italic;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    max-width: 26ch;
+  }
+  #end .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(120px, 1fr));
+    gap: 1rem 2rem;
+    margin-bottom: 2.5rem;
+    color: #8a8678;
+    font-size: 0.8rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+  #end .stats-grid .big {
+    display: block;
+    color: #d4a017;
+    font-size: 2rem;
+    font-style: normal;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.3rem;
+  }
+  #end a {
+    color: #d4a017;
+    border: 1px solid #d4a017;
+    padding: 0.7rem 1.8rem;
+    text-decoration: none;
+    letter-spacing: 0.15em;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    margin: 0.3rem;
+  }
+  #end a:hover { background: rgba(212,160,23,0.1); }
+</style>
+</head>
+<body>
+<a id="back" href="../index.html">← return</a>
+<div id="chapter">Prologue · §1</div>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="hud-item honey">honey <span class="val" id="honeyVal">0</span> / <span id="honeyMax">0</span></div>
+  <div class="hud-item">vistas <span class="val" id="vistaVal">0</span> / 4</div>
+  <div class="hud-item">falls <span class="val" id="fallsVal">0</span></div>
+</div>
+<div id="narration"></div>
+<div id="vistaPrompt"><span style="color:#d4a017">[ E ]</span> contemplate</div>
+<div id="saintPrompt"><span style="color:#d4a017">[ E ]</span> greet the hermit</div>
+<div id="prompt"><span class="key">[ space ]</span> continue</div>
+<div id="end">
+  <div class="final">Thus Zarathustra began to go under.</div>
+  <div class="stats-grid">
+    <div><span class="big" id="endHoney">0</span>honey gathered</div>
+    <div><span class="big" id="endVistas">0</span>vistas observed</div>
+    <div><span class="big" id="endFalls">0</span>times fallen</div>
+  </div>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center">
+    <a href="../index.html">return</a>
+    <a href="prologue-3.html">continue to §3 →</a>
+  </div>
+</div>
+
+<script src="../sdk.js"></script>
+<script>
+(() => {
+  const cvs = document.getElementById('game');
+  const ctx = cvs.getContext('2d');
+  const narration = document.getElementById('narration');
+  const prompt = document.getElementById('prompt');
+  const vistaPrompt = document.getElementById('vistaPrompt');
+  const endScreen = document.getElementById('end');
+  const hud = document.getElementById('hud');
+  const honeyVal = document.getElementById('honeyVal');
+  const vistaVal = document.getElementById('vistaVal');
+  const fallsVal = document.getElementById('fallsVal');
+
+  function resize() {
+    cvs.width = window.innerWidth;
+    cvs.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // ===== World =====
+  const WORLD_W = 4200;
+  const GRAVITY = 0.55;
+  const JUMP_V = -11.5;
+  const MOVE_V = 3.8;
+  const MAX_FALL_V = 16;
+
+  // Platform positions use screen-height-based y values, adjusted at runtime.
+  // Yt values are the TOP of the platform (ground level).
+  function makeWorld() {
+    const H = cvs.height;
+    const base = H * 0.68;
+    const step = 12; // descent offset per section
+    return {
+      platforms: [
+        { x: 0,    y: base - 30,     w: 520 },   // cave start
+        { x: 620,  y: base - 10,     w: 340 },   // gap 1 (100)
+        { x: 1050, y: base - 40,     w: 110 },   // stepping stone (higher)
+        { x: 1210, y: base + 5,      w: 380 },
+        { x: 1700, y: base + 25,     w: 480 },   // gap 2 (110)
+        { x: 2250, y: base + 50,     w: 740 },   // long rockfall ground
+        { x: 3060, y: base + 10,     w: 90  },   // stepping stone above
+        { x: 3180, y: base + 70,     w: 300 },
+        { x: 3580, y: base + 100,    w: 80  },   // floating
+        { x: 3700, y: base + 120,    w: 500 },   // final approach
+      ],
+      honey: [
+        {x: 230, y: base - 60,  taken: false},
+        {x: 380, y: base - 60,  taken: false},
+        {x: 720, y: base - 40,  taken: false},
+        {x: 860, y: base - 40,  taken: false},
+        {x: 1090,y: base - 75,  taken: false},   // on stepping stone
+        {x: 1280,y: base - 25,  taken: false},
+        {x: 1450,y: base - 25,  taken: false},
+        {x: 1780,y: base - 5,   taken: false},
+        {x: 1950,y: base - 5,   taken: false},
+        {x: 2100,y: base - 5,   taken: false},
+        {x: 2380,y: base + 20,  taken: false},
+        {x: 2560,y: base + 20,  taken: false},
+        {x: 2780,y: base + 20,  taken: false},
+        {x: 3080,y: base - 20,  taken: false},   // on high stepping stone
+        {x: 3280,y: base + 40,  taken: false},
+        {x: 3820,y: base + 90,  taken: false},
+        {x: 3980,y: base + 90,  taken: false},
+      ],
+      vistas: [
+        { x: 430,  y: base - 80,  id: 'p1.v1', text: "So bless me then, you quiet eye, that can look even upon an all-too-great happiness without envy.", taken: false },
+        { x: 1520, y: base - 35,  id: 'p1.v2', text: "Bless the cup that wants to overflow, that the water may flow golden from it.", taken: false },
+        { x: 2900, y: base + 15,  id: 'p1.v3', text: "Behold! This cup wants to become empty again.", taken: false },
+        { x: 4060, y: base + 85,  id: 'p1.v4', text: "Zarathustra wants to become man again.", taken: false },
+      ],
+      hazardZones: [
+        { x1: 2280, x2: 2990 }, // rockfall in the long mountain pass
+      ],
+      base,
+    };
+  }
+
+  let world = makeWorld();
+  window.addEventListener('resize', () => {
+    // re-make but preserve "taken" state
+    const h = world.honey.slice();
+    const v = world.vistas.slice();
+    world = makeWorld();
+    for (let i = 0; i < world.honey.length; i++) world.honey[i].taken = h[i] ? h[i].taken : false;
+    for (let i = 0; i < world.vistas.length; i++) world.vistas[i].taken = v[i] ? v[i].taken : false;
+  });
+
+  // ===== State =====
+  const state = {
+    phase: 'intro',
+    introIdx: 0,
+    introTyper: null,
+    player: { x: 80, y: 0, vx: 0, vy: 0, w: 22, h: 46, onGround: false, facing: 1, coyoteTime: 0 },
+    lastCheckpoint: { x: 80, y: 0 },
+    honey: 0,
+    falls: 0,
+    vistasTaken: 0,
+    rocks: [],
+    rockSpawnT: 0,
+    cameraX: 0,
+    eagleT: Math.random() * 10,
+    audioStarted: false,
+    footstepT: 0,
+    vistaActive: -1,
+    vistaLocked: false,
+    ended: false,
+  };
+  // Start player on top of first platform
+  state.player.y = world.platforms[0].y - state.player.h;
+  state.lastCheckpoint = { x: state.player.x, y: state.player.y };
+
+  // ===== Saint encounter (Prologue §2) =====
+  const saint = {
+    x: 3820,
+    encountered: false,
+    active: false,
+    nearby: false,
+    lineIdx: 0,
+  };
+  const saintPrompt = document.getElementById('saintPrompt');
+  const saintLines = [
+    { who: 'the saint', text: "Why have you come down, Zarathustra? You once carried your ashes to the mountain. Will you carry your fire to the valleys now?" },
+    { who: 'Zarathustra', text: "I love mankind." },
+    { who: 'the saint', text: "Why did I go into the forest? Was it not because I loved men far too much? Now I love God; men I do not love." },
+    { who: 'Zarathustra', text: "What did I say of love? I am bringing men a gift." },
+    { who: 'the saint', text: "Give them nothing! Take part of their load and carry it with them — that will please them most. If you must give, give nothing more than alms; and let them beg for that." },
+    { who: 'Zarathustra', text: "No, I give no alms. I am not poor enough for that." },
+    { who: 'the saint', text: "Then see to it that they accept your treasures! They are suspicious of hermits, and do not believe that we come with gifts. Our footsteps sound too lonely through their lanes." },
+    { who: 'Zarathustra', text: "And what does the saint do in the forest?" },
+    { who: 'the saint', text: "I make songs and sing them; and when I make songs I laugh, weep, and mutter. Thus I praise God. With singing, weeping, laughing, and muttering I praise the god who is my god." },
+    { who: 'Zarathustra (to himself)', text: "Could it be possible! This old saint in the forest has not yet heard anything of this — that God is dead!" },
+  ];
+
+  function showDialogueLine(line) {
+    narration.classList.add('visible');
+    narration.classList.remove('vista');
+    narration.classList.add('dialogue');
+    if (state.introTyper) state.introTyper.cancel();
+    // build speaker tag
+    narration.innerHTML = `<span class="speaker">${line.who}</span><span class="dlg"></span>`;
+    const dlgEl = narration.querySelector('.dlg');
+    state.introTyper = Zara.typewrite(dlgEl, line.text, { cps: 46 });
+    state.narrationTimer = null;
+  }
+  function tryStartSaint() {
+    if (saint.encountered || saint.active) return;
+    saint.active = true;
+    saint.lineIdx = 0;
+    state.player.vx = 0;
+    showDialogueLine(saintLines[0]);
+    prompt.innerHTML = '<span class="key">[ space ]</span> continue';
+    prompt.classList.add('visible');
+  }
+  function advanceSaint() {
+    if (state.introTyper && !state.introTyper.isDone()) {
+      state.introTyper.complete();
+      return;
+    }
+    saint.lineIdx++;
+    if (saint.lineIdx >= saintLines.length) {
+      finishSaint();
+      return;
+    }
+    showDialogueLine(saintLines[saint.lineIdx]);
+  }
+  function finishSaint() {
+    saint.active = false;
+    saint.encountered = true;
+    Zara.addQuote('p2.god-dead',
+      "Could it be possible! This old saint in the forest has not yet heard anything of this — that God is dead!",
+      "Prologue §2");
+    Zara.addQuote('p2.saint-songs',
+      "I make songs and sing them; and when I make songs I laugh, weep, and mutter. Thus I praise God.",
+      "Prologue §2");
+    narration.classList.remove('dialogue');
+    hideNarration();
+    prompt.classList.remove('visible');
+  }
+
+  const intro = [
+    "When Zarathustra was thirty years old, he left his home and the lake of his home, and went into the mountains.",
+    "There he enjoyed his spirit and his solitude, and for ten years did not tire of it.",
+    "But at last his heart changed — and rising one morning with the rosy dawn, he went before the sun, and spoke thus to it:",
+    "\"You great star, what would your happiness be had you not those for whom you shine?",
+    "I am weary of my wisdom, like a bee that has gathered too much honey; I need hands outstretched to receive it.",
+    "For that I must descend into the depths — like you, I must go under.\"",
+  ];
+  const introQuoteIdx = 3;
+
+  function showNarration(text, opts) {
+    opts = opts || {};
+    narration.classList.add('visible');
+    narration.classList.toggle('vista', !!opts.vista);
+    if (state.introTyper) state.introTyper.cancel();
+    state.introTyper = Zara.typewrite(narration, text, { cps: opts.cps || 42 });
+    state.narrationTimer = opts.duration || null;
+    return state.introTyper;
+  }
+  function hideNarration() {
+    narration.classList.remove('visible');
+    narration.classList.remove('vista');
+    state.narrationTimer = null;
+  }
+
+  function ensureAudio() {
+    if (state.audioStarted) return;
+    state.audioStarted = true;
+    Zara.audio();
+  }
+
+  function updateHud() {
+    honeyVal.textContent = state.honey;
+    vistaVal.textContent = state.vistasTaken;
+    fallsVal.textContent = state.falls;
+    document.getElementById('honeyMax').textContent = world.honey.length;
+  }
+  updateHud();
+
+  const keys = {};
+  const jumpKeys = ['ArrowUp', 'w', 'W', ' '];
+  window.addEventListener('keydown', (e) => {
+    // prevent arrow key scrolling
+    if (['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+    if (keys[e.key]) return;
+    keys[e.key] = true;
+    ensureAudio();
+
+    if (state.phase === 'intro') {
+      if (e.key === ' ' || e.key === 'Enter') {
+        if (state.introTyper && !state.introTyper.isDone()) {
+          state.introTyper.complete();
+          return;
+        }
+        if (state.introIdx === introQuoteIdx) {
+          Zara.addQuote('p1.anchor',
+            "You great star, what would your happiness be had you not those for whom you shine?",
+            "Prologue §1");
+        }
+        state.introIdx++;
+        if (state.introIdx >= intro.length) {
+          state.phase = 'play';
+          hideNarration();
+          hud.classList.add('visible');
+          prompt.innerHTML = '<span class="key">[ ← → ]</span> move &nbsp;·&nbsp; <span class="key">[ space ]</span> jump &nbsp;·&nbsp; <span class="key">[ E ]</span> vistas';
+          Zara.playWind(0.1);
+          setTimeout(() => prompt.classList.remove('visible'), 4500);
+        } else {
+          showNarration(intro[state.introIdx]);
+        }
+      }
+    } else if (state.phase === 'play') {
+      if (saint.active) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          advanceSaint();
+        }
+        return;
+      }
+      if (jumpKeys.includes(e.key)) {
+        tryJump();
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        if (saint.nearby && !saint.encountered && !saint.active) {
+          tryStartSaint();
+        } else if (state.vistaActive >= 0 && !state.vistaLocked) {
+          collectVista(state.vistaActive);
+        }
+      }
+    }
+  });
+  window.addEventListener('keyup', (e) => { keys[e.key] = false; });
+
+  function tryJump() {
+    const p = state.player;
+    if (p.onGround || p.coyoteTime > 0) {
+      p.vy = JUMP_V;
+      p.onGround = false;
+      p.coyoteTime = 0;
+      Zara.chime(0.04);
+    }
+  }
+
+  function collectVista(idx) {
+    const v = world.vistas[idx];
+    if (v.taken) return;
+    v.taken = true;
+    state.vistasTaken++;
+    state.vistaLocked = true;
+    vistaPrompt.classList.remove('visible');
+    Zara.chime(0.07);
+    showNarration(v.text, { vista: true, cps: 48, duration: 5500 });
+    Zara.addQuote(v.id, v.text, `Prologue §1, Vista ${idx + 1}`);
+    // Set checkpoint
+    state.lastCheckpoint = { x: v.x, y: v.y + 20 };
+    updateHud();
+    setTimeout(() => {
+      hideNarration();
+      state.vistaLocked = false;
+    }, 5500);
+  }
+
+  function respawn() {
+    const p = state.player;
+    p.x = state.lastCheckpoint.x;
+    p.y = state.lastCheckpoint.y;
+    p.vx = 0; p.vy = 0;
+    state.falls++;
+    updateHud();
+    Zara.thud(0.22);
+  }
+
+  // ===== Physics =====
+  function playerCollide() {
+    const p = state.player;
+    p.onGround = false;
+    for (const plat of world.platforms) {
+      if (p.x + p.w > plat.x && p.x < plat.x + plat.w) {
+        // Landing on top
+        const prevBottom = (p.y + p.h) - p.vy;
+        if (p.vy >= 0 && p.y + p.h >= plat.y && prevBottom <= plat.y + 2) {
+          p.y = plat.y - p.h;
+          p.vy = 0;
+          p.onGround = true;
+        }
+      }
+    }
+  }
+
+  function updatePlay(dt) {
+    const p = state.player;
+    if (saint.active) {
+      p.vx *= 0.5;
+    } else {
+      const L = keys['ArrowLeft'] || keys['a'] || keys['A'];
+      const R = keys['ArrowRight'] || keys['d'] || keys['D'];
+      if (L && !R) { p.vx = -MOVE_V; p.facing = -1; }
+      else if (R && !L) { p.vx = MOVE_V; p.facing = 1; }
+      else p.vx *= 0.6; // friction
+    }
+
+    p.vy = Math.min(p.vy + GRAVITY, MAX_FALL_V);
+
+    p.x += p.vx;
+    playerCollide(); // horizontal step collision handled loosely (thin platforms)
+    p.y += p.vy;
+    playerCollide();
+
+    p.x = Math.max(0, Math.min(WORLD_W - p.w, p.x));
+
+    if (p.onGround) {
+      p.coyoteTime = 100;
+      // Footsteps
+      if (Math.abs(p.vx) > 1) {
+        state.footstepT += dt;
+        if (state.footstepT > 360) {
+          state.footstepT = 0;
+          Zara.footstep(0.035);
+        }
+      } else {
+        state.footstepT = 0;
+      }
+    } else {
+      p.coyoteTime = Math.max(0, p.coyoteTime - dt);
+    }
+
+    // Fall death
+    if (p.y > cvs.height + 200) respawn();
+
+    // Camera
+    const target = p.x - cvs.width * 0.45;
+    state.cameraX += (target - state.cameraX) * Math.min(1, dt / 250);
+    state.cameraX = Math.max(0, Math.min(WORLD_W - cvs.width, state.cameraX));
+
+    // Honey collect
+    for (const h of world.honey) {
+      if (h.taken) continue;
+      const dx = (p.x + p.w/2) - h.x;
+      const dy = (p.y + p.h/2) - h.y;
+      if (dx*dx + dy*dy < 26*26) {
+        h.taken = true;
+        state.honey++;
+        updateHud();
+        Zara.chime(0.05);
+      }
+    }
+
+    // Saint proximity (Prologue §2 encounter) — opt-in: stand near and press E.
+    // The player is free to walk past; the encounter does not auto-trigger.
+    if (!saint.encountered && !saint.active) {
+      const dx = (p.x + p.w/2) - saint.x;
+      saint.nearby = (Math.abs(dx) < 90 && p.onGround);
+      if (saint.nearby) saintPrompt.classList.add('visible');
+      else saintPrompt.classList.remove('visible');
+    } else {
+      saint.nearby = false;
+      saintPrompt.classList.remove('visible');
+    }
+
+    // Vista proximity
+    let active = -1;
+    for (let i = 0; i < world.vistas.length; i++) {
+      const v = world.vistas[i];
+      if (v.taken) continue;
+      const dx = (p.x + p.w/2) - v.x;
+      const dy = (p.y + p.h/2) - v.y;
+      if (dx*dx + dy*dy < 90*90) { active = i; break; }
+    }
+    state.vistaActive = active;
+    if (active >= 0 && !state.vistaLocked) vistaPrompt.classList.add('visible');
+    else vistaPrompt.classList.remove('visible');
+
+    // Hazard: rock spawning
+    let inHazard = false;
+    for (const z of world.hazardZones) {
+      if (p.x > z.x1 && p.x < z.x2) { inHazard = true; break; }
+    }
+    state.rockSpawnT += dt;
+    if (inHazard && state.rockSpawnT > 1100) {
+      state.rockSpawnT = 0;
+      state.rocks.push({
+        x: p.x + (Math.random() - 0.3) * 300,
+        y: -40,
+        vy: 0,
+        size: 10 + Math.random() * 7,
+        spin: Math.random() * Math.PI,
+        exploded: false,
+      });
+    }
+
+    // Rocks physics
+    for (const r of state.rocks) {
+      if (r.exploded) continue;
+      r.vy = Math.min(r.vy + GRAVITY * 0.75, 14);
+      r.y += r.vy;
+      r.spin += 0.12;
+      // Hit ground
+      for (const plat of world.platforms) {
+        if (r.x > plat.x && r.x < plat.x + plat.w && r.y > plat.y - 4 && r.y < plat.y + 10) {
+          r.exploded = true;
+          r.explodedT = performance.now();
+          Zara.thud(0.1);
+          break;
+        }
+      }
+      // Hit player
+      if (!r.exploded) {
+        const dx = r.x - (p.x + p.w/2);
+        const dy = r.y - (p.y + p.h/2);
+        if (dx*dx + dy*dy < (r.size + 14) * (r.size + 14)) {
+          r.exploded = true;
+          r.explodedT = performance.now();
+          p.vy = -7;
+          p.vx = Math.sign(dx || 1) * -5;
+          if (state.honey > 0) { state.honey--; updateHud(); }
+          Zara.thud(0.2);
+        }
+      }
+    }
+    // Cull rocks (exploded after fade, or unexploded that fell off-screen)
+    state.rocks = state.rocks.filter(r => {
+      if (r.exploded) return performance.now() - (r.explodedT || 0) < 350;
+      return r.y < cvs.height + 220;
+    });
+
+    // Narration timer
+    if (state.narrationTimer != null) {
+      state.narrationTimer -= dt;
+      if (state.narrationTimer <= 0) {
+        state.narrationTimer = null;
+        if (!state.vistaLocked) hideNarration();
+      }
+    }
+
+    // End condition
+    if (p.x > WORLD_W - 100 && !state.ended) {
+      state.ended = true;
+      state.phase = 'end';
+      Zara.stopWind();
+      Zara.addQuote('p1.end', "Thus Zarathustra began to go under.", "Prologue §1");
+      document.getElementById('endHoney').textContent = state.honey;
+      document.getElementById('endVistas').textContent = state.vistasTaken;
+      document.getElementById('endFalls').textContent = state.falls;
+      setTimeout(() => endScreen.classList.add('visible'), 900);
+    }
+  }
+
+  // ===== Drawing =====
+  function drawSky() {
+    const w = cvs.width, h = cvs.height;
+    const t = state.cameraX / WORLD_W;
+    const dawn = Math.min(1, t * 1.3 + 0.05);
+    const grd = ctx.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, `rgb(${18 + dawn * 30}, ${22 + dawn * 22}, ${48 + dawn * 40})`);
+    grd.addColorStop(0.55, `rgb(${55 + dawn * 180}, ${40 + dawn * 120}, ${70 + dawn * 50})`);
+    grd.addColorStop(0.85, `rgb(${80 + dawn * 150}, ${55 + dawn * 100}, ${60 + dawn * 40})`);
+    grd.addColorStop(1, `rgb(${30 + dawn * 70}, ${22 + dawn * 45}, ${35 + dawn * 30})`);
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+
+    const sunX = w * (0.12 + t * 0.65);
+    const sunY = h * 0.72 - t * h * 0.48;
+    const sunR = 36 + t * 26;
+    const glow = ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunR * 5);
+    glow.addColorStop(0, `rgba(255, 220, 150, ${0.4 + t * 0.3})`);
+    glow.addColorStop(0.25, `rgba(255, 175, 90, ${0.18 + t * 0.15})`);
+    glow.addColorStop(1, 'rgba(255, 160, 80, 0)');
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = `rgba(255, 240, 200, ${0.85 + t * 0.15})`;
+    ctx.beginPath();
+    ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function drawEagle(tSec) {
+    const cycle = 18;
+    const t = ((tSec + state.eagleT) % cycle) / cycle;
+    if (t > 0.45) return;
+    const fade = t < 0.05 ? t / 0.05 : (t > 0.4 ? (0.45 - t) / 0.05 : 1);
+    const w = cvs.width, h = cvs.height;
+    const cx = w * 0.55, cy = h * 0.28;
+    const rx = w * 0.28, ry = h * 0.1;
+    const ang = t / 0.45 * Math.PI * 2;
+    const ex = cx + Math.cos(ang) * rx;
+    const ey = cy + Math.sin(ang) * ry;
+    const beat = Math.sin(tSec * 6) * 0.4 + 0.6;
+    ctx.save();
+    ctx.globalAlpha = 0.7 * fade;
+    ctx.fillStyle = '#0a0808';
+    const s = 12;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.quadraticCurveTo(ex - s, ey - s * beat, ex - s * 2, ey);
+    ctx.quadraticCurveTo(ex - s, ey + s * 0.3, ex, ey);
+    ctx.quadraticCurveTo(ex + s, ey - s * beat, ex + s * 2, ey);
+    ctx.quadraticCurveTo(ex + s, ey + s * 0.3, ex, ey);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRidge(parallax, baseY, amp, color, seedMul) {
+    const w = cvs.width;
+    const offset = state.cameraX * parallax;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, cvs.height);
+    const step = 50;
+    const startX = -((offset) % (step * 2));
+    for (let x = startX - step; x <= w + step; x += step) {
+      const seed = Math.floor((x + offset) / step) * seedMul;
+      const peakH = (Math.sin(seed * 2.3) * 0.45 + Math.sin(seed * 1.15 + 1.4) * 0.35 + 0.5) * amp;
+      ctx.lineTo(x, baseY - peakH);
+    }
+    ctx.lineTo(w, cvs.height);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawMountains() {
+    const h = cvs.height;
+    drawRidge(0.08, h * 0.52, 110, '#2d2a3a', 1.0);
+    drawRidge(0.18, h * 0.62, 140, '#1c1a28', 1.7);
+    drawRidge(0.35, h * 0.74, 170, '#0c0b16', 2.5);
+  }
+
+  function wx(x) { return x - state.cameraX; }
+
+  function drawPlatforms() {
+    ctx.fillStyle = '#0a0808';
+    for (const plat of world.platforms) {
+      const sx = wx(plat.x);
+      if (sx + plat.w < -30 || sx > cvs.width + 30) continue;
+      // Ground extends down to bottom
+      ctx.fillRect(sx, plat.y, plat.w, cvs.height - plat.y);
+      // Highlight edge
+      ctx.fillStyle = '#1a1820';
+      ctx.fillRect(sx, plat.y, plat.w, 3);
+      ctx.fillStyle = '#0a0808';
+    }
+  }
+
+  function drawHoney(tSec) {
+    for (const h of world.honey) {
+      if (h.taken) continue;
+      const sx = wx(h.x);
+      if (sx < -30 || sx > cvs.width + 30) continue;
+      const pulse = Math.sin(tSec * 3 + h.x * 0.01) * 0.3 + 0.7;
+      const r = 7 + pulse * 1.5;
+      const glow = ctx.createRadialGradient(sx, h.y, 0, sx, h.y, r * 3.5);
+      glow.addColorStop(0, `rgba(255, 210, 100, ${0.7 * pulse})`);
+      glow.addColorStop(0.3, 'rgba(255, 185, 60, 0.25)');
+      glow.addColorStop(1, 'rgba(255, 180, 50, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - r * 4, h.y - r * 4, r * 8, r * 8);
+      ctx.fillStyle = '#f3c84a';
+      ctx.beginPath();
+      ctx.arc(sx, h.y, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff4c0';
+      ctx.beginPath();
+      ctx.arc(sx - r * 0.3, h.y - r * 0.3, r * 0.35, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawVistas(tSec) {
+    for (let i = 0; i < world.vistas.length; i++) {
+      const v = world.vistas[i];
+      if (v.taken) continue;
+      const sx = wx(v.x);
+      if (sx < -60 || sx > cvs.width + 60) continue;
+      const pulse = 0.6 + Math.sin(tSec * 2 + i) * 0.4;
+      const glow = ctx.createRadialGradient(sx, v.y, 0, sx, v.y, 40);
+      glow.addColorStop(0, `rgba(228, 200, 112, ${0.7 * pulse})`);
+      glow.addColorStop(0.4, 'rgba(228, 200, 112, 0.2)');
+      glow.addColorStop(1, 'rgba(228, 200, 112, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - 40, v.y - 40, 80, 80);
+      ctx.fillStyle = `rgba(240, 220, 140, ${0.8 + pulse * 0.2})`;
+      ctx.beginPath();
+      ctx.arc(sx, v.y, 3 + pulse * 2, 0, Math.PI * 2);
+      ctx.fill();
+      // Small stone cairn below
+      ctx.fillStyle = '#1a1612';
+      ctx.fillRect(sx - 5, v.y + 6, 10, 4);
+      ctx.fillRect(sx - 3, v.y + 3, 6, 4);
+    }
+  }
+
+  function drawRocks() {
+    for (const r of state.rocks) {
+      const sx = wx(r.x);
+      if (r.exploded) {
+        const age = (performance.now() - (r.explodedT || performance.now())) / 350;
+        ctx.save();
+        ctx.globalAlpha = 1 - age;
+        for (let i = 0; i < 5; i++) {
+          const a = r.spin + i;
+          const d = age * 24 + 4;
+          ctx.fillStyle = '#4a403a';
+          ctx.fillRect(sx + Math.cos(a) * d, r.y + Math.sin(a) * d, 4, 4);
+        }
+        ctx.restore();
+      } else {
+        ctx.save();
+        ctx.translate(sx, r.y);
+        ctx.rotate(r.spin);
+        ctx.fillStyle = '#3a322c';
+        ctx.fillRect(-r.size, -r.size, r.size * 2, r.size * 2);
+        ctx.fillStyle = '#544a40';
+        ctx.fillRect(-r.size * 0.4, -r.size * 0.7, r.size * 0.6, r.size * 0.4);
+        ctx.restore();
+      }
+    }
+  }
+
+  function drawPlayer() {
+    const p = state.player;
+    const sx = wx(p.x + p.w / 2);
+    const y = p.y + p.h;
+    const walking = p.onGround && Math.abs(p.vx) > 0.5;
+    const bob = walking ? Math.sin(Date.now() / 120) * 2.2 : 0;
+
+    ctx.save();
+    ctx.translate(sx, y);
+    if (p.facing < 0) ctx.scale(-1, 1);
+    ctx.fillStyle = '#050404';
+    // robe
+    ctx.beginPath();
+    ctx.moveTo(-13, 0);
+    ctx.lineTo(-10, -38 + bob);
+    ctx.lineTo(10, -38 + bob);
+    ctx.lineTo(13, 0);
+    ctx.closePath();
+    ctx.fill();
+    // head
+    ctx.beginPath();
+    ctx.arc(0, -48 + bob, 9, 0, Math.PI * 2);
+    ctx.fill();
+    // beard
+    ctx.fillRect(-7, -44 + bob, 14, 5);
+    // staff (forward-facing)
+    ctx.strokeStyle = '#050404';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(13, 0);
+    ctx.lineTo(17, -54);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawSaint(tSec) {
+    const sx = wx(saint.x);
+    if (sx < -120 || sx > cvs.width + 120) return;
+    const sy = world.platforms[world.platforms.length - 1].y;
+
+    // small grove of pine silhouettes around him
+    ctx.fillStyle = '#0a1208';
+    const trees = [-3, -2, -1, 1, 2, 3];
+    for (const i of trees) {
+      const tx = sx + i * 30;
+      const seed = Math.sin(i * 1.7) * 6;
+      const th = 36 + Math.abs(Math.sin(i * 1.3)) * 14;
+      ctx.beginPath();
+      ctx.moveTo(tx - 11, sy);
+      ctx.lineTo(tx, sy - th + seed);
+      ctx.lineTo(tx + 11, sy);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // saint's body
+    ctx.save();
+    ctx.translate(sx, sy);
+    const sway = Math.sin(tSec * 1.1) * 0.04;
+    ctx.rotate(sway);
+    // robe
+    ctx.fillStyle = '#181410';
+    ctx.beginPath();
+    ctx.moveTo(-15, 0);
+    ctx.lineTo(-11, -42);
+    ctx.lineTo(11, -42);
+    ctx.lineTo(15, 0);
+    ctx.closePath();
+    ctx.fill();
+    // head
+    ctx.beginPath(); ctx.arc(0, -50, 8, 0, Math.PI * 2); ctx.fill();
+    // long beard
+    ctx.fillStyle = '#9c948a';
+    ctx.beginPath();
+    ctx.moveTo(-6, -47); ctx.lineTo(-4, -28); ctx.lineTo(4, -28); ctx.lineTo(6, -47);
+    ctx.closePath(); ctx.fill();
+    // arms raised in song / praise
+    ctx.strokeStyle = '#181410';
+    ctx.lineWidth = 4;
+    const armSway = Math.sin(tSec * 1.6) * 0.08;
+    ctx.beginPath();
+    ctx.moveTo(-9, -38);
+    ctx.lineTo(-9 - 18, -38 - 18 + armSway * 6);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(9, -38);
+    ctx.lineTo(9 + 18, -38 - 18 - armSway * 6);
+    ctx.stroke();
+    ctx.restore();
+
+    // halo glow when not yet encountered
+    if (!saint.encountered) {
+      const pulse = 0.55 + Math.sin(tSec * 2.2) * 0.3;
+      const glow = ctx.createRadialGradient(sx, sy - 40, 4, sx, sy - 40, 60);
+      glow.addColorStop(0, `rgba(228, 200, 112, ${0.2 * pulse})`);
+      glow.addColorStop(1, 'rgba(228, 200, 112, 0)');
+      ctx.fillStyle = glow;
+      ctx.fillRect(sx - 60, sy - 100, 120, 120);
+    }
+  }
+
+  function drawTown() {
+    // Visible near end of world
+    const townX = WORLD_W - 100;
+    const sx = wx(townX);
+    if (sx > cvs.width + 200 || sx < -400) return;
+    const townY = world.platforms[world.platforms.length - 1].y;
+    ctx.fillStyle = 'rgba(22, 19, 28, 0.95)';
+    for (let i = 0; i < 10; i++) {
+      const bx = sx - 220 + i * 26;
+      const bh = 18 + ((i * 7) % 4) * 8;
+      ctx.fillRect(bx, townY - bh, 22, bh);
+      ctx.beginPath();
+      ctx.moveTo(bx - 2, townY - bh);
+      ctx.lineTo(bx + 11, townY - bh - 10);
+      ctx.lineTo(bx + 24, townY - bh);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // Gate
+    ctx.fillStyle = '#12100c';
+    ctx.fillRect(sx, townY - 60, 12, 60);
+    ctx.fillRect(sx + 30, townY - 60, 12, 60);
+    ctx.fillRect(sx - 2, townY - 62, 46, 6);
+  }
+
+  function draw(tSec) {
+    drawSky();
+    drawEagle(tSec);
+    drawMountains();
+    drawTown();
+    drawPlatforms();
+    drawSaint(tSec);
+    drawVistas(tSec);
+    drawHoney(tSec);
+    drawRocks();
+    drawPlayer();
+  }
+
+  // ===== Main loop =====
+  // Start
+  showNarration(intro[0]);
+  prompt.innerHTML = '<span class="key">[ space ]</span> continue';
+  prompt.classList.add('visible');
+
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(40, now - last);
+    last = now;
+    if (state.phase === 'play') updatePlay(dt);
+    draw(now / 1000);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

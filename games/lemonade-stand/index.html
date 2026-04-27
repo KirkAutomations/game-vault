@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Leonardo's Lemonade Stand</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: linear-gradient(180deg, #87CEEB 0%, #E0F7FA 60%, #81C784 60%, #4CAF50 100%);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .sun {
+    position: fixed;
+    top: 30px;
+    right: 60px;
+    width: 80px;
+    height: 80px;
+    background: #FFD54F;
+    border-radius: 50%;
+    box-shadow: 0 0 40px #FFD54F, 0 0 80px #FFE082;
+    animation: pulse 3s ease-in-out infinite;
+    z-index: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+  }
+
+  .cloud {
+    position: fixed;
+    background: white;
+    border-radius: 50px;
+    opacity: 0.8;
+    z-index: 0;
+  }
+  .cloud1 { top: 50px; left: -100px; width: 120px; height: 40px; animation: drift 25s linear infinite; }
+  .cloud2 { top: 100px; left: -200px; width: 160px; height: 50px; animation: drift 35s linear infinite 5s; }
+  .cloud3 { top: 30px; left: -150px; width: 100px; height: 35px; animation: drift 30s linear infinite 12s; }
+  @keyframes drift {
+    from { transform: translateX(0); }
+    to { transform: translateX(calc(100vw + 300px)); }
+  }
+
+  #game-container {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    position: relative;
+    z-index: 1;
+  }
+
+  h1 {
+    text-align: center;
+    color: #E65100;
+    font-size: 2.2em;
+    text-shadow: 2px 2px 0 #FFE082;
+    margin-bottom: 5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: #5D4037;
+    font-size: 0.95em;
+    margin-bottom: 15px;
+  }
+
+  .stand {
+    text-align: center;
+    font-size: 4em;
+    margin: 10px 0;
+    filter: drop-shadow(2px 4px 3px rgba(0,0,0,0.2));
+  }
+
+  .stats-bar {
+    display: flex;
+    justify-content: space-around;
+    background: rgba(255,255,255,0.92);
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .stat {
+    text-align: center;
+    min-width: 80px;
+  }
+  .stat-label { font-size: 0.75em; color: #888; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-value { font-size: 1.5em; font-weight: bold; color: #333; }
+  .stat-value.money { color: #2E7D32; }
+  .stat-value.day { color: #E65100; }
+  .stat-value.rep { color: #1565C0; }
+
+  .panel {
+    background: rgba(255,255,255,0.95);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 15px;
+    box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+  }
+  .panel h2 {
+    color: #E65100;
+    font-size: 1.2em;
+    margin-bottom: 12px;
+    border-bottom: 2px solid #FFE082;
+    padding-bottom: 5px;
+  }
+
+  .supply-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .supply-item {
+    background: #FFF8E1;
+    border: 2px solid #FFE082;
+    border-radius: 12px;
+    padding: 12px;
+    text-align: center;
+  }
+  .supply-item .emoji { font-size: 2em; }
+  .supply-item .name { font-weight: bold; color: #5D4037; margin: 5px 0 2px; }
+  .supply-item .cost { color: #888; font-size: 0.85em; }
+  .supply-item .owned { color: #2E7D32; font-size: 0.85em; margin-bottom: 8px; }
+
+  .qty-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .qty-controls button {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #E65100;
+    background: white;
+    color: #E65100;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .qty-controls button:hover { background: #E65100; color: white; }
+  .qty-controls span { font-size: 1.2em; font-weight: bold; min-width: 30px; }
+
+  .price-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    margin: 10px 0;
+    flex-wrap: wrap;
+  }
+  .price-section label { font-weight: bold; color: #5D4037; }
+  .price-section input {
+    width: 80px;
+    padding: 8px;
+    border: 2px solid #FFE082;
+    border-radius: 8px;
+    font-size: 1.1em;
+    text-align: center;
+  }
+  .price-hint { font-size: 0.85em; color: #888; }
+
+  .btn {
+    display: block;
+    margin: 15px auto 0;
+    padding: 14px 50px;
+    background: linear-gradient(135deg, #FF8F00, #E65100);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 1.2em;
+    font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(230, 81, 0, 0.3);
+    transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(230,81,0,0.4); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+  .weather-banner {
+    text-align: center;
+    padding: 10px;
+    border-radius: 12px;
+    margin-bottom: 10px;
+    font-size: 1.05em;
+    font-weight: bold;
+  }
+
+  /* Math challenge overlay */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 100;
+    justify-content: center;
+    align-items: center;
+  }
+  .overlay.active { display: flex; }
+  .modal {
+    background: white;
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 450px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    animation: popIn 0.3s ease;
+  }
+  @keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  .modal h2 { color: #E65100; margin-bottom: 15px; }
+  .modal .math-problem {
+    font-size: 2em;
+    font-weight: bold;
+    color: #333;
+    margin: 15px 0;
+    padding: 15px;
+    background: #FFF8E1;
+    border-radius: 12px;
+  }
+  .modal input {
+    width: 120px;
+    padding: 10px;
+    font-size: 1.5em;
+    text-align: center;
+    border: 3px solid #FFE082;
+    border-radius: 12px;
+    margin: 10px 0;
+  }
+  .modal input:focus { outline: none; border-color: #E65100; }
+  .modal .feedback {
+    font-size: 1.1em;
+    margin: 10px 0;
+    min-height: 1.5em;
+  }
+  .correct { color: #2E7D32; font-weight: bold; }
+  .wrong { color: #C62828; font-weight: bold; }
+
+  /* Results panel */
+  .results-detail { line-height: 1.8; color: #333; }
+  .results-detail .line { display: flex; justify-content: space-between; padding: 3px 0; }
+  .results-detail .total { border-top: 2px solid #E65100; margin-top: 8px; padding-top: 8px; font-weight: bold; font-size: 1.1em; }
+  .results-detail .profit { color: #2E7D32; }
+  .results-detail .loss { color: #C62828; }
+
+  .lesson-box {
+    background: #E3F2FD;
+    border-left: 4px solid #1565C0;
+    border-radius: 0 12px 12px 0;
+    padding: 12px 15px;
+    margin: 12px 0;
+    font-size: 0.95em;
+    color: #1A237E;
+  }
+
+  .event-box {
+    background: #FFF3E0;
+    border-left: 4px solid #E65100;
+    border-radius: 0 12px 12px 0;
+    padding: 12px 15px;
+    margin: 12px 0;
+    font-size: 0.95em;
+    color: #BF360C;
+  }
+
+  .game-over-modal .final-grade {
+    font-size: 3em;
+    margin: 10px 0;
+  }
+
+  .tips { font-size: 0.85em; color: #777; margin-top: 8px; text-align: center; }
+
+  @media (max-width: 500px) {
+    h1 { font-size: 1.6em; }
+    .stand { font-size: 3em; }
+    .stat-value { font-size: 1.2em; }
+  }
+</style>
+</head>
+<body>
+
+<div class="sun"></div>
+<div class="cloud cloud1"></div>
+<div class="cloud cloud2"></div>
+<div class="cloud cloud3"></div>
+
+<div id="game-container">
+  <h1>Leonardo's Lemonade Stand</h1>
+  <p class="subtitle">Learn math & business - earn your fortune one cup at a time!</p>
+  <div class="stand">🍋🏪🍋</div>
+
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat"><div class="stat-label">Money</div><div class="stat-value money" id="money">$20.00</div></div>
+    <div class="stat"><div class="stat-label">Day</div><div class="stat-value day" id="day">1 / 14</div></div>
+    <div class="stat"><div class="stat-label">Reputation</div><div class="stat-value rep" id="rep">⭐⭐⭐</div></div>
+    <div class="stat"><div class="stat-label">Cups Sold</div><div class="stat-value" id="totalSold">0</div></div>
+  </div>
+
+  <!-- Main game area -->
+  <div id="phase-setup">
+    <div class="panel" id="weather-panel"></div>
+
+    <div class="panel">
+      <h2>Buy Supplies</h2>
+      <div class="supply-grid">
+        <div class="supply-item">
+          <div class="emoji">🍋</div>
+          <div class="name">Lemons</div>
+          <div class="cost">$2.00 per bag (makes 6 cups)</div>
+          <div class="owned">Owned: <span id="own-lemons">0</span> bags</div>
+          <div class="qty-controls">
+            <button onclick="changeCart('lemons', -1)">-</button>
+            <span id="cart-lemons">0</span>
+            <button onclick="changeCart('lemons', 1)">+</button>
+          </div>
+        </div>
+        <div class="supply-item">
+          <div class="emoji">🍬</div>
+          <div class="name">Sugar</div>
+          <div class="cost">$1.50 per bag (makes 8 cups)</div>
+          <div class="owned">Owned: <span id="own-sugar">0</span> bags</div>
+          <div class="qty-controls">
+            <button onclick="changeCart('sugar', -1)">-</button>
+            <span id="cart-sugar">0</span>
+            <button onclick="changeCart('sugar', 1)">+</button>
+          </div>
+        </div>
+        <div class="supply-item">
+          <div class="emoji">🥤</div>
+          <div class="name">Cups</div>
+          <div class="cost">$1.00 per pack of 10</div>
+          <div class="owned">Owned: <span id="own-cups">0</span> cups</div>
+          <div class="qty-controls">
+            <button onclick="changeCart('cups', -1)">-</button>
+            <span id="cart-cups">0</span>
+            <button onclick="changeCart('cups', 1)">+</button>
+          </div>
+        </div>
+        <div class="supply-item">
+          <div class="emoji">🧊</div>
+          <div class="name">Ice</div>
+          <div class="cost">$0.50 per bag (melts daily!)</div>
+          <div class="owned">Owned: <span id="own-ice">0</span> bags</div>
+          <div class="qty-controls">
+            <button onclick="changeCart('ice', -1)">-</button>
+            <span id="cart-ice">0</span>
+            <button onclick="changeCart('ice', 1)">+</button>
+          </div>
+        </div>
+      </div>
+      <p class="tips">Shopping cart total: <strong id="cart-total">$0.00</strong></p>
+      <button class="btn" style="margin-top:10px; padding:10px 30px; font-size:1em;" onclick="buySupplies()">Buy Supplies</button>
+    </div>
+
+    <div class="panel">
+      <h2>Set Your Price</h2>
+      <div class="price-section">
+        <label>Price per cup: $</label>
+        <input type="number" id="price" value="0.50" min="0.10" max="5.00" step="0.05">
+      </div>
+      <p class="price-hint" id="price-hint">Cost to make one cup: calculating...</p>
+      <p class="tips" id="max-cups-info">You can make: 0 cups with current supplies</p>
+    </div>
+
+    <button class="btn" id="open-btn" onclick="openStand()">Open for Business!</button>
+  </div>
+
+  <!-- Results area -->
+  <div id="phase-results" style="display:none;">
+    <div class="panel">
+      <h2 id="results-title">Day Results</h2>
+      <div class="results-detail" id="results-detail"></div>
+    </div>
+    <div id="lesson-container"></div>
+    <div id="event-container"></div>
+    <button class="btn" id="next-day-btn" onclick="nextDay()">Next Day</button>
+  </div>
+
+  <!-- Game Over -->
+  <div id="phase-gameover" style="display:none"></div>
+</div>
+
+<!-- Math Challenge Overlay -->
+<div class="overlay" id="math-overlay">
+  <div class="modal">
+    <h2 id="math-title">Customer Paying!</h2>
+    <p id="math-scenario"></p>
+    <div class="math-problem" id="math-problem"></div>
+    <input type="number" id="math-answer" step="0.01" placeholder="?" autofocus>
+    <div class="feedback" id="math-feedback"></div>
+    <button class="btn" style="padding:10px 30px; font-size:1em;" id="math-submit" onclick="checkMathAnswer()">Submit</button>
+  </div>
+</div>
+
+<script>
+// ==================== GAME STATE ====================
+const G = {
+  money: 20.00,
+  day: 1,
+  maxDays: 14,
+  reputation: 3, // 1-5 stars
+  totalSold: 0,
+  totalProfit: 0,
+  supplies: { lemons: 0, sugar: 0, cups: 0, ice: 0 },
+  cart: { lemons: 0, sugar: 0, cups: 0, ice: 0 },
+  prices: { lemons: 2.00, sugar: 1.50, cups: 1.00, ice: 0.50 },
+  yields: { lemons: 6, sugar: 8, cups: 10, ice: 10 },
+  weather: null,
+  mathCorrect: 0,
+  mathTotal: 0,
+  dailyCustomers: 0,
+  dailySold: 0,
+  dailyRevenue: 0,
+  pendingCustomers: [],
+  currentCustomer: 0,
+};
+
+const WEATHERS = [
+  { name: 'Sunny & Hot', emoji: '☀️🔥', demand: 1.5, color: '#FFF8E1', border: '#FFD54F', tip: 'Hot days = thirsty customers! You can charge more.' },
+  { name: 'Warm & Pleasant', emoji: '🌤️', demand: 1.2, color: '#FFF8E1', border: '#FFE082', tip: 'Nice weather brings a good crowd.' },
+  { name: 'Partly Cloudy', emoji: '⛅', demand: 1.0, color: '#ECEFF1', border: '#B0BEC5', tip: 'Average day — price wisely.' },
+  { name: 'Cool & Breezy', emoji: '🌬️', demand: 0.7, color: '#E3F2FD', border: '#90CAF9', tip: 'Fewer people want cold drinks today.' },
+  { name: 'Rainy', emoji: '🌧️', demand: 0.4, color: '#E8EAF6', border: '#7986CB', tip: 'Rain keeps people inside. Lower prices might help.' },
+];
+
+const EVENTS = [
+  null, null, null, // many days have no event
+  { text: '🏗️ A construction crew is working nearby — extra thirsty workers!', demandMult: 1.4 },
+  { text: '🎉 A birthday party is happening across the street!', demandMult: 1.3 },
+  { text: '📰 The local paper wrote about your stand!', repBoost: 1 },
+  null,
+  { text: '😤 A competitor opened a stand down the block! Prices are competitive.', demandMult: 0.7 },
+  { text: '🚧 Road construction blocks foot traffic today.', demandMult: 0.5 },
+  { text: '💰 Supply costs went up! Inflation hits your lemons.', inflate: true },
+  null, null,
+  { text: '🐝 Bees are attracted to your sugar! You lose a bag of sugar.', loseSugar: true },
+];
+
+const LESSONS = [
+  "Supply & Demand: When it's hot, people want more lemonade. You can charge higher prices when demand is high!",
+  "Profit Margin: Profit = Revenue - Costs. If you sell below cost, you lose money on every cup!",
+  "Inventory Management: Ice melts overnight! Don't buy more than you need. Waste cuts into profits.",
+  "Reputation Matters: Happy customers come back and bring friends. Bad service drives people away.",
+  "Pricing Strategy: Too high and nobody buys. Too low and you lose money. Find the sweet spot!",
+  "Weather Risk: You can't control the weather, but you CAN prepare for it. That's risk management!",
+  "Competition: When a competitor shows up, you must offer better value or a better product.",
+  "Bulk Buying: Buying in larger quantities can save money per unit — economies of scale!",
+  "Sunk Cost: Money already spent is gone. Don't keep a bad price just because you bought expensive supplies.",
+  "Opportunity Cost: Every dollar spent on extra sugar is a dollar you can't spend on cups. Choose wisely!",
+  "Market Research: Pay attention to what works and what doesn't. Data helps you make better decisions!",
+  "Cash Flow: You need money to make money. If you spend it all on supplies, you can't adapt!",
+  "The Real World: Unexpected events (rain, competition, bees!) can disrupt even the best plans. Stay flexible!",
+  "Capitalism Recap: You started with $20. Success = smart decisions about costs, prices, and risks!",
+];
+
+// ==================== UI HELPERS ====================
+function $(id) { return document.getElementById(id); }
+
+function updateStats() {
+  $('money').textContent = '$' + G.money.toFixed(2);
+  $('day').textContent = G.day + ' / ' + G.maxDays;
+  $('rep').textContent = '⭐'.repeat(Math.max(1, Math.min(5, G.reputation)));
+  $('totalSold').textContent = G.totalSold;
+  $('own-lemons').textContent = G.supplies.lemons;
+  $('own-sugar').textContent = G.supplies.sugar;
+  $('own-cups').textContent = G.supplies.cups;
+  $('own-ice').textContent = G.supplies.ice;
+  updateCostInfo();
+}
+
+function updateCostInfo() {
+  const costPer = calcCostPerCup();
+  $('price-hint').textContent = 'Cost to make one cup: ' + (costPer > 0 ? '$' + costPer.toFixed(2) : 'N/A (need supplies!)');
+  const maxCups = calcMaxCups();
+  $('max-cups-info').textContent = 'You can make: ' + maxCups + ' cups with current supplies';
+}
+
+function calcCostPerCup() {
+  // Cost per cup based on current buy prices
+  const lemonCost = G.prices.lemons / G.yields.lemons;
+  const sugarCost = G.prices.sugar / G.yields.sugar;
+  const cupCost = G.prices.cups / G.yields.cups;
+  const iceCost = G.prices.ice / G.yields.ice;
+  return lemonCost + sugarCost + cupCost + iceCost;
+}
+
+function calcMaxCups() {
+  const fromLemons = G.supplies.lemons * G.yields.lemons;
+  const fromSugar = G.supplies.sugar * G.yields.sugar;
+  const fromCups = G.supplies.cups; // cups are counted individually
+  const fromIce = G.supplies.ice * G.yields.ice;
+  if (fromLemons === 0 || fromSugar === 0 || fromCups === 0 || fromIce === 0) return 0;
+  return Math.min(fromLemons, fromSugar, fromCups, fromIce);
+}
+
+function updateCartTotal() {
+  let total = 0;
+  for (const item in G.cart) {
+    if (item === 'cups') {
+      total += G.cart[item] * G.prices[item]; // packs
+    } else {
+      total += G.cart[item] * G.prices[item];
+    }
+  }
+  $('cart-total').textContent = '$' + total.toFixed(2);
+}
+
+// ==================== WEATHER ====================
+function rollWeather() {
+  const i = Math.floor(Math.random() * WEATHERS.length);
+  G.weather = WEATHERS[i];
+  const wp = $('weather-panel');
+  wp.innerHTML = `<div class="weather-banner" style="background:${G.weather.color};border:2px solid ${G.weather.border}">
+    <span style="font-size:1.5em">${G.weather.emoji}</span> Today's Forecast: <strong>${G.weather.name}</strong>
+    <br><span style="font-size:0.85em;color:#666">${G.weather.tip}</span>
+  </div>`;
+}
+
+// ==================== SHOPPING ====================
+function changeCart(item, delta) {
+  G.cart[item] = Math.max(0, G.cart[item] + delta);
+  $('cart-' + item).textContent = G.cart[item];
+  updateCartTotal();
+}
+
+function buySupplies() {
+  let total = 0;
+  for (const item in G.cart) total += G.cart[item] * G.prices[item];
+  if (total === 0) return;
+  if (total > G.money) {
+    alert("You don't have enough money! You have $" + G.money.toFixed(2) + " but cart costs $" + total.toFixed(2));
+    return;
+  }
+  G.money -= total;
+  G.supplies.lemons += G.cart.lemons;
+  G.supplies.sugar += G.cart.sugar;
+  G.supplies.cups += G.cart.cups * G.yields.cups; // convert packs to individual cups
+  G.supplies.ice += G.cart.ice;
+  // Reset cart
+  for (const item in G.cart) { G.cart[item] = 0; $('cart-' + item).textContent = '0'; }
+  updateCartTotal();
+  updateStats();
+}
+
+// ==================== OPEN STAND ====================
+function openStand() {
+  const price = parseFloat($('price').value);
+  if (isNaN(price) || price < 0.10) {
+    alert('Set a valid price (at least $0.10)!');
+    return;
+  }
+  const maxCups = calcMaxCups();
+  if (maxCups === 0) {
+    alert('You need lemons, sugar, cups, AND ice to make lemonade! Buy some supplies first.');
+    return;
+  }
+
+  // Calculate demand
+  let baseDemand = 8 + Math.floor(Math.random() * 8); // 8-15 base
+  baseDemand = Math.round(baseDemand * G.weather.demand);
+  baseDemand = Math.round(baseDemand * (1 + (G.reputation - 3) * 0.15));
+
+  // Price sensitivity
+  const costPer = calcCostPerCup();
+  if (price > 2.00) baseDemand = Math.round(baseDemand * 0.5);
+  else if (price > 1.50) baseDemand = Math.round(baseDemand * 0.7);
+  else if (price > 1.00) baseDemand = Math.round(baseDemand * 0.85);
+  else if (price < 0.25) baseDemand = Math.round(baseDemand * 1.3);
+
+  // Check for random event
+  const event = EVENTS[Math.floor(Math.random() * EVENTS.length)];
+  if (event) {
+    if (event.demandMult) baseDemand = Math.round(baseDemand * event.demandMult);
+    if (event.repBoost) G.reputation = Math.min(5, G.reputation + event.repBoost);
+    if (event.inflate) {
+      G.prices.lemons = Math.round((G.prices.lemons * 1.3) * 100) / 100;
+    }
+    if (event.loseSugar && G.supplies.sugar > 0) {
+      G.supplies.sugar = Math.max(0, G.supplies.sugar - 1);
+    }
+    G.currentEvent = event;
+  } else {
+    G.currentEvent = null;
+  }
+
+  baseDemand = Math.max(1, baseDemand);
+  const actualSold = Math.min(baseDemand, maxCups);
+
+  G.dailyCustomers = baseDemand;
+  G.dailySold = actualSold;
+  G.dailyRevenue = actualSold * price;
+  G.dailyPrice = price;
+  G.dailyCost = actualSold * costPer;
+
+  // Consume supplies
+  for (let i = 0; i < actualSold; i++) {
+    // Each cup uses: 1/6 bag lemons, 1/8 bag sugar, 1 cup, 1/10 bag ice
+    G.supplies.cups--;
+  }
+  const lemonBagsUsed = actualSold / G.yields.lemons;
+  const sugarBagsUsed = actualSold / G.yields.sugar;
+  const iceBagsUsed = actualSold / G.yields.ice;
+  G.supplies.lemons = Math.max(0, G.supplies.lemons - Math.ceil(lemonBagsUsed));
+  G.supplies.sugar = Math.max(0, G.supplies.sugar - Math.ceil(sugarBagsUsed));
+  G.supplies.ice = 0; // ice melts overnight!
+
+  // Generate math challenges (pick 3-5 customers to do math with)
+  const mathCount = Math.min(actualSold, 3 + Math.floor(Math.random() * 3));
+  G.pendingCustomers = [];
+  G.currentCustomer = 0;
+  G.mathCorrect = 0;
+  G.mathTotal = mathCount;
+
+  for (let i = 0; i < mathCount; i++) {
+    G.pendingCustomers.push(generateMathProblem(price, actualSold));
+  }
+
+  // Show first math problem
+  if (G.pendingCustomers.length > 0) {
+    showMathProblem();
+  } else {
+    finishDay();
+  }
+}
+
+// ==================== MATH CHALLENGES ====================
+function generateMathProblem(price, totalCups) {
+  const types = ['change', 'total', 'multiply', 'addUp'];
+  const type = types[Math.floor(Math.random() * types.length)];
+
+  if (type === 'change') {
+    const qty = 1 + Math.floor(Math.random() * 3);
+    const cost = qty * price;
+    const paid = Math.ceil(cost); // pays with whole dollars
+    const change = Math.round((paid - cost) * 100) / 100;
+    return {
+      scenario: `A customer buys ${qty} cup${qty > 1 ? 's' : ''} at $${price.toFixed(2)} each and pays with $${paid.toFixed(2)}.`,
+      question: `How much change do you give back?`,
+      answer: change,
+      prefix: '$',
+    };
+  } else if (type === 'total') {
+    const qty = 2 + Math.floor(Math.random() * 4);
+    const total = Math.round(qty * price * 100) / 100;
+    return {
+      scenario: `A group wants to buy ${qty} cups of lemonade.`,
+      question: `Each cup is $${price.toFixed(2)}. What's the total?`,
+      answer: total,
+      prefix: '$',
+    };
+  } else if (type === 'multiply') {
+    const a = 2 + Math.floor(Math.random() * 8);
+    const b = 2 + Math.floor(Math.random() * 8);
+    return {
+      scenario: `Quick mental math while you pour!`,
+      question: `${a} × ${b} = ?`,
+      answer: a * b,
+      prefix: '',
+    };
+  } else {
+    // Add up coins
+    const quarters = Math.floor(Math.random() * 4);
+    const dimes = Math.floor(Math.random() * 5);
+    const nickels = Math.floor(Math.random() * 4);
+    const pennies = Math.floor(Math.random() * 5);
+    const total = Math.round((quarters * 0.25 + dimes * 0.10 + nickels * 0.05 + pennies * 0.01) * 100) / 100;
+    if (total === 0) return generateMathProblem(price, totalCups); // retry
+    return {
+      scenario: `A kid pays with coins!`,
+      question: `${quarters > 0 ? quarters + ' quarter' + (quarters > 1 ? 's' : '') + ', ' : ''}${dimes > 0 ? dimes + ' dime' + (dimes > 1 ? 's' : '') + ', ' : ''}${nickels > 0 ? nickels + ' nickel' + (nickels > 1 ? 's' : '') + ', ' : ''}${pennies > 0 ? pennies + (pennies > 1 ? ' pennies' : ' penny') : ''} — How much is that?`,
+      answer: total,
+      prefix: '$',
+    };
+  }
+}
+
+function showMathProblem() {
+  const p = G.pendingCustomers[G.currentCustomer];
+  $('math-title').textContent = `Customer ${G.currentCustomer + 1} of ${G.mathTotal}`;
+  $('math-scenario').textContent = p.scenario;
+  $('math-problem').textContent = p.question;
+  $('math-answer').value = '';
+  $('math-feedback').textContent = '';
+  $('math-feedback').className = 'feedback';
+  $('math-submit').textContent = 'Submit';
+  $('math-submit').onclick = checkMathAnswer;
+  $('math-overlay').classList.add('active');
+  setTimeout(() => $('math-answer').focus(), 100);
+}
+
+function checkMathAnswer() {
+  const p = G.pendingCustomers[G.currentCustomer];
+  const userAns = parseFloat($('math-answer').value);
+  if (isNaN(userAns)) {
+    $('math-feedback').textContent = 'Type a number!';
+    $('math-feedback').className = 'feedback wrong';
+    return;
+  }
+  const correct = Math.abs(userAns - p.answer) < 0.02;
+  if (correct) {
+    G.mathCorrect++;
+    $('math-feedback').textContent = '✅ Correct! ' + p.prefix + p.answer.toFixed(p.prefix === '$' ? 2 : 0);
+    $('math-feedback').className = 'feedback correct';
+  } else {
+    $('math-feedback').textContent = '❌ The answer was ' + p.prefix + p.answer.toFixed(p.prefix === '$' ? 2 : 0);
+    $('math-feedback').className = 'feedback wrong';
+  }
+
+  $('math-submit').textContent = 'Next';
+  $('math-submit').onclick = nextMathProblem;
+}
+
+function nextMathProblem() {
+  G.currentCustomer++;
+  if (G.currentCustomer < G.pendingCustomers.length) {
+    showMathProblem();
+  } else {
+    $('math-overlay').classList.remove('active');
+    finishDay();
+  }
+}
+
+// Enter key support for math
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && $('math-overlay').classList.contains('active')) {
+    $('math-submit').click();
+  }
+});
+
+// ==================== DAY RESULTS ====================
+function finishDay() {
+  const profit = G.dailyRevenue - G.dailyCost;
+  G.money += G.dailyRevenue;
+  G.totalSold += G.dailySold;
+  G.totalProfit += profit;
+
+  // Reputation changes
+  const mathPct = G.mathTotal > 0 ? G.mathCorrect / G.mathTotal : 0;
+  if (mathPct >= 0.8) G.reputation = Math.min(5, G.reputation + 1);
+  else if (mathPct < 0.4) G.reputation = Math.max(1, G.reputation - 1);
+
+  if (G.dailySold < G.dailyCustomers) {
+    // Ran out of lemonade — lost customers
+    G.reputation = Math.max(1, G.reputation - 1);
+  }
+
+  // Build results
+  const turned = G.dailyCustomers - G.dailySold;
+  let html = `
+    <div class="line"><span>Customers who wanted lemonade:</span><span>${G.dailyCustomers}</span></div>
+    <div class="line"><span>Cups sold:</span><span>${G.dailySold}</span></div>
+    ${turned > 0 ? `<div class="line"><span style="color:#C62828">Customers turned away (no supply!):</span><span style="color:#C62828">${turned}</span></div>` : ''}
+    <div class="line"><span>Price per cup:</span><span>$${G.dailyPrice.toFixed(2)}</span></div>
+    <div class="line"><span>Revenue (${G.dailySold} × $${G.dailyPrice.toFixed(2)}):</span><span>$${G.dailyRevenue.toFixed(2)}</span></div>
+    <div class="line"><span>Estimated supply cost:</span><span>-$${G.dailyCost.toFixed(2)}</span></div>
+    <div class="line total ${profit >= 0 ? 'profit' : 'loss'}"><span>Day's Profit:</span><span>${profit >= 0 ? '+' : '-'}$${Math.abs(profit).toFixed(2)}</span></div>
+    <div class="line"><span>Math score:</span><span>${G.mathCorrect}/${G.mathTotal} ${mathPct >= 0.8 ? '🌟' : mathPct >= 0.5 ? '👍' : '📚'}</span></div>
+  `;
+  $('results-detail').innerHTML = html;
+  $('results-title').textContent = `Day ${G.day} Results`;
+
+  // Lesson
+  const lesson = LESSONS[Math.min(G.day - 1, LESSONS.length - 1)];
+  $('lesson-container').innerHTML = `<div class="lesson-box">📖 <strong>Business Lesson:</strong> ${lesson}</div>`;
+
+  // Event
+  if (G.currentEvent) {
+    $('event-container').innerHTML = `<div class="event-box">${G.currentEvent.text}</div>`;
+  } else {
+    $('event-container').innerHTML = '';
+  }
+
+  $('phase-setup').style.display = 'none';
+  $('phase-results').style.display = 'block';
+
+  if (G.day >= G.maxDays) {
+    $('next-day-btn').textContent = 'See Final Results!';
+  }
+
+  updateStats();
+}
+
+// ==================== NEXT DAY / GAME OVER ====================
+function nextDay() {
+  G.day++;
+  if (G.day > G.maxDays) {
+    showGameOver();
+    return;
+  }
+
+  // Check bankruptcy
+  if (G.money < 0.50 && calcMaxCups() === 0) {
+    showGameOver(true);
+    return;
+  }
+
+  // Reset for new day
+  $('phase-results').style.display = 'none';
+  $('phase-setup').style.display = 'block';
+  $('next-day-btn').textContent = 'Next Day';
+
+  rollWeather();
+  updateStats();
+}
+
+function showGameOver(bankrupt) {
+  $('phase-results').style.display = 'none';
+  $('phase-setup').style.display = 'none';
+
+  let grade, message;
+  if (bankrupt) {
+    grade = '📉';
+    message = "You went bankrupt! Even the best entrepreneurs fail sometimes. The lesson? Keep enough cash to stay in the game!";
+  } else if (G.money >= 60) {
+    grade = '🏆';
+    message = "Amazing! You're a lemonade tycoon! You turned $20 into $" + G.money.toFixed(2) + ". Wall Street is calling!";
+  } else if (G.money >= 40) {
+    grade = '🌟';
+    message = "Great job! You doubled your money and learned the business. You've got real entrepreneur skills!";
+  } else if (G.money >= 20) {
+    grade = '👍';
+    message = "Not bad! You kept your starting money and gained experience. Keep learning and you'll go far!";
+  } else if (G.money >= 10) {
+    grade = '📚';
+    message = "You lost some money, but you gained something more valuable: knowledge! Try again with what you've learned.";
+  } else {
+    grade = '💪';
+    message = "Tough run! But every great business person has failed before succeeding. You now know what NOT to do!";
+  }
+
+  $('phase-gameover').style.display = 'block';
+  $('phase-gameover').innerHTML = `
+    <div class="panel game-over-modal" style="text-align:center;">
+      <h2>Game Over!</h2>
+      <div class="final-grade">${grade}</div>
+      <p style="font-size:1.3em;margin:10px 0;"><strong>Final Money: $${G.money.toFixed(2)}</strong></p>
+      <p style="margin:5px 0;">Started with: $20.00 | ${G.money >= 20 ? 'Profit' : 'Loss'}: $${Math.abs(G.money - 20).toFixed(2)}</p>
+      <p style="margin:5px 0;">Total cups sold: ${G.totalSold} | Days played: ${G.day - (bankrupt ? 0 : 1)}</p>
+      <p style="margin:15px 0; font-size:1.05em;">${message}</p>
+      <div class="lesson-box" style="text-align:left;">
+        <strong>What You Learned:</strong><br>
+        • Revenue - Costs = Profit<br>
+        • Supply & Demand affect your sales<br>
+        • Weather, competition & events create risk<br>
+        • Reputation builds (or breaks) over time<br>
+        • Math skills help you make smart money decisions!
+      </div>
+      <button class="btn" onclick="location.reload()">Play Again!</button>
+    </div>
+  `;
+}
+
+// ==================== INIT ====================
+rollWeather();
+updateStats();
+</script>
+</body>
+</html>

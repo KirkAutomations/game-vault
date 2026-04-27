@@ -1,0 +1,1108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Elemental Realism - Action RPG</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a12; color: #c8d0e0; font-family: 'Courier New', monospace; overflow: hidden; }
+canvas { display: block; }
+#ui-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 10;
+}
+#ui-overlay > * { pointer-events: auto; }
+#hud {
+  position: absolute; top: 10px; left: 10px;
+  background: rgba(10,10,20,0.85); border: 1px solid #2a4a6a;
+  padding: 10px; border-radius: 4px; min-width: 240px; font-size: 13px;
+}
+#hud h3 { color: #6af; margin-bottom: 6px; font-size: 15px; }
+#hud .stat { margin: 3px 0; }
+#hud .stat span { color: #adf; }
+#hud .bar-wrap { display: inline-block; width: 100px; height: 10px; background: #1a1a2a; border: 1px solid #334; vertical-align: middle; margin-left: 4px; }
+#hud .bar { height: 100%; transition: width 0.3s; }
+#hud .hp-bar { background: linear-gradient(90deg, #a22, #f44); }
+#hud .xp-bar { background: linear-gradient(90deg, #28a, #4cf); }
+#hud .power-bar { background: linear-gradient(90deg, #a80, #fc4); }
+#minimap {
+  position: absolute; top: 10px; right: 10px;
+  background: rgba(10,10,20,0.85); border: 1px solid #2a4a6a;
+  border-radius: 4px; padding: 4px;
+}
+#info-panel {
+  position: absolute; bottom: 10px; left: 10px; right: 10px;
+  background: rgba(10,10,20,0.9); border: 1px solid #2a4a6a;
+  padding: 10px; border-radius: 4px; font-size: 12px;
+  max-height: 180px; overflow-y: auto; display: none;
+}
+#info-panel h4 { color: #fc4; margin-bottom: 4px; }
+#info-panel .chem-info { color: #8bf; }
+#info-panel .ir-info { color: #f84; }
+#log {
+  position: absolute; bottom: 10px; right: 10px; width: 320px;
+  background: rgba(10,10,20,0.85); border: 1px solid #2a4a6a;
+  padding: 8px; border-radius: 4px; font-size: 11px;
+  max-height: 160px; overflow-y: auto;
+}
+#log .log-entry { margin: 2px 0; border-bottom: 1px solid #1a1a2a; padding: 2px 0; }
+#log .combat { color: #f66; }
+#log .alliance { color: #6f6; }
+#log .info { color: #6af; }
+#log .reaction { color: #fc4; }
+#title-screen {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: radial-gradient(ellipse at center, #0d1a2a 0%, #050510 70%);
+  z-index: 100; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; text-align: center;
+}
+#title-screen h1 { font-size: 48px; color: #6af; text-shadow: 0 0 30px #24a; margin-bottom: 8px; }
+#title-screen h2 { font-size: 18px; color: #f84; margin-bottom: 30px; font-weight: normal; }
+#title-screen .subtitle { color: #889; font-size: 13px; margin-bottom: 20px; max-width: 500px; line-height: 1.5; }
+#element-select { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 600px; margin: 20px 0; }
+.elem-btn {
+  width: 70px; height: 70px; border: 2px solid #2a4a6a; background: rgba(20,30,50,0.8);
+  color: #c8d0e0; cursor: pointer; border-radius: 4px; font-family: inherit;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  transition: all 0.2s;
+}
+.elem-btn:hover { border-color: #6af; background: rgba(40,60,100,0.8); transform: scale(1.1); }
+.elem-btn .sym { font-size: 22px; font-weight: bold; color: #adf; }
+.elem-btn .name { font-size: 9px; color: #889; }
+.elem-btn .num { font-size: 10px; color: #fc4; }
+#start-btn {
+  margin-top: 20px; padding: 12px 40px; font-size: 18px;
+  background: linear-gradient(180deg, #2a5a8a, #1a3a5a); color: #adf;
+  border: 2px solid #4a8abf; cursor: pointer; border-radius: 4px;
+  font-family: inherit; transition: all 0.2s;
+}
+#start-btn:hover { background: linear-gradient(180deg, #3a7aba, #2a5a7a); transform: scale(1.05); }
+#controls-help {
+  position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+  background: rgba(10,10,20,0.85); border: 1px solid #2a4a6a;
+  padding: 6px 14px; border-radius: 4px; font-size: 11px; color: #889;
+  white-space: nowrap;
+}
+#reaction-popup {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(10,15,30,0.95); border: 2px solid #fc4;
+  padding: 20px; border-radius: 8px; z-index: 50; display: none;
+  text-align: center; min-width: 350px;
+}
+#reaction-popup h3 { color: #fc4; margin-bottom: 10px; font-size: 18px; }
+#reaction-popup .reaction-eq { color: #adf; font-size: 16px; margin: 10px 0; }
+#reaction-popup .reaction-detail { color: #8bf; font-size: 12px; margin: 5px 0; }
+#reaction-popup .ir-lesson { color: #f84; font-size: 12px; margin: 8px 0; font-style: italic; }
+#reaction-popup button {
+  margin-top: 10px; padding: 8px 24px; background: #2a5a8a; color: #adf;
+  border: 1px solid #4a8abf; cursor: pointer; border-radius: 4px; font-family: inherit;
+}
+#level-up-popup {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  background: rgba(10,15,30,0.95); border: 2px solid #6f6;
+  padding: 20px; border-radius: 8px; z-index: 50; display: none;
+  text-align: center; min-width: 300px;
+}
+#level-up-popup h3 { color: #6f6; font-size: 20px; }
+#level-up-popup .new-elem { color: #adf; font-size: 24px; margin: 10px 0; }
+#level-up-popup .props { color: #8bf; font-size: 13px; margin: 5px 0; }
+#level-up-popup button {
+  margin-top: 10px; padding: 8px 24px; background: #2a6a2a; color: #afa;
+  border: 1px solid #4a8a4a; cursor: pointer; border-radius: 4px; font-family: inherit;
+}
+</style>
+</head>
+<body>
+
+<div id="title-screen">
+  <h1>ELEMENTAL REALISM</h1>
+  <h2>Power Politics of the Periodic Table</h2>
+  <p class="subtitle">
+    In the anarchic system of elements, there is no world government.
+    Each element-state must ensure its own survival through power (protons),
+    diplomacy (valence electrons), and strategic reactions (alliances &amp; conflicts).
+    <br><br>Learn the periodic table through the lens of international relations realism.
+  </p>
+  <p style="color:#6af; margin-bottom:10px;">Choose your starting element-state:</p>
+  <div id="element-select"></div>
+  <button id="start-btn" onclick="startGame()">Enter the Anarchic System</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="ui-overlay">
+  <div id="hud"></div>
+  <canvas id="minimap" width="150" height="150"></canvas>
+  <div id="controls-help">WASD/Arrows: Move | SPACE: Attack/React | E: Inspect | Q: Form Bond/Alliance | TAB: Periodic Table</div>
+  <div id="info-panel"></div>
+  <div id="log"></div>
+</div>
+
+<div id="reaction-popup">
+  <h3 id="rx-title"></h3>
+  <div class="reaction-eq" id="rx-eq"></div>
+  <div class="reaction-detail" id="rx-detail"></div>
+  <div class="ir-lesson" id="rx-ir"></div>
+  <button onclick="closeReactionPopup()">Continue</button>
+</div>
+
+<div id="level-up-popup">
+  <h3>POWER TRANSITION</h3>
+  <div class="new-elem" id="lu-elem"></div>
+  <div class="props" id="lu-props"></div>
+  <div class="props" id="lu-ir"></div>
+  <button onclick="closeLevelUp()">Accept New Identity</button>
+</div>
+
+<script>
+// ============================================================
+// PERIODIC TABLE DATA (first 36 elements)
+// ============================================================
+const ELEMENTS = [
+  null, // index 0 placeholder
+  { sym:'H', name:'Hydrogen', z:1, mass:1.008, electrons:[1], group:1, period:1, cat:'nonmetal', eneg:2.20, color:'#88ccff' },
+  { sym:'He', name:'Helium', z:2, mass:4.003, electrons:[2], group:18, period:1, cat:'noble', eneg:0, color:'#ffee88' },
+  { sym:'Li', name:'Lithium', z:3, mass:6.941, electrons:[2,1], group:1, period:2, cat:'alkali', eneg:0.98, color:'#ff6666' },
+  { sym:'Be', name:'Beryllium', z:4, mass:9.012, electrons:[2,2], group:2, period:2, cat:'alkaline', eneg:1.57, color:'#ffaa44' },
+  { sym:'B', name:'Boron', z:5, mass:10.81, electrons:[2,3], group:13, period:2, cat:'metalloid', eneg:2.04, color:'#cc88ff' },
+  { sym:'C', name:'Carbon', z:6, mass:12.01, electrons:[2,4], group:14, period:2, cat:'nonmetal', eneg:2.55, color:'#aaaaaa' },
+  { sym:'N', name:'Nitrogen', z:7, mass:14.01, electrons:[2,5], group:15, period:2, cat:'nonmetal', eneg:3.04, color:'#4488ff' },
+  { sym:'O', name:'Oxygen', z:8, mass:16.00, electrons:[2,6], group:16, period:2, cat:'nonmetal', eneg:3.44, color:'#ff4444' },
+  { sym:'F', name:'Fluorine', z:9, mass:19.00, electrons:[2,7], group:17, period:2, cat:'halogen', eneg:3.98, color:'#44ff88' },
+  { sym:'Ne', name:'Neon', z:10, mass:20.18, electrons:[2,8], group:18, period:2, cat:'noble', eneg:0, color:'#ffcc44' },
+  { sym:'Na', name:'Sodium', z:11, mass:22.99, electrons:[2,8,1], group:1, period:3, cat:'alkali', eneg:0.93, color:'#ff6666' },
+  { sym:'Mg', name:'Magnesium', z:12, mass:24.31, electrons:[2,8,2], group:2, period:3, cat:'alkaline', eneg:1.31, color:'#ffaa44' },
+  { sym:'Al', name:'Aluminium', z:13, mass:26.98, electrons:[2,8,3], group:13, period:3, cat:'metal', eneg:1.61, color:'#cccccc' },
+  { sym:'Si', name:'Silicon', z:14, mass:28.09, electrons:[2,8,4], group:14, period:3, cat:'metalloid', eneg:1.90, color:'#cc88ff' },
+  { sym:'P', name:'Phosphorus', z:15, mass:30.97, electrons:[2,8,5], group:15, period:3, cat:'nonmetal', eneg:2.19, color:'#ff88cc' },
+  { sym:'S', name:'Sulfur', z:16, mass:32.07, electrons:[2,8,6], group:16, period:3, cat:'nonmetal', eneg:2.58, color:'#ffff44' },
+  { sym:'Cl', name:'Chlorine', z:17, mass:35.45, electrons:[2,8,7], group:17, period:3, cat:'halogen', eneg:3.16, color:'#44ff88' },
+  { sym:'Ar', name:'Argon', z:18, mass:39.95, electrons:[2,8,8], group:18, period:3, cat:'noble', eneg:0, color:'#ffcc44' },
+  { sym:'K', name:'Potassium', z:19, mass:39.10, electrons:[2,8,8,1], group:1, period:4, cat:'alkali', eneg:0.82, color:'#ff6666' },
+  { sym:'Ca', name:'Calcium', z:20, mass:40.08, electrons:[2,8,8,2], group:2, period:4, cat:'alkaline', eneg:1.00, color:'#ffaa44' },
+  { sym:'Sc', name:'Scandium', z:21, mass:44.96, electrons:[2,8,9,2], group:3, period:4, cat:'transition', eneg:1.36, color:'#88aaff' },
+  { sym:'Ti', name:'Titanium', z:22, mass:47.87, electrons:[2,8,10,2], group:4, period:4, cat:'transition', eneg:1.54, color:'#88aaff' },
+  { sym:'V', name:'Vanadium', z:23, mass:50.94, electrons:[2,8,11,2], group:5, period:4, cat:'transition', eneg:1.63, color:'#88aaff' },
+  { sym:'Cr', name:'Chromium', z:24, mass:52.00, electrons:[2,8,13,1], group:6, period:4, cat:'transition', eneg:1.66, color:'#88aaff' },
+  { sym:'Mn', name:'Manganese', z:25, mass:54.94, electrons:[2,8,13,2], group:7, period:4, cat:'transition', eneg:1.55, color:'#88aaff' },
+  { sym:'Fe', name:'Iron', z:26, mass:55.85, electrons:[2,8,14,2], group:8, period:4, cat:'transition', eneg:1.83, color:'#88aaff' },
+  { sym:'Co', name:'Cobalt', z:27, mass:58.93, electrons:[2,8,15,2], group:9, period:4, cat:'transition', eneg:1.88, color:'#88aaff' },
+  { sym:'Ni', name:'Nickel', z:28, mass:58.69, electrons:[2,8,16,2], group:10, period:4, cat:'transition', eneg:1.91, color:'#88aaff' },
+  { sym:'Cu', name:'Copper', z:29, mass:63.55, electrons:[2,8,18,1], group:11, period:4, cat:'transition', eneg:1.90, color:'#88aaff' },
+  { sym:'Zn', name:'Zinc', z:30, mass:65.38, electrons:[2,8,18,2], group:12, period:4, cat:'transition', eneg:1.65, color:'#88aaff' },
+  { sym:'Ga', name:'Gallium', z:31, mass:69.72, electrons:[2,8,18,3], group:13, period:4, cat:'metal', eneg:1.81, color:'#cccccc' },
+  { sym:'Ge', name:'Germanium', z:32, mass:72.63, electrons:[2,8,18,4], group:14, period:4, cat:'metalloid', eneg:2.01, color:'#cc88ff' },
+  { sym:'As', name:'Arsenic', z:33, mass:74.92, electrons:[2,8,18,5], group:15, period:4, cat:'metalloid', eneg:2.18, color:'#cc88ff' },
+  { sym:'Se', name:'Selenium', z:34, mass:78.97, electrons:[2,8,18,6], group:16, period:4, cat:'nonmetal', eneg:2.55, color:'#ffff44' },
+  { sym:'Br', name:'Bromine', z:35, mass:79.90, electrons:[2,8,18,7], group:17, period:4, cat:'halogen', eneg:2.96, color:'#44ff88' },
+  { sym:'Kr', name:'Krypton', z:36, mass:83.80, electrons:[2,8,18,8], group:18, period:4, cat:'noble', eneg:3.00, color:'#ffcc44' },
+];
+
+// IR Realism concepts mapped to chemistry
+const IR_CONCEPTS = {
+  protons: "Power Capacity (like GDP/military strength in realist theory)",
+  valence: "Diplomatic Flexibility (available alliance slots)",
+  electronegativity: "Revisionist Tendency (desire to pull resources from others)",
+  noble: "Status Quo Hegemon (satisfied power, no need for alliances)",
+  alkali: "Revisionist State (highly reactive, eager to form alliances to gain stability)",
+  halogen: "Aggressive Power (high electronegativity — seeks to dominate bonds)",
+  ionic: "Bandwagoning (weak state joins strong state, loses sovereignty)",
+  covalent: "Balancing Alliance (states share power equally)",
+  metallic: "Collective Security (metals pool electrons communally)",
+  reaction: "Power Transition / War (states transform through conflict)",
+};
+
+// Reaction templates
+const REACTIONS = [
+  { a:11, b:17, eq:'2Na + Cl₂ → 2NaCl', type:'ionic', desc:'Sodium surrenders its electron to Chlorine. An ionic bond — like a weak state bandwagoning with a great power.', ir:'BANDWAGONING: Like a small state aligning with a dominant power for security, Na gives up autonomy (its electron) to Cl for stability.' },
+  { a:1, b:8, eq:'2H₂ + O₂ → 2H₂O', type:'covalent', desc:'Hydrogen and Oxygen share electrons. A covalent bond — balanced alliance between states.', ir:'BALANCE OF POWER: Two hydrogen states ally with oxygen, sharing resources (electrons) in a stable multipolar arrangement.' },
+  { a:6, b:8, eq:'C + O₂ → CO₂', type:'covalent', desc:'Carbon combustion — a dramatic power transition releasing massive energy.', ir:'POWER TRANSITION WAR: Carbon\'s accumulated power is released in conflict with Oxygen, transforming the international order.' },
+  { a:26, b:8, eq:'4Fe + 3O₂ → 2Fe₂O₃', type:'ionic', desc:'Iron rusts — a once-great power slowly oxidized by a revisionist challenger.', ir:'HEGEMONIC DECLINE: Iron (a great power) gradually loses influence as Oxygen corrodes its position — imperial overstretch.' },
+  { a:1, b:17, eq:'H₂ + Cl₂ → 2HCl', type:'covalent', desc:'Hydrogen and Chlorine react violently in light — forming hydrochloric acid.', ir:'SECURITY DILEMMA: Both states arm (energize) defensively, but the interaction spirals into aggressive conflict.' },
+  { a:19, b:8, eq:'4K + O₂ → 2K₂O', type:'ionic', desc:'Potassium reacts vigorously with oxygen — a highly revisionist state clashing with a status quo power.', ir:'REVISIONIST AGGRESSION: Potassium (highly dissatisfied) explosively engages Oxygen, restructuring the system.' },
+  { a:3, b:8, eq:'4Li + O₂ → 2Li₂O', type:'ionic', desc:'Lithium slowly oxidizes — a minor power absorbed by a greater one.', ir:'SPHERE OF INFLUENCE: Lithium falls into Oxygen\'s orbit, losing independence through slow absorption.' },
+  { a:12, b:7, eq:'3Mg + N₂ → Mg₃N₂', type:'ionic', desc:'Magnesium burns in nitrogen — forming an unusual alliance.', ir:'UNLIKELY ALLIANCE: Magnesium and Nitrogen, not natural partners, form bonds under extreme pressure — like wartime alliances of convenience.' },
+  { a:11, b:8, eq:'4Na + O₂ → 2Na₂O', type:'ionic', desc:'Sodium oxidizes rapidly, demonstrating alkali metal reactivity.', ir:'RAPID CAPITULATION: Sodium, a weak revisionist state, quickly falls under Oxygen\'s dominance when exposed.' },
+  { a:6, b:1, eq:'C + 2H₂ → CH₄', type:'covalent', desc:'Carbon and Hydrogen form methane — a stable four-way alliance.', ir:'MULTILATERAL ALLIANCE: Carbon\'s four alliance slots (valence electrons) create a stable bloc with four Hydrogen states — like NATO.' },
+];
+
+// Game state
+const WORLD_W = 3000, WORLD_H = 3000;
+let canvas, ctx, mmCanvas, mmCtx;
+let gameRunning = false;
+let selectedElement = 1;
+let player = null;
+let entities = [];
+let projectiles = [];
+let particles = [];
+let camera = { x: 0, y: 0 };
+let keys = {};
+let logEntries = [];
+let showPeriodicTable = false;
+let paused = false;
+let flashTimer = 0;
+let gameTime = 0;
+
+// Build title screen element selection
+const startElements = [1,3,6,8,11,26];
+const selectDiv = document.getElementById('element-select');
+startElements.forEach(z => {
+  const el = ELEMENTS[z];
+  const btn = document.createElement('button');
+  btn.className = 'elem-btn';
+  btn.innerHTML = `<span class="num">Z=${el.z}</span><span class="sym">${el.sym}</span><span class="name">${el.name}</span>`;
+  btn.onclick = () => {
+    document.querySelectorAll('.elem-btn').forEach(b => b.style.borderColor = '#2a4a6a');
+    btn.style.borderColor = '#6af';
+    selectedElement = z;
+  };
+  selectDiv.appendChild(btn);
+});
+// Default select first
+document.querySelector('.elem-btn').style.borderColor = '#6af';
+
+function valenceElectrons(el) {
+  return el.electrons[el.electrons.length - 1];
+}
+
+function electronConfig(el) {
+  return el.electrons.join('-');
+}
+
+function getIRRole(el) {
+  if (el.cat === 'noble') return 'Status Quo Hegemon';
+  if (el.cat === 'alkali') return 'Revisionist State';
+  if (el.cat === 'halogen') return 'Aggressive Power';
+  if (el.cat === 'alkaline') return 'Rising Power';
+  if (el.cat === 'transition') return 'Great Power';
+  if (el.cat === 'nonmetal') return 'Middle Power';
+  if (el.cat === 'metalloid') return 'Swing State';
+  return 'Regional Power';
+}
+
+function getCatColor(cat) {
+  const map = { noble:'#ffcc44', alkali:'#ff4444', halogen:'#44ff88', alkaline:'#ff8844',
+    transition:'#4488ff', nonmetal:'#88ccff', metalloid:'#cc88ff', metal:'#cccccc' };
+  return map[cat] || '#888';
+}
+
+// ============================================================
+// ENTITY CLASS
+// ============================================================
+class Entity {
+  constructor(z, x, y, isPlayer = false) {
+    this.elem = ELEMENTS[z];
+    this.z = z;
+    this.x = x; this.y = y;
+    this.vx = 0; this.vy = 0;
+    this.isPlayer = isPlayer;
+    this.hp = z * 10 + 50;
+    this.maxHp = this.hp;
+    this.xp = 0;
+    this.xpNeeded = 100;
+    this.level = 1;
+    this.speed = Math.max(1.5, 4 - z * 0.05);
+    this.atk = Math.floor(z * 2 + valenceElectrons(this.elem) * 3);
+    this.def = Math.floor(z * 0.5 + (8 - valenceElectrons(this.elem)) * 0.5);
+    this.radius = Math.min(24, 14 + z * 0.3);
+    this.allies = [];
+    this.maxAllies = valenceElectrons(this.elem);
+    if (this.elem.cat === 'noble') this.maxAllies = 0;
+    this.attackCooldown = 0;
+    this.hitFlash = 0;
+    this.aiState = 'wander';
+    this.aiTimer = 0;
+    this.aiTarget = null;
+    this.dead = false;
+    this.angle = 0;
+    this.wanderAngle = Math.random() * Math.PI * 2;
+  }
+
+  update(dt) {
+    if (this.dead) return;
+    if (this.attackCooldown > 0) this.attackCooldown -= dt;
+    if (this.hitFlash > 0) this.hitFlash -= dt;
+
+    if (!this.isPlayer) this.updateAI(dt);
+
+    this.x += this.vx * dt * 60;
+    this.y += this.vy * dt * 60;
+    this.x = Math.max(this.radius, Math.min(WORLD_W - this.radius, this.x));
+    this.y = Math.max(this.radius, Math.min(WORLD_H - this.radius, this.y));
+    this.vx *= 0.88;
+    this.vy *= 0.88;
+  }
+
+  updateAI(dt) {
+    this.aiTimer -= dt;
+    if (this.aiTimer <= 0) {
+      this.aiTimer = 1 + Math.random() * 2;
+      // Decide behavior based on element properties
+      const distToPlayer = player ? Math.hypot(this.x - player.x, this.y - player.y) : 9999;
+
+      if (this.elem.cat === 'noble') {
+        // Noble gases are isolationist
+        this.aiState = 'wander';
+      } else if (this.elem.cat === 'alkali' || this.elem.cat === 'halogen') {
+        // Reactive elements are aggressive
+        if (distToPlayer < 400) {
+          this.aiState = 'chase';
+          this.aiTarget = player;
+        } else {
+          this.aiState = 'wander';
+        }
+      } else {
+        // Others have mixed behavior
+        if (distToPlayer < 250 && Math.random() < 0.4) {
+          this.aiState = 'chase';
+          this.aiTarget = player;
+        } else {
+          this.aiState = 'wander';
+        }
+      }
+      this.wanderAngle += (Math.random() - 0.5) * 2;
+    }
+
+    if (this.aiState === 'wander') {
+      this.vx += Math.cos(this.wanderAngle) * this.speed * 0.02;
+      this.vy += Math.sin(this.wanderAngle) * this.speed * 0.02;
+    } else if (this.aiState === 'chase' && this.aiTarget && !this.aiTarget.dead) {
+      const dx = this.aiTarget.x - this.x;
+      const dy = this.aiTarget.y - this.y;
+      const dist = Math.hypot(dx, dy);
+      if (dist > 0) {
+        this.vx += (dx / dist) * this.speed * 0.04;
+        this.vy += (dy / dist) * this.speed * 0.04;
+      }
+      if (dist < 60 && this.attackCooldown <= 0) {
+        this.attack(this.aiTarget);
+      }
+    }
+  }
+
+  attack(target) {
+    if (this.attackCooldown > 0 || this.dead || target.dead) return;
+    this.attackCooldown = 0.5;
+
+    const dx = target.x - this.x;
+    const dy = target.y - this.y;
+    const angle = Math.atan2(dy, dx);
+
+    projectiles.push({
+      x: this.x + Math.cos(angle) * this.radius,
+      y: this.y + Math.sin(angle) * this.radius,
+      vx: Math.cos(angle) * 6,
+      vy: Math.sin(angle) * 6,
+      owner: this,
+      dmg: this.atk,
+      life: 1.0,
+      color: this.elem.color,
+    });
+  }
+
+  takeDamage(dmg, attacker) {
+    const reduced = Math.max(1, dmg - this.def);
+    this.hp -= reduced;
+    this.hitFlash = 0.15;
+
+    for (let i = 0; i < 5; i++) {
+      particles.push({
+        x: this.x, y: this.y,
+        vx: (Math.random()-0.5)*4, vy: (Math.random()-0.5)*4,
+        life: 0.5, color: this.elem.color, size: 3,
+      });
+    }
+
+    if (this.hp <= 0) {
+      this.dead = true;
+      if (attacker && attacker.isPlayer) {
+        attacker.gainXP(this.z * 15 + 20);
+        checkReaction(attacker, this);
+      }
+      // Death particles
+      for (let i = 0; i < 15; i++) {
+        particles.push({
+          x: this.x, y: this.y,
+          vx: (Math.random()-0.5)*6, vy: (Math.random()-0.5)*6,
+          life: 1.0, color: this.elem.color, size: 4,
+        });
+      }
+      addLog(`${this.elem.sym} (${this.elem.name}) has been defeated!`, 'combat');
+    }
+  }
+
+  gainXP(amount) {
+    this.xp += amount;
+    while (this.xp >= this.xpNeeded) {
+      this.xp -= this.xpNeeded;
+      this.levelUp();
+    }
+  }
+
+  levelUp() {
+    this.level++;
+    // Evolve to next element
+    if (this.z < 36) {
+      this.z++;
+      this.elem = ELEMENTS[this.z];
+      this.maxHp = this.z * 10 + 50;
+      this.hp = this.maxHp;
+      this.atk = Math.floor(this.z * 2 + valenceElectrons(this.elem) * 3);
+      this.def = Math.floor(this.z * 0.5 + (8 - valenceElectrons(this.elem)) * 0.5);
+      this.radius = Math.min(24, 14 + this.z * 0.3);
+      this.maxAllies = valenceElectrons(this.elem);
+      if (this.elem.cat === 'noble') this.maxAllies = 0;
+      this.xpNeeded = Math.floor(this.xpNeeded * 1.3);
+
+      if (this.isPlayer) {
+        showLevelUp(this.elem);
+        addLog(`POWER TRANSITION: You are now ${this.elem.name} (Z=${this.z})!`, 'reaction');
+      }
+    }
+  }
+
+  draw(ctx) {
+    if (this.dead) return;
+    const sx = this.x - camera.x;
+    const sy = this.y - camera.y;
+    if (sx < -50 || sx > canvas.width+50 || sy < -50 || sy > canvas.height+50) return;
+
+    // Glow
+    const grd = ctx.createRadialGradient(sx, sy, this.radius*0.3, sx, sy, this.radius*2);
+    grd.addColorStop(0, this.elem.color + '33');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath();
+    ctx.arc(sx, sy, this.radius*2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Body
+    ctx.fillStyle = this.hitFlash > 0 ? '#fff' : this.elem.color;
+    ctx.strokeStyle = this.isPlayer ? '#fff' : getCatColor(this.elem.cat);
+    ctx.lineWidth = this.isPlayer ? 3 : 2;
+    ctx.beginPath();
+    ctx.arc(sx, sy, this.radius, 0, Math.PI*2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Electron orbits (decorative)
+    const shells = this.elem.electrons.length;
+    ctx.strokeStyle = this.elem.color + '44';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < shells; i++) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, this.radius + 6 + i*5, 0, Math.PI*2);
+      ctx.stroke();
+    }
+    // Orbiting electrons on outer shell
+    const ve = valenceElectrons(this.elem);
+    const outerR = this.radius + 6 + (shells-1)*5;
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < ve; i++) {
+      const ea = (gameTime * 2) + (i / ve) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.arc(sx + Math.cos(ea)*outerR, sy + Math.sin(ea)*outerR, 2, 0, Math.PI*2);
+      ctx.fill();
+    }
+
+    // Symbol
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${Math.max(11, this.radius*0.8)}px Courier New`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(this.elem.sym, sx, sy);
+
+    // Proton count
+    ctx.font = '9px Courier New';
+    ctx.fillStyle = '#fc4';
+    ctx.fillText(this.z, sx, sy - this.radius - 8);
+
+    // HP bar
+    if (!this.isPlayer || this.hp < this.maxHp) {
+      const bw = 30;
+      ctx.fillStyle = '#300';
+      ctx.fillRect(sx - bw/2, sy + this.radius + 6, bw, 4);
+      ctx.fillStyle = '#f44';
+      ctx.fillRect(sx - bw/2, sy + this.radius + 6, bw * (this.hp/this.maxHp), 4);
+    }
+
+    // IR Role label
+    ctx.font = '8px Courier New';
+    ctx.fillStyle = '#f84';
+    ctx.fillText(getIRRole(this.elem), sx, sy + this.radius + 16);
+  }
+}
+
+// ============================================================
+// REACTIONS CHECK
+// ============================================================
+function checkReaction(attacker, defender) {
+  for (const rx of REACTIONS) {
+    if ((attacker.z === rx.a && defender.z === rx.b) || (attacker.z === rx.b && defender.z === rx.a)) {
+      showReaction(rx);
+      attacker.gainXP(50); // Bonus XP for triggering known reaction
+      return;
+    }
+  }
+  // Generic reaction info
+  const aEl = attacker.elem, dEl = defender.elem;
+  const aVe = valenceElectrons(aEl), dVe = valenceElectrons(dEl);
+  let type = 'covalent';
+  let irMsg = '';
+  if (Math.abs(aEl.eneg - dEl.eneg) > 1.7) {
+    type = 'ionic';
+    irMsg = `IONIC BOND (Bandwagoning): ${aEl.sym} and ${dEl.sym} have very different electronegativities (${aEl.eneg} vs ${dEl.eneg}). The weaker surrenders electrons — like a small state submitting to a great power for protection.`;
+  } else if (aEl.eneg > 0 && dEl.eneg > 0) {
+    type = 'covalent';
+    irMsg = `COVALENT BOND (Balancing): ${aEl.sym} and ${dEl.sym} have similar electronegativities (${aEl.eneg} vs ${dEl.eneg}). They share electrons equally — like states forming a balance-of-power alliance.`;
+  }
+
+  if (aEl.cat === 'noble' || dEl.cat === 'noble') {
+    irMsg = `Noble gas ${aEl.cat === 'noble' ? aEl.sym : dEl.sym} is a satisfied status-quo power with full electron shells. It has no need for alliances — self-sufficient hegemonic stability.`;
+  }
+
+  if (irMsg) {
+    showReaction({
+      eq: `${aEl.sym} + ${dEl.sym} → interaction`,
+      type: type,
+      desc: `${aEl.name} (${aVe} valence e⁻, Z=${aEl.z}) encountered ${dEl.name} (${dVe} valence e⁻, Z=${dEl.z}).`,
+      ir: irMsg,
+    });
+  }
+}
+
+function showReaction(rx) {
+  paused = true;
+  const popup = document.getElementById('reaction-popup');
+  document.getElementById('rx-title').textContent = rx.type === 'ionic' ? 'IONIC REACTION (Bandwagoning)' : 'COVALENT REACTION (Balancing)';
+  document.getElementById('rx-eq').textContent = rx.eq;
+  document.getElementById('rx-detail').textContent = rx.desc;
+  document.getElementById('rx-ir').textContent = rx.ir;
+  popup.style.display = 'block';
+}
+
+function closeReactionPopup() {
+  document.getElementById('reaction-popup').style.display = 'none';
+  paused = false;
+}
+
+function showLevelUp(elem) {
+  paused = true;
+  const popup = document.getElementById('level-up-popup');
+  document.getElementById('lu-elem').textContent = `${elem.sym} — ${elem.name}`;
+  document.getElementById('lu-props').innerHTML =
+    `Atomic # (Power): ${elem.z} | Valence e⁻ (Diplomacy): ${valenceElectrons(elem)}<br>` +
+    `Electron Config: [${electronConfig(elem)}] | Electronegativity: ${elem.eneg}<br>` +
+    `Category: ${elem.cat} | Mass: ${elem.mass}`;
+  document.getElementById('lu-ir').textContent = `IR Role: ${getIRRole(elem)} — ${IR_CONCEPTS[elem.cat] || 'A state navigating the anarchic system.'}`;
+  popup.style.display = 'block';
+}
+
+function closeLevelUp() {
+  document.getElementById('level-up-popup').style.display = 'none';
+  paused = false;
+}
+
+// ============================================================
+// WORLD GENERATION
+// ============================================================
+function spawnEntities() {
+  entities = [];
+  // Spawn 50-60 random element entities across the map
+  for (let i = 0; i < 55; i++) {
+    const z = Math.floor(Math.random() * 36) + 1;
+    const x = 100 + Math.random() * (WORLD_W - 200);
+    const y = 100 + Math.random() * (WORLD_H - 200);
+    entities.push(new Entity(z, x, y));
+  }
+}
+
+// Territory zones on map
+const ZONES = [
+  { name:'Alkali Wastes', x:200, y:200, w:800, h:800, color:'#331111', elements:[1,3,11,19] },
+  { name:'Noble Fortress', x:2000, y:200, w:800, h:800, color:'#333311', elements:[2,10,18,36] },
+  { name:'Halogen Frontier', x:200, y:2000, w:800, h:800, color:'#113311', elements:[9,17,35] },
+  { name:'Transition Heartland', x:1200, y:1200, w:800, h:800, color:'#111133', elements:[21,22,23,24,25,26,27,28,29,30] },
+  { name:'Metalloid Borderlands', x:2000, y:2000, w:800, h:800, color:'#221133', elements:[5,14,32,33] },
+];
+
+// Respawn entities periodically
+function respawnCheck() {
+  const alive = entities.filter(e => !e.dead).length;
+  if (alive < 30) {
+    for (let i = 0; i < 5; i++) {
+      const z = Math.floor(Math.random() * 36) + 1;
+      const x = 100 + Math.random() * (WORLD_W - 200);
+      const y = 100 + Math.random() * (WORLD_H - 200);
+      const dist = Math.hypot(x - player.x, y - player.y);
+      if (dist > 500) {
+        entities.push(new Entity(z, x, y));
+      }
+    }
+  }
+}
+
+// ============================================================
+// HUD
+// ============================================================
+function updateHUD() {
+  if (!player) return;
+  const el = player.elem;
+  const ve = valenceElectrons(el);
+  const hpPct = Math.max(0, (player.hp / player.maxHp * 100)).toFixed(0);
+  const xpPct = Math.max(0, (player.xp / player.xpNeeded * 100)).toFixed(0);
+
+  document.getElementById('hud').innerHTML = `
+    <h3>${el.sym} — ${el.name}</h3>
+    <div class="stat">IR Role: <span style="color:#f84">${getIRRole(el)}</span></div>
+    <div class="stat">Protons (Power): <span>${el.z}</span> <div class="bar-wrap"><div class="bar power-bar" style="width:${Math.min(100,el.z/36*100)}%"></div></div></div>
+    <div class="stat">Valence e⁻ (Diplomacy): <span>${ve}</span> / 8</div>
+    <div class="stat">Config: <span>[${electronConfig(el)}]</span></div>
+    <div class="stat">Electronegativity: <span>${el.eneg}</span></div>
+    <div class="stat">Mass: <span>${el.mass}</span></div>
+    <div class="stat">ATK: <span>${player.atk}</span> | DEF: <span>${player.def}</span></div>
+    <div class="stat">HP: <span>${player.hp}/${player.maxHp}</span> <div class="bar-wrap"><div class="bar hp-bar" style="width:${hpPct}%"></div></div></div>
+    <div class="stat">XP: <span>${player.xp}/${player.xpNeeded}</span> <div class="bar-wrap"><div class="bar xp-bar" style="width:${xpPct}%"></div></div></div>
+    <div class="stat" style="margin-top:6px;color:#889;font-size:11px">${IR_CONCEPTS[el.cat] || ''}</div>
+  `;
+}
+
+function addLog(msg, type='info') {
+  logEntries.unshift({ msg, type, time: gameTime });
+  if (logEntries.length > 20) logEntries.pop();
+  const logDiv = document.getElementById('log');
+  logDiv.innerHTML = logEntries.map(e =>
+    `<div class="log-entry ${e.type}">[${e.time.toFixed(0)}s] ${e.msg}</div>`
+  ).join('');
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+function startGame() {
+  document.getElementById('title-screen').style.display = 'none';
+  canvas = document.getElementById('game');
+  ctx = canvas.getContext('2d');
+  mmCanvas = document.getElementById('minimap');
+  mmCtx = mmCanvas.getContext('2d');
+
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  window.addEventListener('resize', () => {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  });
+
+  player = new Entity(selectedElement, WORLD_W/2, WORLD_H/2, true);
+  player.speed = 3.5;
+  spawnEntities();
+
+  addLog(`You enter the anarchic system as ${player.elem.name} (Z=${player.z}).`, 'info');
+  addLog(`In this system, there is no world government. Self-help is the only option.`, 'info');
+
+  gameRunning = true;
+  let lastTime = performance.now();
+
+  function loop(now) {
+    if (!gameRunning) return;
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+
+    if (!paused) {
+      gameTime += dt;
+      update(dt);
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+function update(dt) {
+  // Player input
+  const spd = player.speed;
+  if (keys['ArrowUp'] || keys['w'] || keys['W']) player.vy -= spd * 0.08;
+  if (keys['ArrowDown'] || keys['s'] || keys['S']) player.vy += spd * 0.08;
+  if (keys['ArrowLeft'] || keys['a'] || keys['A']) player.vx -= spd * 0.08;
+  if (keys['ArrowRight'] || keys['d'] || keys['D']) player.vx += spd * 0.08;
+
+  player.update(dt);
+
+  // Camera
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+
+  // Entities
+  entities.forEach(e => e.update(dt));
+
+  // Projectiles
+  projectiles.forEach(p => {
+    p.x += p.vx * dt * 60;
+    p.y += p.vy * dt * 60;
+    p.life -= dt;
+
+    // Check collisions
+    const targets = p.owner.isPlayer ? entities : [player];
+    targets.forEach(t => {
+      if (t.dead || t === p.owner) return;
+      const dist = Math.hypot(p.x - t.x, p.y - t.y);
+      if (dist < t.radius + 4) {
+        t.takeDamage(p.dmg, p.owner);
+        p.life = 0;
+      }
+    });
+  });
+  projectiles = projectiles.filter(p => p.life > 0);
+
+  // Particles
+  particles.forEach(p => {
+    p.x += p.vx * dt * 60;
+    p.y += p.vy * dt * 60;
+    p.life -= dt;
+    p.vx *= 0.95;
+    p.vy *= 0.95;
+  });
+  particles = particles.filter(p => p.life > 0);
+
+  // Remove dead entities
+  entities = entities.filter(e => !e.dead || e.deathTimer > 0);
+
+  // Respawn
+  if (Math.floor(gameTime) % 10 === 0) respawnCheck();
+
+  // Zone entry messages
+  ZONES.forEach(z => {
+    if (player.x > z.x && player.x < z.x+z.w && player.y > z.y && player.y < z.y+z.h) {
+      if (!z.entered) {
+        z.entered = true;
+        addLog(`Entering ${z.name} — territory of ${z.elements.map(e=>ELEMENTS[e].sym).join(', ')}`, 'info');
+      }
+    } else {
+      z.entered = false;
+    }
+  });
+
+  // Player death
+  if (player.dead) {
+    addLog('Your element-state has collapsed! The system continues without you.', 'combat');
+    // Respawn after delay
+    setTimeout(() => {
+      player.hp = player.maxHp;
+      player.dead = false;
+      player.x = WORLD_W/2;
+      player.y = WORLD_H/2;
+      player.xp = Math.floor(player.xp / 2);
+      addLog('You reconstitute at the center of the system.', 'info');
+    }, 2000);
+  }
+
+  updateHUD();
+}
+
+// ============================================================
+// DRAWING
+// ============================================================
+function draw() {
+  ctx.fillStyle = '#080810';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Grid
+  ctx.strokeStyle = '#111122';
+  ctx.lineWidth = 1;
+  const gs = 100;
+  const sx = -(camera.x % gs);
+  const sy = -(camera.y % gs);
+  for (let x = sx; x < canvas.width; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  }
+  for (let y = sy; y < canvas.height; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  }
+
+  // Zones
+  ZONES.forEach(z => {
+    const zx = z.x - camera.x, zy = z.y - camera.y;
+    ctx.fillStyle = z.color + '44';
+    ctx.fillRect(zx, zy, z.w, z.h);
+    ctx.strokeStyle = z.color;
+    ctx.lineWidth = 2;
+    ctx.strokeRect(zx, zy, z.w, z.h);
+    ctx.fillStyle = '#889';
+    ctx.font = '14px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(z.name, zx + z.w/2, zy + 20);
+  });
+
+  // World border
+  ctx.strokeStyle = '#442222';
+  ctx.lineWidth = 3;
+  ctx.strokeRect(-camera.x, -camera.y, WORLD_W, WORLD_H);
+
+  // Entities
+  entities.forEach(e => e.draw(ctx));
+
+  // Player
+  if (player) player.draw(ctx);
+
+  // Projectiles
+  projectiles.forEach(p => {
+    const px = p.x - camera.x, py = p.y - camera.y;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(px, py, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = p.color + '66';
+    ctx.beginPath();
+    ctx.arc(px, py, 7, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  // Particles
+  particles.forEach(p => {
+    const px = p.x - camera.x, py = p.y - camera.y;
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(px, py, p.size * p.life, 0, Math.PI*2);
+    ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  // Nearby element info (E key)
+  if (keys['e'] || keys['E']) {
+    drawInspectPanel();
+  }
+
+  // Periodic table overlay
+  if (showPeriodicTable) {
+    drawPeriodicTable();
+  }
+
+  // Minimap
+  drawMinimap();
+}
+
+function drawInspectPanel() {
+  let nearest = null, nearDist = 200;
+  entities.forEach(e => {
+    if (e.dead) return;
+    const d = Math.hypot(e.x - player.x, e.y - player.y);
+    if (d < nearDist) { nearDist = d; nearest = e; }
+  });
+  if (nearest) {
+    const el = nearest.elem;
+    const ve = valenceElectrons(el);
+    const panel = document.getElementById('info-panel');
+    panel.style.display = 'block';
+    panel.innerHTML = `
+      <h4>${el.sym} — ${el.name} (Z=${el.z})</h4>
+      <div class="chem-info">
+        Protons: ${el.z} | Neutrons: ~${Math.round(el.mass - el.z)} | Electrons: ${el.z}<br>
+        Electron Configuration: [${electronConfig(el)}]<br>
+        Valence Electrons: ${ve} | Group: ${el.group} | Period: ${el.period}<br>
+        Electronegativity: ${el.eneg} | Mass: ${el.mass} amu<br>
+        Category: ${el.cat}
+      </div>
+      <div class="ir-info" style="margin-top:6px;">
+        IR Role: ${getIRRole(el)}<br>
+        ${IR_CONCEPTS[el.cat] || ''}<br>
+        Alliance Capacity: ${nearest.maxAllies} (based on valence electrons)<br>
+        ${el.cat === 'noble' ? 'ISOLATIONIST: Full electron shell = satisfied power, no alliances needed.' :
+          el.cat === 'alkali' ? 'REVISIONIST: One valence electron to give — desperately seeks a patron state.' :
+          el.cat === 'halogen' ? 'AGGRESSIVE: Needs one electron — will aggressively pursue alliances or domination.' :
+          `Power projection: ATK ${nearest.atk} | DEF ${nearest.def}`}
+      </div>
+    `;
+  } else {
+    document.getElementById('info-panel').style.display = 'none';
+  }
+}
+
+function drawPeriodicTable() {
+  const margin = 60;
+  const cw = 52, ch = 56;
+  const ox = (canvas.width - 18*cw) / 2;
+  const oy = margin;
+
+  ctx.fillStyle = 'rgba(5,5,15,0.92)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  ctx.fillStyle = '#6af';
+  ctx.font = 'bold 20px Courier New';
+  ctx.textAlign = 'center';
+  ctx.fillText('THE PERIODIC TABLE OF POWER', canvas.width/2, 30);
+  ctx.font = '11px Courier New';
+  ctx.fillStyle = '#f84';
+  ctx.fillText('Each element is a state in the anarchic international system. Press TAB to close.', canvas.width/2, 48);
+
+  // Standard periodic table layout positions
+  const layout = [];
+  ELEMENTS.forEach((el, i) => {
+    if (!el) return;
+    let col = el.group - 1;
+    let row = el.period - 1;
+    layout.push({ el, col, row });
+  });
+
+  layout.forEach(({ el, col, row }) => {
+    const x = ox + col * cw;
+    const y = oy + row * ch;
+
+    const isPlayer = player && player.z === el.z;
+    ctx.fillStyle = isPlayer ? 'rgba(100,170,255,0.3)' : 'rgba(20,30,50,0.8)';
+    ctx.strokeStyle = isPlayer ? '#6af' : getCatColor(el.cat);
+    ctx.lineWidth = isPlayer ? 2 : 1;
+    ctx.fillRect(x, y, cw-2, ch-2);
+    ctx.strokeRect(x, y, cw-2, ch-2);
+
+    ctx.fillStyle = '#fc4';
+    ctx.font = '8px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillText(el.z, x+3, y+10);
+
+    ctx.fillStyle = el.color;
+    ctx.font = 'bold 16px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText(el.sym, x+cw/2-1, y+28);
+
+    ctx.fillStyle = '#889';
+    ctx.font = '7px Courier New';
+    ctx.fillText(el.name.substring(0,6), x+cw/2-1, y+40);
+
+    ctx.fillStyle = '#f84';
+    ctx.font = '7px Courier New';
+    ctx.fillText(`v:${valenceElectrons(el)}`, x+cw/2-1, y+50);
+  });
+
+  // Legend
+  const legY = oy + 7*ch + 20;
+  const cats = [
+    ['alkali','Revisionist State','#ff4444'],
+    ['halogen','Aggressive Power','#44ff88'],
+    ['noble','Status Quo Hegemon','#ffcc44'],
+    ['transition','Great Power','#4488ff'],
+    ['nonmetal','Middle Power','#88ccff'],
+    ['metalloid','Swing State','#cc88ff'],
+  ];
+  ctx.font = '11px Courier New';
+  ctx.textAlign = 'left';
+  cats.forEach((c, i) => {
+    const lx = ox + i * 160;
+    ctx.fillStyle = c[2];
+    ctx.fillRect(lx, legY, 10, 10);
+    ctx.fillStyle = '#c8d0e0';
+    ctx.fillText(`${c[0]} = ${c[1]}`, lx+14, legY+9);
+  });
+}
+
+function drawMinimap() {
+  const mw = 150, mh = 150;
+  mmCtx.fillStyle = '#0a0a16';
+  mmCtx.fillRect(0, 0, mw, mh);
+
+  // Zones
+  ZONES.forEach(z => {
+    mmCtx.fillStyle = z.color + '88';
+    mmCtx.fillRect(z.x/WORLD_W*mw, z.y/WORLD_H*mh, z.w/WORLD_W*mw, z.h/WORLD_H*mh);
+  });
+
+  // Entities
+  entities.forEach(e => {
+    if (e.dead) return;
+    mmCtx.fillStyle = getCatColor(e.elem.cat);
+    mmCtx.fillRect(e.x/WORLD_W*mw - 1, e.y/WORLD_H*mh - 1, 2, 2);
+  });
+
+  // Player
+  if (player) {
+    mmCtx.fillStyle = '#fff';
+    mmCtx.fillRect(player.x/WORLD_W*mw - 2, player.y/WORLD_H*mh - 2, 4, 4);
+  }
+
+  // Viewport
+  mmCtx.strokeStyle = '#6af44';
+  mmCtx.strokeRect(
+    camera.x/WORLD_W*mw, camera.y/WORLD_H*mh,
+    canvas.width/WORLD_W*mw, canvas.height/WORLD_H*mh
+  );
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+document.addEventListener('keydown', e => {
+  keys[e.key] = true;
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    showPeriodicTable = !showPeriodicTable;
+  }
+  if (e.key === ' ' && player && !player.dead && !paused) {
+    e.preventDefault();
+    // Attack nearest or forward
+    let nearest = null, nearDist = 300;
+    entities.forEach(ent => {
+      if (ent.dead) return;
+      const d = Math.hypot(ent.x - player.x, ent.y - player.y);
+      if (d < nearDist) { nearDist = d; nearest = ent; }
+    });
+    if (nearest) {
+      player.attack(nearest);
+    } else {
+      // Shoot forward based on last movement
+      const angle = Math.atan2(player.vy || 0.01, player.vx || 0.01);
+      projectiles.push({
+        x: player.x + Math.cos(angle) * player.radius,
+        y: player.y + Math.sin(angle) * player.radius,
+        vx: Math.cos(angle) * 6,
+        vy: Math.sin(angle) * 6,
+        owner: player, dmg: player.atk, life: 1.0, color: player.elem.color,
+      });
+    }
+  }
+  if (e.key === 'q' || e.key === 'Q') {
+    // Try to form alliance with nearest
+    if (!player || player.dead || paused) return;
+    let nearest = null, nearDist = 100;
+    entities.forEach(ent => {
+      if (ent.dead) return;
+      const d = Math.hypot(ent.x - player.x, ent.y - player.y);
+      if (d < nearDist) { nearDist = d; nearest = ent; }
+    });
+    if (nearest && player.allies.length < player.maxAllies) {
+      // Check bond compatibility
+      const pVe = valenceElectrons(player.elem);
+      const nVe = valenceElectrons(nearest.elem);
+      if (pVe + nVe === 8 || (pVe === nVe && pVe === 4)) {
+        player.allies.push(nearest);
+        nearest.aiState = 'ally';
+        addLog(`ALLIANCE formed with ${nearest.elem.sym}! Bond type: ${Math.abs(player.elem.eneg - nearest.elem.eneg) > 1.7 ? 'Ionic (Bandwagoning)' : 'Covalent (Balancing)'}`, 'alliance');
+        addLog(`${player.elem.sym} (${pVe} valence e⁻) + ${nearest.elem.sym} (${nVe} valence e⁻) = stable octet (8 shared electrons)`, 'info');
+      } else {
+        addLog(`Cannot bond with ${nearest.elem.sym}: valence electrons (${pVe}+${nVe}) don't form stable octet.`, 'info');
+        addLog(`IR Translation: These states lack complementary interests for a stable alliance.`, 'info');
+      }
+    } else if (player.allies.length >= player.maxAllies) {
+      addLog(`Alliance capacity full (${player.maxAllies} slots from ${valenceElectrons(player.elem)} valence electrons).`, 'info');
+    }
+  }
+  if (e.key === 'e' || e.key === 'E') {
+    // Show info panel (handled in draw)
+  }
+});
+
+document.addEventListener('keyup', e => {
+  keys[e.key] = false;
+  if (e.key === 'e' || e.key === 'E') {
+    document.getElementById('info-panel').style.display = 'none';
+  }
+});
+
+// Prevent scrolling
+window.addEventListener('keydown', e => {
+  if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code)) {
+    e.preventDefault();
+  }
+});
+</script>
+</body>
+</html>

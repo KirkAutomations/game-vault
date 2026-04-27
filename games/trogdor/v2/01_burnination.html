@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TROGDOR: BURNINATION</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+canvas { display: block; image-rendering: pixelated; cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// ============================================================
+// TROGDOR: BURNINATION
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+// Sizing
+function resize() {
+  const s = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  canvas.width = 800; canvas.height = 600;
+  canvas.style.width = (800 * s) + 'px';
+  canvas.style.height = (600 * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx = null;
+let masterGain = null;
+let musicPlaying = false;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.35;
+  masterGain.connect(audioCtx.destination);
+}
+
+// --- TROGDOR MUSIC ENGINE (D minor, ~160 BPM, power metal) ---
+class TrogdorMusicEngine {
+  constructor() {
+    this.bpm = 160;
+    this.beatLen = 60 / this.bpm;
+    this.barLen = this.beatLen * 4;
+    this.playing = false;
+    this.nodes = [];
+    this.distortionCurve = null;
+  }
+
+  start() {
+    if (this.playing) return;
+    this.playing = true;
+    this.startTime = audioCtx.currentTime + 0.05;
+    this._buildDistortion();
+    this.scheduleLoop();
+  }
+
+  stop() {
+    this.playing = false;
+    this.nodes.forEach(n => { try { n.stop(); } catch(e){} });
+    this.nodes = [];
+  }
+
+  _buildDistortion() {
+    // Aggressive waveshaper curve for metal tone
+    const n = 256;
+    const curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i * 2) / n - 1;
+      curve[i] = (Math.PI + 12) * x / (Math.PI + 12 * Math.abs(x));
+    }
+    this.distortionCurve = curve;
+  }
+
+  scheduleLoop() {
+    if (!this.playing) return;
+    const now = audioCtx.currentTime;
+    // 16 bars per full loop: 4 intro + 4 verse + 4 chorus + 4 bridge
+    const loopDuration = this.barLen * 16;
+    const scheduleAhead = loopDuration + 0.5;
+
+    let loopStart = this.startTime;
+    while (loopStart + loopDuration < now) loopStart += loopDuration;
+
+    if (loopStart < now + scheduleAhead) {
+      this.scheduleFullSong(loopStart);
+      this.startTime = loopStart + loopDuration;
+    }
+
+    setTimeout(() => this.scheduleLoop(), 500);
+  }
+
+  // Note frequencies
+  freq(note, octave) {
+    const notes = { C:0, 'C#':1, Db:1, D:2, 'D#':3, Eb:3, E:4, F:5, 'F#':6, Gb:6, G:7, 'G#':8, Ab:8, A:9, 'A#':10, Bb:10, B:11 };
+    return 440 * Math.pow(2, (notes[note] + (octave - 4) * 12 - 9) / 12);
+  }
+
+  // Create distorted power chord oscillator
+  createDistortedOsc(freqVal, startT, dur, vol = 0.10) {
+    // Root
+    const osc1 = audioCtx.createOscillator();
+    osc1.type = 'square';
+    osc1.frequency.value = freqVal;
+    // Fifth
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'square';
+    osc2.frequency.value = freqVal * 1.5;
+    // Octave (quieter)
+    const osc3 = audioCtx.createOscillator();
+    osc3.type = 'sawtooth';
+    osc3.frequency.value = freqVal * 2;
+
+    const mix = audioCtx.createGain();
+    mix.gain.value = 0.5;
+    osc1.connect(mix);
+    osc2.connect(mix);
+    const mix2 = audioCtx.createGain();
+    mix2.gain.value = 0.25;
+    osc3.connect(mix2);
+    mix2.connect(mix);
+
+    // Waveshaper distortion
+    const dist = audioCtx.createWaveShaper();
+    dist.curve = this.distortionCurve;
+    dist.oversample = '4x';
+    mix.connect(dist);
+
+    // Cabinet sim (low-pass filter)
+    const cab = audioCtx.createBiquadFilter();
+    cab.type = 'lowpass';
+    cab.frequency.value = 3000;
+    cab.Q.value = 0.7;
+    dist.connect(cab);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, startT);
+    gain.gain.linearRampToValueAtTime(vol, startT + 0.008);
+    gain.gain.setValueAtTime(vol, startT + dur - 0.015);
+    gain.gain.linearRampToValueAtTime(0, startT + dur);
+    cab.connect(gain);
+    gain.connect(masterGain);
+
+    osc1.start(startT); osc1.stop(startT + dur + 0.05);
+    osc2.start(startT); osc2.stop(startT + dur + 0.05);
+    osc3.start(startT); osc3.stop(startT + dur + 0.05);
+    this.nodes.push(osc1, osc2, osc3);
+  }
+
+  // Palm-muted chug on low D
+  createChug(startT, dur, vol = 0.07) {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'square';
+    osc.frequency.value = this.freq('D', 2); // Low D (drop D)
+
+    const dist = audioCtx.createWaveShaper();
+    dist.curve = this.distortionCurve;
+    dist.oversample = '2x';
+    osc.connect(dist);
+
+    // Tight low-pass for palm mute effect
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 600;
+    filt.Q.value = 1.5;
+    dist.connect(filt);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(vol, startT);
+    gain.gain.exponentialRampToValueAtTime(0.001, startT + dur);
+    filt.connect(gain);
+    gain.connect(masterGain);
+
+    osc.start(startT); osc.stop(startT + dur + 0.05);
+    this.nodes.push(osc);
+  }
+
+  // Bass note
+  createBass(freqVal, startT, dur, vol = 0.12) {
+    // Fundamental (sine for low-end thump)
+    const osc1 = audioCtx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.value = freqVal;
+    // Growl overtone
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.value = freqVal;
+
+    const mix = audioCtx.createGain();
+    mix.gain.value = 1;
+    const sub = audioCtx.createGain();
+    sub.gain.value = 0.7;
+    const growl = audioCtx.createGain();
+    growl.gain.value = 0.3;
+    osc1.connect(sub); sub.connect(mix);
+    osc2.connect(growl); growl.connect(mix);
+
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 800;
+    mix.connect(filt);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, startT);
+    gain.gain.linearRampToValueAtTime(vol, startT + 0.01);
+    gain.gain.setValueAtTime(vol, startT + dur - 0.02);
+    gain.gain.linearRampToValueAtTime(0, startT + dur);
+    filt.connect(gain);
+    gain.connect(masterGain);
+
+    osc1.start(startT); osc1.stop(startT + dur + 0.05);
+    osc2.start(startT); osc2.stop(startT + dur + 0.05);
+    this.nodes.push(osc1, osc2);
+  }
+
+  // Lead melody note
+  createLead(freqVal, startT, dur, vol = 0.06) {
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freqVal;
+    // Detuned double
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sawtooth';
+    osc2.frequency.value = freqVal * 1.005;
+
+    const mix = audioCtx.createGain();
+    mix.gain.value = 1;
+    osc.connect(mix);
+    osc2.connect(mix);
+
+    const dist = audioCtx.createWaveShaper();
+    dist.curve = this.distortionCurve;
+    dist.oversample = '2x';
+    mix.connect(dist);
+
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.value = 4500;
+    dist.connect(filt);
+
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0, startT);
+    gain.gain.linearRampToValueAtTime(vol, startT + 0.01);
+    gain.gain.setValueAtTime(vol * 0.8, startT + dur * 0.7);
+    gain.gain.linearRampToValueAtTime(0, startT + dur);
+    filt.connect(gain);
+    gain.connect(masterGain);
+
+    osc.start(startT); osc.stop(startT + dur + 0.05);
+    osc2.start(startT); osc2.stop(startT + dur + 0.05);
+    this.nodes.push(osc, osc2);
+  }
+
+  // Noise burst for drums
+  createNoise(startT, dur, vol = 0.08, hipass = 8000) {
+    const bufSize = Math.max(1, Math.floor(audioCtx.sampleRate * dur));
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < bufSize; i++) data[i] = Math.random() * 2 - 1;
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'highpass';
+    filter.frequency.value = hipass;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(vol, startT);
+    gain.gain.linearRampToValueAtTime(0, startT + dur);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(masterGain);
+    src.start(startT);
+    src.stop(startT + dur + 0.05);
+    this.nodes.push(src);
+  }
+
+  // Kick drum
+  createKick(t, vol = 0.25) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(160, t);
+    osc.frequency.exponentialRampToValueAtTime(30, t + 0.12);
+    gain.gain.setValueAtTime(vol, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.22);
+    this.nodes.push(osc);
+  }
+
+  // Snare
+  createSnare(t, vol = 0.12) {
+    this.createNoise(t, 0.1, vol, 4000);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.value = 220;
+    gain.gain.setValueAtTime(vol * 0.8, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+    osc.connect(gain);
+    gain.connect(masterGain);
+    osc.start(t); osc.stop(t + 0.12);
+    this.nodes.push(osc);
+  }
+
+  // Schedule drums for N bars
+  scheduleDrums(t0, bars, double = false) {
+    const bl = this.beatLen;
+    const sixteenth = bl / 4;
+    const totalBeats = bars * 4;
+
+    for (let beat = 0; beat < totalBeats; beat++) {
+      const t = t0 + beat * bl;
+
+      // Kick on 1 and 3 (and double-kick 16ths when double=true)
+      if (beat % 4 === 0 || beat % 4 === 2) {
+        this.createKick(t);
+        if (double) this.createKick(t + sixteenth * 2, 0.18);
+      }
+
+      // Snare on 2 and 4
+      if (beat % 4 === 1 || beat % 4 === 3) {
+        this.createSnare(t);
+      }
+
+      // 16th note hi-hats (metal style)
+      for (let s = 0; s < 4; s++) {
+        const ht = t + s * sixteenth;
+        const isOpen = (beat % 4 === 3 && s === 2); // open hat before snare
+        this.createNoise(ht, isOpen ? 0.08 : 0.03, isOpen ? 0.06 : 0.035, 10000);
+      }
+    }
+
+    // Fill on last beat of section
+    const fillStart = t0 + (totalBeats - 1) * bl;
+    for (let s = 0; s < 4; s++) {
+      this.createKick(fillStart + s * sixteenth, 0.18);
+      this.createSnare(fillStart + s * sixteenth, 0.06);
+    }
+  }
+
+  // =====================================================
+  // FULL SONG: 16 bars = Intro(4) + Verse(4) + Chorus(4) + Bridge(4)
+  // =====================================================
+  scheduleFullSong(t0) {
+    const bl = this.beatLen;
+    const eighth = bl / 2;
+    const sixteenth = bl / 4;
+    const bar = this.barLen;
+
+    // Note frequencies (pre-calc)
+    const D2 = this.freq('D', 2), D3 = this.freq('D', 3), D4 = this.freq('D', 4), D5 = this.freq('D', 5);
+    const Bb2 = this.freq('Bb', 2), Bb3 = this.freq('Bb', 3), Bb4 = this.freq('Bb', 4);
+    const G2 = this.freq('G', 2), G3 = this.freq('G', 3), G4 = this.freq('G', 4);
+    const F2 = this.freq('F', 2), F3 = this.freq('F', 3), F4 = this.freq('F', 4);
+    const C3 = this.freq('C', 3), C4 = this.freq('C', 4), C5 = this.freq('C', 5);
+    const A3 = this.freq('A', 3);
+
+    // ===== SECTION 1: INTRO RIFF (4 bars) =====
+    // Main riff: D5-D5-D5-Bb5 | D5-D5-D5-G5 | D5-D5-D5-Bb5-G5-F5->G5 | D5-D5-D5-Bb5-G5-F5->G5
+    const introStart = t0;
+    this.scheduleDrums(introStart, 4, true);
+
+    for (let riffBar = 0; riffBar < 4; riffBar++) {
+      const bt = introStart + riffBar * bar;
+
+      if (riffBar < 2) {
+        // Bars 1-2: D-D-D-Bb | D-D-D-G pattern
+        // 3 palm-muted D chugs
+        this.createChug(bt, eighth * 0.8);
+        this.createChug(bt + eighth, eighth * 0.8);
+        this.createChug(bt + eighth * 2, eighth * 0.8);
+        // Power chord hit
+        const chordNote = riffBar === 0 ? Bb3 : G3;
+        const bassNote = riffBar === 0 ? Bb2 : G2;
+        this.createDistortedOsc(chordNote, bt + eighth * 3, bl * 2 - eighth, 0.10);
+        this.createBass(bassNote, bt + eighth * 3, bl * 2 - eighth);
+        // Remaining chugs
+        this.createChug(bt + bl * 2, eighth * 0.8);
+        this.createChug(bt + bl * 2 + eighth, eighth * 0.8);
+        this.createChug(bt + bl * 2 + eighth * 2, eighth * 0.8);
+        // Another chord
+        const chordNote2 = riffBar === 0 ? G3 : Bb3;
+        const bassNote2 = riffBar === 0 ? G2 : Bb2;
+        this.createDistortedOsc(chordNote2, bt + bl * 2 + eighth * 3, bl - eighth, 0.10);
+        this.createBass(bassNote2, bt + bl * 2 + eighth * 3, bl - eighth);
+        // Bass D pedal under chugs
+        this.createBass(D2, bt, eighth * 3);
+        this.createBass(D2, bt + bl * 2, eighth * 3);
+      } else {
+        // Bars 3-4: D-D-D-Bb-G-F->G ending pattern
+        this.createChug(bt, eighth * 0.8);
+        this.createChug(bt + eighth, eighth * 0.8);
+        this.createChug(bt + eighth * 2, eighth * 0.8);
+        this.createDistortedOsc(Bb3, bt + eighth * 3, eighth * 1.5, 0.10);
+        this.createBass(Bb2, bt + eighth * 3, eighth * 1.5);
+        this.createDistortedOsc(G3, bt + bl + eighth, eighth * 1.5, 0.10);
+        this.createBass(G2, bt + bl + eighth, eighth * 1.5);
+        // F slide to G
+        this.createDistortedOsc(F3, bt + bl * 1.5 + eighth, eighth, 0.08);
+        this.createDistortedOsc(G3, bt + bl * 2, bl, 0.12);
+        this.createBass(F2, bt + bl * 1.5 + eighth, eighth);
+        this.createBass(G2, bt + bl * 2, bl);
+        // Chugs and ending
+        this.createChug(bt + bl * 3, eighth * 0.8);
+        this.createChug(bt + bl * 3 + eighth, eighth * 0.8);
+        this.createDistortedOsc(D3, bt + bl * 3 + eighth * 2, bl - eighth * 2, 0.12);
+        this.createBass(D2, bt, eighth * 3);
+        this.createBass(D2, bt + bl * 3, eighth * 2);
+      }
+    }
+
+    // ===== SECTION 2: VERSE (4 bars) =====
+    // D pedal with Bb5 and C5 power chords: D-D-Bb-D-D-C pattern
+    const verseStart = t0 + bar * 4;
+    this.scheduleDrums(verseStart, 4);
+
+    for (let vBar = 0; vBar < 4; vBar++) {
+      const bt = verseStart + vBar * bar;
+      // D-D-Bb-D-D-C-D-D pattern per bar (eighth notes)
+      // Beat 1: D chug x2
+      this.createChug(bt, eighth * 0.8);
+      this.createChug(bt + eighth, eighth * 0.8);
+      this.createBass(D2, bt, eighth * 2);
+      // Beat 2: Bb power chord
+      this.createDistortedOsc(Bb3, bt + eighth * 2, eighth * 1.5, 0.08);
+      this.createBass(Bb2, bt + eighth * 2, eighth * 1.5);
+      // Beat 2.5-3: D chug x2
+      this.createChug(bt + bl, eighth * 0.8);
+      this.createChug(bt + bl + eighth, eighth * 0.8);
+      this.createBass(D2, bt + bl, eighth * 2);
+      // Beat 3: C power chord
+      this.createDistortedOsc(C3, bt + bl + eighth * 2, eighth * 1.5, 0.08);
+      this.createBass(C3 / 2, bt + bl + eighth * 2, eighth * 1.5);
+      // Beat 4: D chug x2
+      this.createChug(bt + bl * 2, eighth * 0.8);
+      this.createChug(bt + bl * 2 + eighth, eighth * 0.8);
+      this.createBass(D2, bt + bl * 2, eighth * 2);
+      // Beat 4.5: Bb power chord
+      this.createDistortedOsc(Bb3, bt + bl * 2 + eighth * 2, eighth * 1.5, 0.08);
+      this.createBass(Bb2, bt + bl * 2 + eighth * 2, eighth * 1.5);
+      // Final D chugs
+      this.createChug(bt + bl * 3, eighth * 0.8);
+      this.createChug(bt + bl * 3 + eighth, eighth * 0.8);
+      this.createBass(D2, bt + bl * 3, bl);
+    }
+
+    // ===== SECTION 3: CHORUS with "Burninating" melody (4 bars) =====
+    const chorusStart = t0 + bar * 8;
+    this.scheduleDrums(chorusStart, 4, true);
+
+    // Rhythm guitar: main riff under the chorus
+    for (let cBar = 0; cBar < 4; cBar++) {
+      const bt = chorusStart + cBar * bar;
+      if (cBar < 2) {
+        this.createChug(bt, eighth * 0.8);
+        this.createChug(bt + eighth, eighth * 0.8);
+        this.createChug(bt + eighth * 2, eighth * 0.8);
+        const cn = cBar === 0 ? Bb3 : G3;
+        const bn = cBar === 0 ? Bb2 : G2;
+        this.createDistortedOsc(cn, bt + eighth * 3, bl * 2 - eighth, 0.08);
+        this.createBass(bn, bt + eighth * 3, bl * 2 - eighth);
+        this.createChug(bt + bl * 2, eighth * 0.8);
+        this.createChug(bt + bl * 2 + eighth, eighth * 0.8);
+        this.createDistortedOsc(D3, bt + bl * 2 + eighth * 2, bl - eighth, 0.08);
+        this.createBass(D2, bt, eighth * 3);
+        this.createBass(D2, bt + bl * 2, eighth * 2);
+      } else {
+        this.createChug(bt, eighth * 0.8);
+        this.createChug(bt + eighth, eighth * 0.8);
+        this.createDistortedOsc(Bb3, bt + eighth * 2, eighth * 1.5, 0.08);
+        this.createDistortedOsc(G3, bt + bl, bl, 0.08);
+        this.createDistortedOsc(F3, bt + bl * 2, eighth, 0.06);
+        this.createDistortedOsc(G3, bt + bl * 2 + eighth, bl * 2 - eighth, 0.10);
+        this.createBass(Bb2, bt + eighth * 2, eighth * 1.5);
+        this.createBass(G2, bt + bl, bl);
+        this.createBass(F2, bt + bl * 2, eighth);
+        this.createBass(G2, bt + bl * 2 + eighth, bl * 2 - eighth);
+      }
+    }
+
+    // Vocal melody: "Burninating the countryside" etc.
+    // D4-D4-D4-D4-F4-G4-G4-Bb4 (burninating the countryside)
+    let mt = chorusStart;
+    const melodyLine1 = [
+      [D4, eighth], [D4, eighth], [D4, eighth], [D4, eighth],
+      [F4, eighth], [G4, eighth], [G4, bl - eighth], [Bb4, bl],
+    ];
+    // D4-D4-D4-D4-F4-G4-Bb4 (burninating the peasants)
+    const melodyLine2 = [
+      [D4, eighth], [D4, eighth], [D4, eighth], [D4, eighth],
+      [F4, eighth], [G4, eighth * 1.5], [Bb4, bl],
+    ];
+    // Bb4-C5-D5-Bb4-G4-F4-G4 (and their thatched roof COTTAGES!)
+    const melodyLine3 = [
+      [Bb4, eighth], [C5, eighth], [D5, bl],
+      [Bb4, eighth], [G4, eighth], [F4, eighth], [G4, bl * 1.5],
+    ];
+    // G4-Bb4-D5 (TROGDOR!)
+    const melodyLine4 = [
+      [G4, bl * 0.75], [Bb4, bl * 0.75], [D5, bl * 1.5],
+    ];
+
+    const allMelody = [...melodyLine1, ...melodyLine2, ...melodyLine3, ...melodyLine4];
+    for (const [freq, dur] of allMelody) {
+      this.createLead(freq, mt, dur * 0.9, 0.065);
+      mt += dur;
+    }
+
+    // ===== SECTION 4: BRIDGE (4 bars) - hammer-on pattern =====
+    // Bass: D-F->G (0-3h5) repeating
+    const bridgeStart = t0 + bar * 12;
+    this.scheduleDrums(bridgeStart, 4, true);
+
+    for (let bBar = 0; bBar < 4; bBar++) {
+      const bt = bridgeStart + bBar * bar;
+
+      // Bass hammer-on pattern: D-F->G repeated
+      for (let rep = 0; rep < 4; rep++) {
+        const rt = bt + rep * bl;
+        this.createBass(D2, rt, eighth * 0.8);
+        this.createBass(F2, rt + eighth, sixteenth * 0.8);
+        this.createBass(G2, rt + eighth + sixteenth, eighth * 0.8);
+      }
+
+      // Guitar: sustained power chords, building intensity
+      if (bBar < 2) {
+        this.createDistortedOsc(D3, bt, bl * 2, 0.07);
+        this.createDistortedOsc(F3, bt + bl * 2, bl * 2, 0.07);
+      } else {
+        this.createDistortedOsc(Bb3, bt, bl, 0.09);
+        this.createDistortedOsc(C3, bt + bl, bl, 0.09);
+        this.createDistortedOsc(D3, bt + bl * 2, bl, 0.11);
+        this.createDistortedOsc(G3, bt + bl * 3, bl, 0.11);
+      }
+
+      // Bridge lead: ascending run on last 2 bars
+      if (bBar >= 2) {
+        const runNotes = bBar === 2
+          ? [D4, F4, G4, Bb4, C5, D5, C5, Bb4]
+          : [D5, C5, Bb4, G4, F4, D4, F4, G4];
+        for (let r = 0; r < runNotes.length; r++) {
+          this.createLead(runNotes[r], bt + r * eighth, eighth * 0.85, 0.05);
+        }
+      }
+    }
+  }
+}
+
+let music = null;
+
+// --- SOUND EFFECTS ---
+function playFireSound() {
+  if (!audioCtx) return;
+  const dur = 0.3;
+  const bufSize = audioCtx.sampleRate * dur;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) {
+    const t = i / audioCtx.sampleRate;
+    data[i] = (Math.random() * 2 - 1) * Math.exp(-t * 8) * 0.5;
+  }
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'bandpass';
+  filter.frequency.value = 1200;
+  filter.Q.value = 2;
+  const gain = audioCtx.createGain();
+  gain.gain.value = 0.3;
+  src.connect(filter);
+  filter.connect(gain);
+  gain.connect(masterGain);
+  src.start();
+}
+
+function playCrumbleSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  for (let i = 0; i < 5; i++) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = 60 + Math.random() * 40;
+    g.gain.setValueAtTime(0.08, t + i * 0.06);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.06 + 0.1);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(t + i * 0.06);
+    osc.stop(t + i * 0.06 + 0.15);
+  }
+  // Rumble noise
+  const dur = 0.4;
+  const bufSize = audioCtx.sampleRate * dur;
+  const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < bufSize; i++) data[i] = (Math.random() * 2 - 1) * Math.exp(-i / bufSize * 3);
+  const src = audioCtx.createBufferSource();
+  src.buffer = buf;
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 300;
+  const g = audioCtx.createGain(); g.gain.value = 0.2;
+  src.connect(filter); filter.connect(g); g.connect(masterGain);
+  src.start();
+}
+
+function playScreamSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(800 + Math.random() * 400, t);
+  osc.frequency.linearRampToValueAtTime(400, t + 0.25);
+  osc.frequency.linearRampToValueAtTime(1200, t + 0.35);
+  osc.frequency.linearRampToValueAtTime(200, t + 0.5);
+  g.gain.setValueAtTime(0.1, t);
+  g.gain.linearRampToValueAtTime(0.06, t + 0.3);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t); osc.stop(t + 0.55);
+}
+
+function playPowerUpSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const notes = [330, 440, 550, 660, 880, 1100];
+  notes.forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'square';
+    osc.frequency.value = f;
+    g.gain.setValueAtTime(0.1, t + i * 0.08);
+    g.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.2);
+    osc.connect(g); g.connect(masterGain);
+    osc.start(t + i * 0.08);
+    osc.stop(t + i * 0.08 + 0.25);
+  });
+}
+
+function playStompSound() {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(200, t);
+  osc.frequency.exponentialRampToValueAtTime(40, t + 0.15);
+  g.gain.setValueAtTime(0.25, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+  osc.connect(g); g.connect(masterGain);
+  osc.start(t); osc.stop(t + 0.25);
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+const STATES = { TITLE: 0, PLAYING: 1, GAMEOVER: 2 };
+let gameState = STATES.TITLE;
+let score = 0;
+let cottagesBurned = 0;
+let peasantStomped = 0;
+let burnMeter = 0;
+let burninationMode = false;
+let burninationTimer = 0;
+let screenShake = { x: 0, y: 0 };
+let titleFireTimer = 0;
+let gameTime = 0;
+let spawnTimer = 0;
+let cottageSpawnTimer = 0;
+
+// Input
+const keys = {};
+window.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+  if (gameState === STATES.TITLE) {
+    initAudio();
+    if (!music) { music = new TrogdorMusicEngine(); music.start(); }
+    gameState = STATES.PLAYING;
+    resetGame();
+  } else if (gameState === STATES.GAMEOVER && e.code === 'Space') {
+    gameState = STATES.PLAYING;
+    resetGame();
+  }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ============================================================
+// ENTITIES
+// ============================================================
+let trogdor = null;
+let cottages = [];
+let peasants = [];
+let particles = [];
+let fireBreathParticles = [];
+let trees = [];
+let fences = [];
+let paths = [];
+
+function resetGame() {
+  score = 0;
+  cottagesBurned = 0;
+  peasantStomped = 0;
+  burnMeter = 0;
+  burninationMode = false;
+  burninationTimer = 0;
+  gameTime = 0;
+  spawnTimer = 0;
+  cottageSpawnTimer = 0;
+  particles = [];
+  fireBreathParticles = [];
+
+  trogdor = {
+    x: 400, y: 300, w: 40, h: 40,
+    dir: 0, // 0=right,1=down,2=left,3=up
+    speed: 3,
+    breathing: false,
+    breathTimer: 0,
+    animFrame: 0,
+    animTimer: 0,
+    lives: 3,
+    invincible: 0,
+  };
+
+  // Generate countryside
+  trees = [];
+  for (let i = 0; i < 20; i++) {
+    trees.push({ x: Math.random() * 760 + 20, y: Math.random() * 560 + 20, size: 10 + Math.random() * 8 });
+  }
+
+  fences = [];
+  for (let i = 0; i < 6; i++) {
+    const horiz = Math.random() > 0.5;
+    fences.push({
+      x: Math.random() * 600 + 100, y: Math.random() * 400 + 100,
+      len: 40 + Math.random() * 80, horiz
+    });
+  }
+
+  paths = [];
+  // Main paths
+  paths.push({ x: 0, y: 280, w: 800, h: 30 });
+  paths.push({ x: 380, y: 0, w: 30, h: 600 });
+
+  cottages = [];
+  for (let i = 0; i < 6; i++) spawnCottage();
+
+  peasants = [];
+  for (let i = 0; i < 5; i++) spawnPeasant();
+}
+
+function spawnCottage() {
+  let x, y, valid;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    x = 50 + Math.random() * 680;
+    y = 50 + Math.random() * 480;
+    valid = true;
+    for (const c of cottages) {
+      if (Math.abs(c.x - x) < 70 && Math.abs(c.y - y) < 70) { valid = false; break; }
+    }
+    if (valid) break;
+  }
+  cottages.push({
+    x, y, w: 48, h: 40,
+    hp: 100, maxHp: 100,
+    burning: false, burnTimer: 0,
+    destroyed: false, destroyAnim: 0,
+  });
+}
+
+function spawnPeasant() {
+  const edge = Math.floor(Math.random() * 4);
+  let x, y;
+  if (edge === 0) { x = -10; y = Math.random() * 600; }
+  else if (edge === 1) { x = 810; y = Math.random() * 600; }
+  else if (edge === 2) { x = Math.random() * 800; y = -10; }
+  else { x = Math.random() * 800; y = 610; }
+  peasants.push({
+    x, y, w: 12, h: 16,
+    vx: (Math.random() - 0.5) * 2,
+    vy: (Math.random() - 0.5) * 2,
+    panic: false, panicTimer: 0,
+    animFrame: 0, animTimer: 0,
+    color: ['#e8a', '#8cf', '#fc8', '#8e8'][Math.floor(Math.random() * 4)],
+  });
+}
+
+// ============================================================
+// DRAWING HELPERS
+// ============================================================
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), w, h);
+}
+
+// ============================================================
+// DRAW TROGDOR (S-shaped dragon with beefy arm)
+// ============================================================
+function drawTrogdor(t) {
+  const px = Math.floor(t.x);
+  const py = Math.floor(t.y);
+  const f = Math.floor(t.animFrame) % 4;
+  const flash = t.invincible > 0 && Math.floor(t.invincible * 10) % 2;
+  if (flash) return;
+
+  ctx.save();
+  ctx.translate(px + 20, py + 20);
+
+  // Flip based on direction
+  if (t.dir === 2) ctx.scale(-1, 1);
+
+  // Body - S-shape (green dragon)
+  const bodyColor = burninationMode ? '#f42' : '#2a2';
+  const bellyColor = burninationMode ? '#fa4' : '#4d4';
+  const darkColor = burninationMode ? '#a20' : '#181';
+
+  // Tail (bottom of S)
+  drawPixelRect(-18, 6, 6, 4, bodyColor);
+  drawPixelRect(-14, 4, 4, 4, bodyColor);
+  drawPixelRect(-12, 2, 4, 4, darkColor);
+
+  // Lower body curve
+  drawPixelRect(-10, -2, 8, 10, bodyColor);
+  drawPixelRect(-8, 0, 6, 6, bellyColor);
+
+  // Middle body
+  drawPixelRect(-4, -8, 10, 12, bodyColor);
+  drawPixelRect(-2, -6, 6, 8, bellyColor);
+
+  // Upper body / neck
+  drawPixelRect(4, -14, 8, 10, bodyColor);
+  drawPixelRect(6, -12, 4, 6, bellyColor);
+
+  // Head
+  drawPixelRect(8, -20, 12, 10, bodyColor);
+  drawPixelRect(10, -18, 8, 6, bodyColor);
+
+  // Eyes
+  drawPixelRect(14, -18, 3, 3, '#fff');
+  drawPixelRect(15, -17, 2, 2, '#f00');
+
+  // Mouth
+  drawPixelRect(16, -13, 6, 2, '#a00');
+  drawPixelRect(18, -12, 4, 2, '#800');
+
+  // Nostrils
+  drawPixelRect(18, -16, 2, 1, '#040');
+
+  // Horns/spines
+  drawPixelRect(10, -22, 2, 3, '#da0');
+  drawPixelRect(14, -22, 2, 3, '#da0');
+
+  // Spine ridges down the back
+  for (let i = 0; i < 4; i++) {
+    drawPixelRect(-6 + i * 5, -10 - i * 3, 3, 2, '#da0');
+  }
+
+  // BEEFY ARM (the iconic one muscular arm)
+  const armBob = Math.sin(gameTime * 5) * 2;
+  // Upper arm
+  drawPixelRect(-4, 2 + armBob, 5, 8, bodyColor);
+  // Forearm (BEEFY)
+  drawPixelRect(-6, 8 + armBob, 8, 6, bodyColor);
+  drawPixelRect(-8, 12 + armBob, 10, 5, bodyColor);
+  // Fist
+  drawPixelRect(-10, 15 + armBob, 12, 5, bellyColor);
+  // Muscle definition
+  drawPixelRect(-5, 4 + armBob, 3, 3, bellyColor);
+  drawPixelRect(-7, 10 + armBob, 3, 4, bellyColor);
+
+  // Legs
+  const legOff = Math.sin(gameTime * 8) * 2;
+  drawPixelRect(-6, 10, 4, 6 + legOff, bodyColor);
+  drawPixelRect(2, 10, 4, 6 - legOff, bodyColor);
+  // Feet
+  drawPixelRect(-8, 15 + legOff, 6, 3, darkColor);
+  drawPixelRect(1, 15 - legOff, 6, 3, darkColor);
+
+  // Wing stubs
+  drawPixelRect(0, -12, 3, 6, darkColor);
+  drawPixelRect(-2, -14, 6, 3, darkColor);
+  drawPixelRect(-4, -15, 3, 2, bodyColor);
+
+  // Fire breath
+  if (t.breathing) {
+    const bx = 20;
+    const by = -14;
+    for (let i = 0; i < 8; i++) {
+      const fx = bx + i * 4 + Math.random() * 4;
+      const fy = by + (Math.random() - 0.5) * (4 + i * 2);
+      const colors = ['#ff0', '#f80', '#f40', '#f00'];
+      drawPixelRect(fx, fy, 4 - i * 0.3, 3, colors[i % 4]);
+    }
+  }
+
+  ctx.restore();
+}
+
+// ============================================================
+// DRAW COTTAGE
+// ============================================================
+function drawCottage(c) {
+  const px = Math.floor(c.x);
+  const py = Math.floor(c.y);
+  const burnPct = 1 - c.hp / c.maxHp;
+
+  if (c.destroyed) {
+    // Rubble
+    const alpha = Math.max(0, 1 - c.destroyAnim);
+    ctx.globalAlpha = alpha;
+    for (let i = 0; i < 8; i++) {
+      const rx = px + Math.random() * c.w - 5;
+      const ry = py + c.h - 10 + Math.random() * 10;
+      drawPixelRect(rx, ry, 4 + Math.random() * 6, 3, '#444');
+    }
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  // Walls
+  const wallColor = burnPct > 0.7 ? '#333' : burnPct > 0.3 ? '#864' : '#c96';
+  drawPixelRect(px + 4, py + 14, c.w - 8, c.h - 14, wallColor);
+
+  // Wall detail (bricks)
+  if (burnPct < 0.7) {
+    for (let row = 0; row < 3; row++) {
+      for (let col = 0; col < 4; col++) {
+        const bx = px + 6 + col * 10 + (row % 2) * 5;
+        const by = py + 16 + row * 7;
+        if (bx < px + c.w - 6) {
+          drawPixelRect(bx, by, 8, 5, burnPct > 0.3 ? '#753' : '#b85');
+        }
+      }
+    }
+  }
+
+  // Door
+  drawPixelRect(px + c.w / 2 - 4, py + c.h - 12, 8, 12, burnPct > 0.5 ? '#222' : '#654');
+  drawPixelRect(px + c.w / 2 + 2, py + c.h - 7, 2, 2, '#da0');
+
+  // Window
+  if (burnPct < 0.6) {
+    drawPixelRect(px + 8, py + 18, 6, 6, '#8cf');
+    drawPixelRect(px + 10, py + 18, 1, 6, '#654');
+    drawPixelRect(px + 8, py + 21, 6, 1, '#654');
+  }
+
+  // THATCHED ROOF
+  const roofColor1 = burnPct > 0.7 ? '#111' : burnPct > 0.4 ? '#a30' : '#da4';
+  const roofColor2 = burnPct > 0.7 ? '#222' : burnPct > 0.4 ? '#f60' : '#cb3';
+  // Roof triangle
+  for (let row = 0; row < 7; row++) {
+    const rw = c.w + 8 - row * 4;
+    const rx = px - 4 + row * 2;
+    drawPixelRect(rx, py + row * 2, rw, 3, row % 2 === 0 ? roofColor1 : roofColor2);
+  }
+
+  // Thatch texture lines
+  if (burnPct < 0.5) {
+    for (let i = 0; i < 6; i++) {
+      const tx = px + 2 + i * 8;
+      drawPixelRect(tx, py + 2, 1, 10, '#a83');
+    }
+  }
+
+  // Fire on burning cottages
+  if (c.burning && !c.destroyed) {
+    for (let i = 0; i < 4; i++) {
+      const fx = px + Math.random() * c.w;
+      const fy = py - 4 + Math.random() * 8;
+      const fh = 4 + Math.random() * 8;
+      const colors = ['#ff0', '#f80', '#f40', '#f00'];
+      drawPixelRect(fx, fy - fh, 3, fh, colors[Math.floor(Math.random() * 4)]);
+    }
+  }
+}
+
+// ============================================================
+// DRAW PEASANT
+// ============================================================
+function drawPeasant(p) {
+  const px = Math.floor(p.x);
+  const py = Math.floor(p.y);
+  const f = Math.floor(p.animFrame) % 2;
+
+  // Body
+  drawPixelRect(px, py + 4, p.w, 8, p.color);
+
+  // Head
+  drawPixelRect(px + 2, py, 8, 6, '#fda');
+
+  // Eyes
+  if (p.panic) {
+    drawPixelRect(px + 3, py + 1, 2, 3, '#fff');
+    drawPixelRect(px + 7, py + 1, 2, 3, '#fff');
+    drawPixelRect(px + 4, py + 2, 1, 1, '#000');
+    drawPixelRect(px + 8, py + 2, 1, 1, '#000');
+    // Open mouth
+    drawPixelRect(px + 5, py + 4, 3, 2, '#a00');
+  } else {
+    drawPixelRect(px + 4, py + 2, 1, 1, '#000');
+    drawPixelRect(px + 8, py + 2, 1, 1, '#000');
+  }
+
+  // Legs (animated)
+  const legOff = f * 3;
+  drawPixelRect(px + 2, py + 12, 3, 4 + legOff, '#654');
+  drawPixelRect(px + 7, py + 12, 3, 4 + (3 - legOff), '#654');
+
+  // Arms
+  drawPixelRect(px - 2, py + 5, 3, 2, '#fda');
+  drawPixelRect(px + p.w - 1, py + 5 + (p.panic ? -2 : 0), 3, 2, '#fda');
+
+  // Panic exclamation
+  if (p.panic) {
+    drawPixelRect(px + 4, py - 8, 2, 4, '#f00');
+    drawPixelRect(px + 4, py - 3, 2, 2, '#f00');
+  }
+}
+
+// ============================================================
+// DRAW ENVIRONMENT
+// ============================================================
+function drawBackground() {
+  // Sky/ground gradient
+  ctx.fillStyle = '#3a7a2a';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Subtle grass texture
+  ctx.fillStyle = '#3d8030';
+  for (let i = 0; i < 200; i++) {
+    const gx = (i * 137 + 50) % 800;
+    const gy = (i * 211 + 30) % 600;
+    ctx.fillRect(gx, gy, 3, 2);
+  }
+  ctx.fillStyle = '#2e6e22';
+  for (let i = 0; i < 150; i++) {
+    const gx = (i * 173 + 80) % 800;
+    const gy = (i * 191 + 70) % 600;
+    ctx.fillRect(gx, gy, 2, 3);
+  }
+
+  // Dirt paths
+  for (const p of paths) {
+    ctx.fillStyle = '#a88460';
+    ctx.fillRect(p.x, p.y, p.w, p.h);
+    ctx.fillStyle = '#c4a070';
+    for (let i = 0; i < p.w; i += 6) {
+      ctx.fillRect(p.x + i, p.y + 2, 3, 2);
+    }
+  }
+
+  // Fences
+  for (const f of fences) {
+    ctx.fillStyle = '#865';
+    if (f.horiz) {
+      ctx.fillRect(f.x, f.y, f.len, 3);
+      for (let i = 0; i < f.len; i += 12) {
+        ctx.fillRect(f.x + i, f.y - 6, 3, 12);
+      }
+    } else {
+      ctx.fillRect(f.x, f.y, 3, f.len);
+      for (let i = 0; i < f.len; i += 12) {
+        ctx.fillRect(f.x - 6, f.y + i, 12, 3);
+      }
+    }
+  }
+
+  // Trees
+  for (const t of trees) {
+    const s = t.size;
+    // Trunk
+    drawPixelRect(t.x - 2, t.y + s * 0.6, 4, s * 0.6, '#654');
+    // Foliage layers
+    drawPixelRect(t.x - s * 0.6, t.y - s * 0.2, s * 1.2, s * 0.5, '#185');
+    drawPixelRect(t.x - s * 0.5, t.y - s * 0.5, s, s * 0.4, '#1a6');
+    drawPixelRect(t.x - s * 0.3, t.y - s * 0.7, s * 0.6, s * 0.3, '#2b7');
+  }
+}
+
+// ============================================================
+// PARTICLES
+// ============================================================
+function spawnFireParticle(x, y, intense = false) {
+  particles.push({
+    x: x + (Math.random() - 0.5) * 8,
+    y: y + (Math.random() - 0.5) * 4,
+    vx: (Math.random() - 0.5) * (intense ? 3 : 1.5),
+    vy: -1 - Math.random() * (intense ? 4 : 2),
+    life: 0.3 + Math.random() * 0.5,
+    maxLife: 0.3 + Math.random() * 0.5,
+    size: 2 + Math.random() * (intense ? 4 : 3),
+    type: 'fire',
+  });
+}
+
+function spawnEmber(x, y) {
+  particles.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 4,
+    vy: -2 - Math.random() * 3,
+    life: 0.5 + Math.random() * 0.8,
+    maxLife: 0.5 + Math.random() * 0.8,
+    size: 1 + Math.random() * 2,
+    type: 'ember',
+  });
+}
+
+function spawnSmokeParticle(x, y) {
+  particles.push({
+    x, y,
+    vx: (Math.random() - 0.5) * 0.5,
+    vy: -0.5 - Math.random() * 1,
+    life: 1 + Math.random() * 1,
+    maxLife: 1 + Math.random() * 1,
+    size: 3 + Math.random() * 4,
+    type: 'smoke',
+  });
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    const lifeRatio = p.life / p.maxLife;
+    if (p.type === 'fire') {
+      const colors = ['#ff0', '#fa0', '#f60', '#f20', '#a00'];
+      const ci = Math.floor((1 - lifeRatio) * (colors.length - 1));
+      ctx.fillStyle = colors[ci];
+      ctx.globalAlpha = lifeRatio;
+      ctx.fillRect(p.x, p.y, p.size * lifeRatio, p.size * lifeRatio);
+      ctx.globalAlpha = 1;
+    } else if (p.type === 'ember') {
+      ctx.fillStyle = lifeRatio > 0.5 ? '#ff0' : '#f80';
+      ctx.globalAlpha = lifeRatio;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+      ctx.globalAlpha = 1;
+    } else if (p.type === 'smoke') {
+      ctx.fillStyle = '#666';
+      ctx.globalAlpha = lifeRatio * 0.4;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ============================================================
+// UPDATE
+// ============================================================
+function update(dt) {
+  if (gameState !== STATES.PLAYING) return;
+  gameTime += dt;
+
+  // --- Trogdor movement ---
+  let mx = 0, my = 0;
+  if (keys['ArrowLeft'] || keys['KeyA']) { mx = -1; trogdor.dir = 2; }
+  if (keys['ArrowRight'] || keys['KeyD']) { mx = 1; trogdor.dir = 0; }
+  if (keys['ArrowUp'] || keys['KeyW']) { my = -1; trogdor.dir = 3; }
+  if (keys['ArrowDown'] || keys['KeyS']) { my = 1; trogdor.dir = 1; }
+
+  const spd = trogdor.speed * (burninationMode ? 1.4 : 1);
+  if (mx || my) {
+    const len = Math.sqrt(mx * mx + my * my);
+    trogdor.x += (mx / len) * spd;
+    trogdor.y += (my / len) * spd;
+    trogdor.animTimer += dt;
+    if (trogdor.animTimer > 0.12) { trogdor.animFrame++; trogdor.animTimer = 0; }
+  }
+  trogdor.x = Math.max(0, Math.min(760, trogdor.x));
+  trogdor.y = Math.max(0, Math.min(560, trogdor.y));
+
+  // Fire breath
+  trogdor.breathing = keys['Space'];
+  if (trogdor.breathing) {
+    trogdor.breathTimer += dt;
+    // Spawn fire particles in breath direction
+    let fdx = 0, fdy = 0;
+    if (trogdor.dir === 0) fdx = 1;
+    else if (trogdor.dir === 2) fdx = -1;
+    else if (trogdor.dir === 1) fdy = 1;
+    else fdy = -1;
+
+    for (let i = 0; i < 3; i++) {
+      const dist = 20 + Math.random() * 30;
+      fireBreathParticles.push({
+        x: trogdor.x + 20 + fdx * 25,
+        y: trogdor.y + 10 + fdy * 20,
+        vx: fdx * (4 + Math.random() * 3) + (Math.random() - 0.5) * 2,
+        vy: fdy * (4 + Math.random() * 3) + (Math.random() - 0.5) * 2 - 0.5,
+        life: 0.3 + Math.random() * 0.3,
+        maxLife: 0.3 + Math.random() * 0.3,
+        size: 3 + Math.random() * 4,
+      });
+    }
+
+    if (trogdor.breathTimer > 0.15) {
+      playFireSound();
+      trogdor.breathTimer = 0;
+    }
+  }
+
+  // Update fire breath particles
+  for (const p of fireBreathParticles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= dt;
+  }
+  fireBreathParticles = fireBreathParticles.filter(p => p.life > 0);
+
+  // Invincibility timer
+  if (trogdor.invincible > 0) trogdor.invincible -= dt;
+
+  // --- Burnination mode ---
+  if (burninationMode) {
+    burninationTimer -= dt;
+    screenShake.x = (Math.random() - 0.5) * 6;
+    screenShake.y = (Math.random() - 0.5) * 6;
+    if (burninationTimer <= 0) {
+      burninationMode = false;
+      burnMeter = 0;
+      screenShake = { x: 0, y: 0 };
+    }
+  }
+
+  // --- Cottage interaction ---
+  for (const c of cottages) {
+    if (c.destroyed) {
+      c.destroyAnim += dt;
+      continue;
+    }
+
+    // Check fire breath collision
+    for (const fp of fireBreathParticles) {
+      if (fp.x > c.x && fp.x < c.x + c.w && fp.y > c.y && fp.y < c.y + c.h) {
+        c.burning = true;
+        c.hp -= (burninationMode ? 3 : 1);
+        spawnFireParticle(c.x + Math.random() * c.w, c.y, burninationMode);
+      }
+    }
+
+    // Burnination mode auto-burns nearby cottages
+    if (burninationMode) {
+      const dx = (c.x + c.w / 2) - (trogdor.x + 20);
+      const dy = (c.y + c.h / 2) - (trogdor.y + 20);
+      if (Math.sqrt(dx * dx + dy * dy) < 100) {
+        c.burning = true;
+        c.hp -= 2;
+        spawnFireParticle(c.x + Math.random() * c.w, c.y, true);
+      }
+    }
+
+    // Burning cottage loses HP
+    if (c.burning) {
+      c.burnTimer += dt;
+      if (c.burnTimer > 0.1) {
+        spawnFireParticle(c.x + Math.random() * c.w, c.y + Math.random() * 6);
+        if (Math.random() > 0.7) spawnEmber(c.x + Math.random() * c.w, c.y);
+        if (Math.random() > 0.8) spawnSmokeParticle(c.x + Math.random() * c.w, c.y - 5);
+        c.burnTimer = 0;
+      }
+    }
+
+    if (c.hp <= 0 && !c.destroyed) {
+      c.destroyed = true;
+      c.destroyAnim = 0;
+      cottagesBurned++;
+      score += 100;
+      burnMeter = Math.min(100, burnMeter + 25);
+      playCrumbleSound();
+
+      // Big explosion of particles
+      for (let i = 0; i < 20; i++) {
+        spawnFireParticle(c.x + Math.random() * c.w, c.y + Math.random() * c.h, true);
+        spawnEmber(c.x + Math.random() * c.w, c.y + Math.random() * c.h);
+      }
+      for (let i = 0; i < 8; i++) {
+        spawnSmokeParticle(c.x + Math.random() * c.w, c.y);
+      }
+
+      // Check burnination
+      if (burnMeter >= 100 && !burninationMode) {
+        burninationMode = true;
+        burninationTimer = 8;
+        playPowerUpSound();
+      }
+    }
+  }
+
+  // Respawn cottages
+  cottageSpawnTimer += dt;
+  const activeCottages = cottages.filter(c => !c.destroyed).length;
+  if (activeCottages < 4 && cottageSpawnTimer > 5) {
+    spawnCottage();
+    cottageSpawnTimer = 0;
+  }
+  // Remove old destroyed cottages
+  cottages = cottages.filter(c => !c.destroyed || c.destroyAnim < 3);
+
+  // --- Peasant behavior ---
+  spawnTimer += dt;
+  if (spawnTimer > 3 && peasants.length < 8 + Math.floor(gameTime / 30)) {
+    spawnPeasant();
+    spawnTimer = 0;
+  }
+
+  for (const p of peasants) {
+    // Check distance to Trogdor
+    const dx = (trogdor.x + 20) - (p.x + 6);
+    const dy = (trogdor.y + 20) - (p.y + 8);
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 80) {
+      // Panic! Run away
+      if (!p.panic) {
+        p.panic = true;
+        p.panicTimer = 0;
+      }
+      p.vx = -dx / dist * 3;
+      p.vy = -dy / dist * 3;
+    } else if (p.panic) {
+      p.panicTimer += dt;
+      if (p.panicTimer > 3) p.panic = false;
+    }
+
+    // Random wandering when not panicked
+    if (!p.panic && Math.random() < 0.01) {
+      p.vx = (Math.random() - 0.5) * 1.5;
+      p.vy = (Math.random() - 0.5) * 1.5;
+    }
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    // Bounce off edges
+    if (p.x < -20 || p.x > 820) p.vx *= -1;
+    if (p.y < -20 || p.y > 620) p.vy *= -1;
+    p.x = Math.max(-20, Math.min(820, p.x));
+    p.y = Math.max(-20, Math.min(620, p.y));
+
+    // Animation
+    p.animTimer += dt;
+    if (p.animTimer > (p.panic ? 0.08 : 0.2)) {
+      p.animFrame++;
+      p.animTimer = 0;
+    }
+
+    // Stomp check (Trogdor walks over peasant)
+    if (dist < 18) {
+      peasantStomped++;
+      score += 50;
+      burnMeter = Math.min(100, burnMeter + 10);
+      playStompSound();
+      playScreamSound();
+
+      // Mark for removal
+      p.dead = true;
+
+      // Particles
+      for (let i = 0; i < 6; i++) {
+        particles.push({
+          x: p.x + 6, y: p.y + 8,
+          vx: (Math.random() - 0.5) * 4,
+          vy: -2 - Math.random() * 3,
+          life: 0.5, maxLife: 0.5,
+          size: 2, type: 'ember',
+        });
+      }
+
+      // Check burnination
+      if (burnMeter >= 100 && !burninationMode) {
+        burninationMode = true;
+        burninationTimer = 8;
+        playPowerUpSound();
+      }
+    }
+
+    // Fire breath kills peasants
+    for (const fp of fireBreathParticles) {
+      const fdx = fp.x - (p.x + 6);
+      const fdy = fp.y - (p.y + 8);
+      if (Math.abs(fdx) < 10 && Math.abs(fdy) < 10) {
+        p.dead = true;
+        peasantStomped++;
+        score += 75;
+        burnMeter = Math.min(100, burnMeter + 10);
+        playScreamSound();
+        for (let i = 0; i < 8; i++) spawnFireParticle(p.x + 6, p.y + 8, true);
+      }
+    }
+  }
+  peasants = peasants.filter(p => !p.dead);
+
+  // --- Particles update ---
+  for (const p of particles) {
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life -= dt;
+    if (p.type === 'fire') p.vy -= dt * 2;
+    if (p.type === 'smoke') { p.vy -= dt * 0.5; p.size += dt * 3; }
+  }
+  particles = particles.filter(p => p.life > 0);
+}
+
+// ============================================================
+// DRAW HUD
+// ============================================================
+function drawHUD() {
+  // Score
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 16px monospace';
+  ctx.fillText('SCORE: ' + score, 10, 25);
+  ctx.fillText('COTTAGES: ' + cottagesBurned, 10, 45);
+  ctx.fillText('PEASANTS: ' + peasantStomped, 10, 65);
+
+  // Burnination meter
+  ctx.fillStyle = '#333';
+  ctx.fillRect(600, 10, 180, 20);
+  const meterColor = burninationMode ? (Math.floor(gameTime * 8) % 2 ? '#f00' : '#ff0') : '#f80';
+  ctx.fillStyle = meterColor;
+  ctx.fillRect(602, 12, (burnMeter / 100) * 176, 16);
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(600, 10, 180, 20);
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 11px monospace';
+  ctx.fillText('BURNINATION', 635, 24);
+
+  if (burninationMode) {
+    ctx.fillStyle = Math.floor(gameTime * 6) % 2 ? '#f00' : '#ff0';
+    ctx.font = 'bold 24px monospace';
+    ctx.fillText('BURNINATION MODE!!!', 250, 50);
+  }
+
+  // Lives
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 14px monospace';
+  ctx.fillText('LIVES: ', 340, 25);
+  for (let i = 0; i < trogdor.lives; i++) {
+    ctx.fillStyle = '#2a2';
+    ctx.fillRect(400 + i * 18, 13, 12, 12);
+    ctx.fillStyle = '#4d4';
+    ctx.fillRect(402 + i * 18, 15, 8, 8);
+  }
+
+  // Controls hint
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '10px monospace';
+  ctx.fillText('ARROWS: Move | SPACE: Fire Breath', 280, 590);
+}
+
+// ============================================================
+// TITLE SCREEN
+// ============================================================
+function drawTitle() {
+  // Background
+  ctx.fillStyle = '#1a0a00';
+  ctx.fillRect(0, 0, 800, 600);
+
+  // Animated fire background
+  titleFireTimer += 0.016;
+  for (let i = 0; i < 60; i++) {
+    const fx = (i * 47 + titleFireTimer * 100) % 800;
+    const fy = 600 - Math.abs(Math.sin(titleFireTimer * 2 + i * 0.5)) * 200 - Math.random() * 100;
+    const colors = ['#f80', '#f40', '#f00', '#a00', '#ff0'];
+    ctx.fillStyle = colors[i % 5];
+    ctx.globalAlpha = 0.3 + Math.random() * 0.3;
+    ctx.fillRect(fx, fy, 15, 600 - fy);
+  }
+  ctx.globalAlpha = 1;
+
+  // Title shadow
+  ctx.fillStyle = '#800';
+  ctx.font = 'bold 72px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('TROGDOR', 403, 183);
+
+  // Title
+  const titleHue = (titleFireTimer * 60) % 360;
+  ctx.fillStyle = '#ff4400';
+  ctx.fillText('TROGDOR', 400, 180);
+
+  // Subtitle
+  ctx.font = 'bold 28px monospace';
+  const subFlash = Math.floor(titleFireTimer * 3) % 2;
+  ctx.fillStyle = subFlash ? '#ff0' : '#fa0';
+  ctx.fillText('B U R N I N A T I O N', 400, 230);
+
+  // Draw a big Trogdor on the title screen
+  ctx.save();
+  ctx.translate(400, 370);
+  ctx.scale(3, 3);
+
+  // Body
+  ctx.fillStyle = '#2a2';
+  ctx.fillRect(-10, -8, 8, 10);
+  ctx.fillRect(-4, -14, 10, 12);
+  ctx.fillRect(4, -20, 8, 10);
+  ctx.fillRect(8, -26, 12, 10);
+
+  // Belly
+  ctx.fillStyle = '#4d4';
+  ctx.fillRect(-8, -6, 6, 6);
+  ctx.fillRect(-2, -12, 6, 8);
+  ctx.fillRect(6, -18, 4, 6);
+
+  // Head details
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(14, -24, 3, 3);
+  ctx.fillStyle = '#f00';
+  ctx.fillRect(15, -23, 2, 2);
+  ctx.fillStyle = '#a00';
+  ctx.fillRect(16, -19, 6, 2);
+
+  // Horns
+  ctx.fillStyle = '#da0';
+  ctx.fillRect(10, -28, 2, 3);
+  ctx.fillRect(14, -28, 2, 3);
+
+  // Beefy arm
+  ctx.fillStyle = '#2a2';
+  const armBob = Math.sin(titleFireTimer * 4) * 1;
+  ctx.fillRect(-4, 2 + armBob, 5, 8);
+  ctx.fillRect(-6, 8 + armBob, 8, 6);
+  ctx.fillRect(-8, 12 + armBob, 10, 5);
+  ctx.fillStyle = '#4d4';
+  ctx.fillRect(-10, 15 + armBob, 12, 5);
+
+  // Animated fire breath
+  for (let i = 0; i < 12; i++) {
+    const fx = 20 + i * 5 + Math.random() * 3;
+    const fy = -22 + (Math.random() - 0.5) * (3 + i * 1.5);
+    const colors = ['#ff0', '#f80', '#f40', '#f00'];
+    ctx.fillStyle = colors[i % 4];
+    ctx.fillRect(fx, fy, 5 - i * 0.3, 3);
+  }
+
+  ctx.restore();
+
+  // Instructions
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 20px monospace';
+  ctx.fillText('PRESS ANY KEY TO START', 400, 520);
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('Arrow Keys to Move | Spacebar for Fire Breath', 400, 560);
+
+  ctx.textAlign = 'left';
+}
+
+// ============================================================
+// GAME OVER
+// ============================================================
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, 800, 600);
+
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#f00';
+  ctx.font = 'bold 48px monospace';
+  ctx.fillText('GAME OVER', 400, 200);
+
+  ctx.fillStyle = '#fff';
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText('FINAL SCORE: ' + score, 400, 280);
+  ctx.font = '18px monospace';
+  ctx.fillText('Cottages Burned: ' + cottagesBurned, 400, 320);
+  ctx.fillText('Peasants Stomped: ' + peasantStomped, 400, 350);
+
+  ctx.fillStyle = '#ff0';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('PRESS SPACE TO PLAY AGAIN', 400, 430);
+
+  ctx.textAlign = 'left';
+}
+
+// ============================================================
+// MAIN RENDER
+// ============================================================
+function draw() {
+  ctx.clearRect(0, 0, 800, 600);
+
+  if (gameState === STATES.TITLE) {
+    drawTitle();
+    return;
+  }
+
+  ctx.save();
+  if (burninationMode) {
+    ctx.translate(screenShake.x, screenShake.y);
+  }
+
+  drawBackground();
+
+  // Draw cottages (sorted by y for depth)
+  const drawOrder = [...cottages].sort((a, b) => a.y - b.y);
+  for (const c of drawOrder) drawCottage(c);
+
+  // Draw peasants
+  for (const p of peasants) drawPeasant(p);
+
+  // Draw fire breath particles
+  for (const p of fireBreathParticles) {
+    const lifeRatio = p.life / p.maxLife;
+    const colors = ['#ff0', '#fa0', '#f60', '#f20'];
+    ctx.fillStyle = colors[Math.floor((1 - lifeRatio) * 3)];
+    ctx.globalAlpha = lifeRatio;
+    ctx.fillRect(p.x, p.y, p.size * lifeRatio, p.size * lifeRatio);
+    ctx.globalAlpha = 1;
+  }
+
+  // Draw Trogdor
+  drawTrogdor(trogdor);
+
+  // Draw particles (on top)
+  drawParticles();
+
+  // Burnination mode screen glow
+  if (burninationMode) {
+    const glowAlpha = 0.08 + Math.sin(gameTime * 8) * 0.04;
+    ctx.fillStyle = `rgba(255, 60, 0, ${glowAlpha})`;
+    ctx.fillRect(-10, -10, 820, 620);
+
+    // Edge glow
+    const grd = ctx.createRadialGradient(400, 300, 200, 400, 300, 500);
+    grd.addColorStop(0, 'rgba(255,60,0,0)');
+    grd.addColorStop(1, 'rgba(255,30,0,0.15)');
+    ctx.fillStyle = grd;
+    ctx.fillRect(-10, -10, 820, 620);
+  }
+
+  ctx.restore();
+
+  drawHUD();
+
+  if (gameState === STATES.GAMEOVER) {
+    drawGameOver();
+  }
+}
+
+// ============================================================
+// GAME LOOP
+// ============================================================
+let lastTime = 0;
+function gameLoop(timestamp) {
+  const dt = Math.min((timestamp - lastTime) / 1000, 0.05);
+  lastTime = timestamp;
+
+  update(dt);
+  draw();
+
+  requestAnimationFrame(gameLoop);
+}
+
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

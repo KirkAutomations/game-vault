@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>§6 — The Fall · Thus Spoke Zarathustra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #eae4d2;
+    --ink-dim: #8a8678;
+    --paper: #0b0a08;
+    --accent: #d4a017;
+    --blood: #9e3a2c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    user-select: none;
+  }
+  canvas {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+  }
+  .topbar {
+    position: fixed;
+    top: 1rem; left: 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    z-index: 10;
+  }
+  .topbar a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink-dim);
+    padding: 0.4rem 0.85rem;
+    transition: all 0.3s ease;
+  }
+  .topbar a:hover { color: var(--accent); border-color: var(--accent); }
+  .chapter {
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-style: normal;
+  }
+
+  /* Narration caption */
+  #caption {
+    position: fixed;
+    left: 50%;
+    bottom: 18vh;
+    transform: translateX(-50%);
+    max-width: 720px;
+    width: min(86vw, 720px);
+    color: var(--ink);
+    font-size: clamp(1.1rem, 2.1vw, 1.45rem);
+    line-height: 1.55;
+    font-style: italic;
+    text-align: center;
+    letter-spacing: 0.01em;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    z-index: 5;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  }
+  #caption.visible { opacity: 1; }
+
+  /* Dying man speech */
+  #speech {
+    position: fixed;
+    left: 50%;
+    bottom: 42vh;
+    transform: translateX(-50%);
+    max-width: 620px;
+    width: min(86vw, 620px);
+    color: var(--ink);
+    font-size: clamp(1rem, 1.9vw, 1.3rem);
+    line-height: 1.55;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+    z-index: 5;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+  }
+  #speech.visible { opacity: 1; }
+  #speech .tag {
+    display: block;
+    color: var(--ink-dim);
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+    font-style: normal;
+  }
+
+  /* Vigil bar — hold space to stay close */
+  #vigil {
+    position: fixed;
+    left: 50%;
+    bottom: 16vh;
+    transform: translateX(-50%);
+    width: min(420px, 70vw);
+    text-align: center;
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+  }
+  #vigil.visible { opacity: 1; }
+  #vigil .label {
+    color: var(--ink-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 0.45rem;
+  }
+  #vigil .label .key {
+    display: inline-block;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.05rem 0.45rem;
+    margin-right: 0.4rem;
+    letter-spacing: 0.15em;
+  }
+  #vigil .bar {
+    height: 4px;
+    background: rgba(138,134,120,0.25);
+    position: relative;
+  }
+  #vigil .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 0%;
+    background: var(--accent);
+    box-shadow: 0 0 14px rgba(212,160,23,0.5);
+    transition: width 0.12s linear;
+  }
+
+  /* Breath indicator above speech */
+  #breath {
+    position: fixed;
+    left: 50%;
+    top: 9vh;
+    transform: translateX(-50%);
+    color: var(--ink-dim);
+    font-size: 0.74rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    text-align: center;
+    pointer-events: none;
+  }
+  #breath.visible { opacity: 0.85; }
+  #breath .pulse {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin: 0 0.45rem;
+    vertical-align: middle;
+    box-shadow: 0 0 12px rgba(212,160,23,0.6);
+  }
+  #breath .count {
+    color: var(--accent);
+    margin-left: 0.4rem;
+  }
+
+  /* Gesture choice panel — three icons, no text labels of effect */
+  #gestures {
+    position: fixed;
+    left: 50%;
+    bottom: 4vh;
+    transform: translateX(-50%);
+    display: none;
+    gap: 1.2rem;
+    z-index: 7;
+    pointer-events: none;
+  }
+  #gestures.visible { display: flex; pointer-events: auto; }
+  .gesture {
+    background: rgba(11,10,8,0.85);
+    border: 1px solid var(--ink-dim);
+    color: var(--ink);
+    font-family: inherit;
+    padding: 0.95rem 1.2rem 0.7rem;
+    cursor: pointer;
+    text-align: center;
+    width: 200px;
+    transition: border-color 0.25s ease, background 0.25s ease, transform 0.15s ease, opacity 0.5s ease;
+    opacity: 0.85;
+  }
+  .gesture:hover {
+    border-color: var(--accent);
+    background: rgba(212,160,23,0.06);
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+  .gesture .icon {
+    width: 100%; height: 56px;
+    display: block;
+    margin-bottom: 0.55rem;
+  }
+  .gesture .verb {
+    font-style: italic;
+    font-size: 1.05rem;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+  }
+  .gesture.disabled { opacity: 0.25; pointer-events: none; }
+  .gesture.taken-correct { border-color: var(--accent); }
+  .gesture.taken-wrong { border-color: var(--blood); }
+  .gesture.unavailable { opacity: 0.25; cursor: not-allowed; }
+  .gesture.unavailable:hover { transform: none; border-color: var(--ink-dim); background: rgba(11,10,8,0.85); }
+
+  /* lantern stage indicator (small, top-right) */
+  #lantern {
+    position: fixed;
+    top: 1rem; right: 1.25rem;
+    color: var(--ink-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    text-align: right;
+  }
+  #lantern.visible { opacity: 0.8; }
+  #lantern .flame {
+    display: inline-block;
+    width: 8px; height: 12px;
+    background: var(--accent);
+    border-radius: 50% 50% 50% 50% / 70% 70% 30% 30%;
+    margin-left: 0.4rem;
+    box-shadow: 0 0 10px rgba(212,160,23,0.6);
+    vertical-align: middle;
+    animation: flicker 1.2s infinite;
+  }
+  @keyframes flicker {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.92, 1.06); }
+  }
+  #lantern.dim1 .flame { background: #b88a14; box-shadow: 0 0 7px rgba(184,138,20,0.5); }
+  #lantern.dim2 .flame { background: #6e5210; box-shadow: 0 0 4px rgba(110,82,16,0.4); }
+  #lantern.out .flame { background: #2a2018; box-shadow: none; opacity: 0.4; }
+
+  /* Center prompt (kneel button) */
+  #prompt {
+    position: fixed;
+    left: 50%;
+    bottom: 24vh;
+    transform: translateX(-50%);
+    z-index: 7;
+    display: none;
+  }
+  #prompt.visible { display: block; }
+  #prompt button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0.75rem 1.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #prompt button:hover { background: rgba(212,160,23,0.12); }
+
+  /* Final overlay */
+  #ending {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.94);
+    z-index: 50;
+    padding: 2rem;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+  #ending.visible { display: flex; opacity: 1; }
+  #ending h2 {
+    font-weight: 500;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    letter-spacing: 0.05em;
+    margin: 0 0 0.8rem;
+  }
+  #ending .final-line {
+    font-style: italic;
+    color: var(--ink);
+    font-size: clamp(1.1rem, 2vw, 1.45rem);
+    line-height: 1.55;
+    max-width: 620px;
+    margin: 0 0 2rem;
+  }
+  #ending .final-source {
+    color: var(--ink-dim);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 2.5rem;
+  }
+  #ending .return {
+    color: var(--ink-dim);
+    border: 1px solid var(--ink-dim);
+    padding: 0.6rem 1.4rem;
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+  }
+  #ending .return:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+  }
+
+  /* Begin overlay */
+  #begin {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+    z-index: 40;
+    transition: opacity 1.2s ease;
+  }
+  #begin.hidden { opacity: 0; pointer-events: none; }
+  #begin .n {
+    color: var(--accent);
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+  }
+  #begin h1 {
+    font-weight: 500;
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    letter-spacing: 0.04em;
+    margin: 0 0 1.4rem;
+  }
+  #begin .howto {
+    max-width: 50ch;
+    color: var(--ink-dim);
+    line-height: 1.7;
+    font-size: 0.95rem;
+    margin: 0 auto 1.6rem;
+    text-align: center;
+  }
+  #begin .howto b { color: var(--ink); font-weight: 500; }
+  #begin button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0.7rem 1.6rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #begin button:hover { background: rgba(212,160,23,0.12); }
+  #begin .hint {
+    color: var(--ink-dim);
+    font-style: italic;
+    font-size: 0.95rem;
+    margin-top: 1.2rem;
+    max-width: 30ch;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div class="topbar">
+    <a href="../index.html">&larr; hub</a>
+    <span class="chapter">Prologue · §6 — The Fall</span>
+  </div>
+
+  <div id="lantern">lantern <span class="flame"></span></div>
+  <div id="breath"><span class="pulse"></span> breaths remaining <span class="count" id="breathCount">3</span></div>
+
+  <div id="caption"></div>
+  <div id="speech"><span class="tag">the dying man</span><span class="line"></span></div>
+
+  <div id="vigil">
+    <div class="label"><span class="key">SPACE</span> stay close — keep your hand on his</div>
+    <div class="bar"><div class="fill" id="vigilFill"></div></div>
+  </div>
+
+  <div id="gestures"></div>
+  <div id="prompt"><button id="kneelBtn">Kneel beside him</button></div>
+
+  <div id="begin">
+    <div class="n">Prologue · §6</div>
+    <h1>The Fall</h1>
+    <div class="howto">
+      The walker lies broken. His eyes are open. <b>Hold SPACE</b> to keep your
+      hand on his — he can only hear you while you stay close. Choose a gesture
+      with the mouse. <b>Watch his eyes</b> when you hover; they tell what he
+      will hear. The lantern flickers when he is failed. Three breaths. No more.
+    </div>
+    <button id="startBtn">Begin</button>
+    <div class="hint">The tightrope walker is halfway across.<br/>A jester has emerged from the tower.</div>
+  </div>
+
+  <div id="ending">
+    <h2 id="endTitle">The body grows cold.</h2>
+    <div class="final-line" id="endLine"></div>
+    <div class="final-source" id="endSource"></div>
+    <a class="return" href="../index.html">Return to the hub</a>
+  </div>
+
+<script src="../sdk.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize();
+  window.addEventListener('resize', resize);
+
+  // Scene state
+  const state = {
+    phase: 'idle',
+    t: 0,
+    startT: 0,
+    walkerX: 0.5,
+    walkerY: 0.22,
+    walkerFalling: false,
+    walkerFallT: 0,
+    jesterOnRope: false,
+    jesterX: 0.08,
+    jesterY: 0.22,
+    jesterLeapT: -1,
+    bodyLanded: false,
+    crowdShock: 0,
+    crowdDispersed: 0,
+    lanternFlicker: 0,
+    lanternStage: 0,    // 0 bright, 1 dim1, 2 dim2, 3 out
+    pulse: 1,
+    pulseRate: 1,
+    zaraRaised: false,
+
+    // vigil
+    vigilHeld: false,
+    vigil: 0,           // 0..1
+    spacePressed: false,
+
+    // breath cycle
+    breathT: 0,         // ms within current breath
+    breathDur: 4500,    // ms per breath cycle
+    breathsLeft: 3,     // total breaths per scene
+    breathPaused: false,// pause counter while showing aftermath
+
+    // hovered gesture (for eye tell)
+    hoveredKind: null,
+  };
+
+  const rope = { leftX: 0.15, rightX: 0.85, y: 0.22, sag: 0.02 };
+
+  // ============ DRAWING ============
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#070609');
+    g.addColorStop(0.55, '#0d0a10');
+    g.addColorStop(0.78, '#1a0f0c');
+    g.addColorStop(1, '#0b0706');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#05040a';
+    ctx.beginPath();
+    ctx.moveTo(0, H * 0.55);
+    for (let x = 0; x <= W; x += 30) {
+      const h = 0.55 + Math.sin(x * 0.003) * 0.04 + Math.sin(x * 0.017) * 0.02;
+      ctx.lineTo(x, H * h);
+    }
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(234,228,210,0.5)';
+    for (let i = 0; i < 60; i++) {
+      const sx = (i * 37.3) % W;
+      const sy = ((i * 73.1) % (H * 0.4));
+      const tw = 0.3 + 0.7 * Math.abs(Math.sin(state.t * 0.001 + i));
+      ctx.globalAlpha = 0.25 * tw;
+      ctx.fillRect(sx, sy, 1.5, 1.5);
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  function drawTowers() {
+    ctx.fillStyle = '#141014';
+    const twW = W * 0.09;
+    const twH = H * 0.62;
+    ctx.fillRect(W * rope.leftX - twW/2, H * 0.1, twW, twH);
+    ctx.fillRect(W * rope.rightX - twW/2, H * 0.1, twW, twH);
+    ctx.fillStyle = '#1c171d';
+    ctx.beginPath();
+    ctx.moveTo(W * rope.leftX - twW/2 - 6, H * 0.1);
+    ctx.lineTo(W * rope.leftX + twW/2 + 6, H * 0.1);
+    ctx.lineTo(W * rope.leftX + twW/2, H * 0.07);
+    ctx.lineTo(W * rope.leftX - twW/2, H * 0.07);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(W * rope.rightX - twW/2 - 6, H * 0.1);
+    ctx.lineTo(W * rope.rightX + twW/2 + 6, H * 0.1);
+    ctx.lineTo(W * rope.rightX + twW/2, H * 0.07);
+    ctx.lineTo(W * rope.rightX - twW/2, H * 0.07);
+    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#070608';
+    const doorW = twW * 0.3, doorH = twH * 0.08;
+    ctx.fillRect(W * rope.leftX - doorW/2, H * 0.19, doorW, doorH);
+    ctx.fillRect(W * rope.rightX - doorW/2, H * 0.19, doorW, doorH);
+  }
+
+  function drawMarketplace() {
+    const floorY = H * 0.72;
+    const grd = ctx.createLinearGradient(0, floorY, 0, H);
+    grd.addColorStop(0, '#0d0a08');
+    grd.addColorStop(1, '#050403');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, floorY, W, H - floorY);
+    ctx.strokeStyle = 'rgba(138,134,120,0.08)';
+    ctx.lineWidth = 1;
+    for (let y = floorY + 8; y < H; y += 18) {
+      for (let x = ((y/18)%2) * 12; x < W; x += 26) {
+        ctx.strokeRect(x, y, 24, 16);
+      }
+    }
+  }
+
+  function drawLantern() {
+    const lx = W * 0.5;
+    const ly = H * 0.55;
+    // base flicker depends on lanternStage
+    const stageDim = [1, 0.62, 0.32, 0.05][state.lanternStage] || 1;
+    const flicker = 0.85 + Math.random() * 0.3;
+    state.lanternFlicker = state.lanternFlicker * 0.9 + flicker * 0.1;
+    const r = Math.min(W, H) * 0.45 * state.lanternFlicker * stageDim;
+    const g = ctx.createRadialGradient(lx, H * 0.78, 5, lx, H * 0.78, r);
+    g.addColorStop(0, `rgba(212,160,23,${0.35 * stageDim})`);
+    g.addColorStop(0.35, `rgba(180,100,30,${0.18 * stageDim})`);
+    g.addColorStop(1, 'rgba(212,160,23,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.fillStyle = '#2a1a0d';
+    ctx.fillRect(lx - 4, ly, 8, 22);
+    if (state.lanternStage < 3) {
+      ctx.fillStyle = ['#f0b450', '#c89030', '#8a6418'][state.lanternStage] || '#f0b450';
+      ctx.beginPath();
+      ctx.arc(lx, ly - 4, 5 * (1 - state.lanternStage * 0.2), 0, Math.PI * 2);
+      ctx.fill();
+      const gg = ctx.createRadialGradient(lx, ly - 4, 1, lx, ly - 4, 28 * stageDim);
+      gg.addColorStop(0, `rgba(240,180,80,${0.9 * stageDim})`);
+      gg.addColorStop(1, 'rgba(240,180,80,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(lx, ly - 4, 28, 0, Math.PI * 2); ctx.fill();
+    } else {
+      // ember
+      ctx.fillStyle = '#3a2810';
+      ctx.beginPath(); ctx.arc(lx, ly - 4, 2, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  function drawRope() {
+    ctx.strokeStyle = '#6e6652';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    const x1 = W * rope.leftX, y1 = H * rope.y;
+    const x2 = W * rope.rightX, y2 = H * rope.y;
+    const xm = (x1 + x2) / 2, ym = (y1 + y2) / 2 + H * rope.sag;
+    ctx.moveTo(x1, y1);
+    ctx.quadraticCurveTo(xm, ym, x2, y2);
+    ctx.stroke();
+  }
+
+  function ropePointAt(nx) {
+    const x1 = W * rope.leftX, y1 = H * rope.y;
+    const x2 = W * rope.rightX, y2 = H * rope.y;
+    const xm = (x1 + x2) / 2, ym = (y1 + y2) / 2 + H * rope.sag;
+    const t = nx, mt = 1 - t;
+    const x = mt*mt*x1 + 2*mt*t*xm + t*t*x2;
+    const y = mt*mt*y1 + 2*mt*t*ym + t*t*y2;
+    return { x, y };
+  }
+
+  function drawFigure(x, y, opts) {
+    opts = opts || {};
+    const color = opts.color || '#0c0a08';
+    const scale = opts.scale || 1;
+    const sway = opts.sway || 0;
+    const armSpread = opts.armSpread || 0;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(sway);
+    ctx.fillStyle = color;
+    ctx.beginPath(); ctx.arc(0, -16 * scale, 3.5 * scale, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(-2 * scale, -13 * scale, 4 * scale, 14 * scale);
+    ctx.fillRect(-2.5 * scale, 1 * scale, 2 * scale, 12 * scale);
+    ctx.fillRect(0.5 * scale, 1 * scale, 2 * scale, 12 * scale);
+    if (opts.pole) {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(-14 * scale, -6 * scale);
+      ctx.lineTo(14 * scale, -6 * scale);
+      ctx.stroke();
+    } else {
+      const aw = 4 + armSpread * 8;
+      ctx.fillRect(-aw * scale, -10 * scale, aw * scale, 2 * scale);
+      ctx.fillRect(0, -10 * scale, aw * scale, 2 * scale);
+    }
+    if (opts.jester) {
+      ctx.fillStyle = '#9e3a2c';
+      ctx.beginPath();
+      ctx.moveTo(-3 * scale, -19 * scale);
+      ctx.lineTo(3 * scale, -19 * scale);
+      ctx.lineTo(0, -25 * scale);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#d4a017';
+      ctx.beginPath(); ctx.arc(0, -25 * scale, 1.3 * scale, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawWalker() {
+    if (state.walkerFalling) return;
+    const pt = ropePointAt(state.walkerX);
+    const sway = Math.sin(state.t * 0.006) * 0.04;
+    drawFigure(pt.x, pt.y, { pole: true, sway, scale: 1 });
+  }
+  function drawJester() {
+    if (!state.jesterOnRope) return;
+    if (state.jesterLeapT >= 0) {
+      const dt = (state.t - state.jesterLeapT) / 1000;
+      const dur = 0.7;
+      if (dt >= dur) return;
+      const u = dt / dur;
+      const pt = ropePointAt(state.walkerX);
+      const arcX = pt.x - 40 + 80 * u;
+      const arcY = pt.y - 70 * Math.sin(Math.PI * u);
+      drawFigure(arcX, arcY, { jester: true, sway: 0.6, armSpread: 0.8, scale: 1 });
+      return;
+    }
+    const pt = ropePointAt(state.jesterX);
+    const sway = Math.sin(state.t * 0.012) * 0.15;
+    drawFigure(pt.x, pt.y, { jester: true, sway, armSpread: 0.6, scale: 1 });
+  }
+  function drawFallingBody() {
+    if (!state.walkerFalling || state.bodyLanded) return;
+    const pt = ropePointAt(state.walkerX);
+    const dt = (state.t - state.walkerFallT) / 1000;
+    const y = pt.y + 0.5 * 1400 * dt * dt;
+    const x = pt.x + Math.sin(dt * 8) * 8;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(dt * 7);
+    drawFigure(0, 0, { armSpread: 1.2, scale: 1 });
+    ctx.restore();
+    if (y >= H * 0.74) {
+      state.bodyLanded = true;
+      Zara.thud(0.6);
+      setTimeout(() => Zara.thud(0.2), 60);
+      onLand();
+    }
+  }
+
+  // The fallen body — the walker on the ground. We draw a face-up close-up.
+  function drawCorpseAndFace() {
+    if (!state.bodyLanded) return;
+    const bx = W * 0.5 + 60;
+    const by = H * 0.78;
+
+    // body
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(0.22);
+    ctx.fillStyle = '#0c0a08';
+    ctx.fillRect(-28, -6, 44, 12);
+    ctx.beginPath(); ctx.arc(-32, -2, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillRect(14, -3, 22, 5);
+    ctx.fillRect(14, 2, 24, 5);
+    ctx.strokeStyle = '#0c0a08'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-4, -18); ctx.stroke();
+    ctx.restore();
+
+    // blood pool
+    const bg = ctx.createRadialGradient(bx - 10, by + 4, 2, bx - 10, by + 4, 40);
+    bg.addColorStop(0, 'rgba(158,58,44,0.35)');
+    bg.addColorStop(1, 'rgba(158,58,44,0)');
+    ctx.fillStyle = bg;
+    ctx.beginPath(); ctx.arc(bx - 10, by + 4, 40, 0, Math.PI * 2); ctx.fill();
+
+    // breath chest pulse — visible during dialogue
+    if (state.phase === 'dialogue' || state.phase === 'kneel') {
+      const bp = breathPulseValue();
+      const pulse = 0.5 + 0.5 * bp;
+      const pg = ctx.createRadialGradient(bx - 20, by - 2, 3, bx - 20, by - 2, 70 * (0.7 + 0.3 * pulse));
+      pg.addColorStop(0, `rgba(212,160,23,${0.10 * pulse})`);
+      pg.addColorStop(1, 'rgba(212,160,23,0)');
+      ctx.fillStyle = pg;
+      ctx.beginPath(); ctx.arc(bx - 20, by - 2, 70, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // FACE close-up panel (top-left, shows eyes for the tell)
+    if (state.phase === 'dialogue') {
+      drawFacePanel();
+    }
+  }
+
+  function drawFacePanel() {
+    const px = W * 0.06, py = H * 0.22;
+    const fw = 180, fh = 110;
+    // panel background
+    ctx.save();
+    ctx.fillStyle = 'rgba(11,10,8,0.85)';
+    ctx.strokeStyle = 'rgba(138,134,120,0.4)';
+    ctx.lineWidth = 1;
+    ctx.fillRect(px, py, fw, fh);
+    ctx.strokeRect(px, py, fw, fh);
+
+    // label
+    ctx.fillStyle = '#8a8678';
+    ctx.font = '0.7rem "Cormorant Garamond", Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('HIS EYES', px + 12, py + 16);
+
+    // face — two eyes that change shape with hovered gesture
+    const cx = px + fw / 2;
+    const cy = py + fh / 2 + 8;
+    const k = state.hoveredKind;
+    const breath = breathPulseValue(); // 0..1, expands/contracts
+
+    // eye openness 0..1; eye gaze offset (-1..+1)
+    let openL = 0.6, openR = 0.6, gaze = 0;
+    if (k === 'zarathustra') { openL = 0.95; openR = 0.95; gaze = 0; }   // wide / focused
+    else if (k === 'christian') { openL = 0.35; openR = 0.35; gaze = -0.4; } // closed-ish, looking past
+    else if (k === 'nihilist') { openL = 0.2; openR = 0.2; gaze = 0.6; }     // averted
+    // breath-driven blink
+    const blink = 0.85 + 0.15 * breath;
+    openL *= blink; openR *= blink;
+
+    // eye sockets
+    ctx.strokeStyle = 'rgba(234,228,210,0.7)';
+    ctx.lineWidth = 1.4;
+    drawEye(cx - 22, cy, 14, openL, gaze);
+    drawEye(cx + 22, cy, 14, openR, gaze);
+
+    // mouth — slightly open if zarathustran (he is heard)
+    ctx.beginPath();
+    if (k === 'zarathustra') { ctx.arc(cx, cy + 26, 8, 0.05, Math.PI - 0.05); }
+    else if (k === 'christian') { ctx.moveTo(cx - 8, cy + 28); ctx.lineTo(cx + 8, cy + 28); }
+    else if (k === 'nihilist') { ctx.moveTo(cx - 6, cy + 30); ctx.lineTo(cx + 6, cy + 26); }
+    else { ctx.moveTo(cx - 7, cy + 28); ctx.lineTo(cx + 7, cy + 28); }
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawEye(ex, ey, w, openness, gaze) {
+    // ellipse outline
+    ctx.beginPath();
+    ctx.ellipse(ex, ey, w, w * 0.5 * openness, 0, 0, Math.PI * 2);
+    ctx.stroke();
+    if (openness > 0.15) {
+      // pupil
+      ctx.fillStyle = 'rgba(234,228,210,0.85)';
+      ctx.beginPath();
+      ctx.arc(ex + gaze * (w * 0.4), ey, Math.max(1.5, w * 0.22 * openness), 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function drawZarathustra() {
+    if (state.phase !== 'kneel' && state.phase !== 'dialogue' && state.phase !== 'ending') return;
+    const zx = W * 0.5 - 40;
+    const zy = H * 0.78;
+    ctx.save();
+    ctx.translate(zx, zy);
+    ctx.fillStyle = '#1a1612';
+    ctx.save();
+    ctx.rotate(-0.25);
+    ctx.fillRect(-4, -34, 8, 24);
+    ctx.beginPath(); ctx.arc(0, -40, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+    ctx.fillRect(-6, -10, 6, 12);
+    ctx.beginPath();
+    ctx.moveTo(2, -10); ctx.lineTo(14, -4); ctx.lineTo(14, 4); ctx.lineTo(2, 0); ctx.closePath();
+    ctx.fill();
+    // arm: extends if vigilHeld (touching the body)
+    ctx.strokeStyle = '#1a1612'; ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(0, -30);
+    const reach = 22 + (state.vigilHeld ? 18 : 0);
+    ctx.lineTo(reach, -18 + (state.vigilHeld ? 4 : 0));
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawCrowdPanic() {
+    if (state.crowdShock <= 0) return;
+    const n = 22;
+    const spread = state.crowdDispersed;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2;
+      const dist = 120 + spread * (Math.min(W, H) * 0.6);
+      const cx = W * 0.5 + Math.cos(ang) * dist;
+      const cy = H * 0.82 + Math.sin(ang) * dist * 0.3;
+      if (cy < H * 0.7 || cy > H - 10) continue;
+      ctx.globalAlpha = (1 - spread) * 0.9;
+      drawFigure(cx, cy, { scale: 0.8, armSpread: 0.5 + spread });
+    }
+    ctx.globalAlpha = 1;
+  }
+  function drawCrowdQuiet() {
+    if (state.phase === 'fall' || state.phase === 'idle') return;
+    const spots = [
+      { x: W * 0.08, y: H * 0.78 },
+      { x: W * 0.92, y: H * 0.79 },
+    ];
+    spots.forEach(s => {
+      ctx.globalAlpha = 0.35;
+      drawFigure(s.x, s.y, { scale: 0.75, armSpread: 0 });
+    });
+    ctx.globalAlpha = 1;
+  }
+  function drawVignette() {
+    const g = ctx.createRadialGradient(W/2, H*0.75, Math.min(W,H)*0.3, W/2, H*0.5, Math.max(W,H)*0.75);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    // Dark vignette grows as lantern dims
+    const vig = 0.55 + state.lanternStage * 0.12;
+    g.addColorStop(1, `rgba(0,0,0,${Math.min(0.92, vig)})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  function breathPulseValue() {
+    // 0..1 sine over breath cycle
+    const t = state.breathT / state.breathDur;
+    return 0.5 + 0.5 * Math.sin(t * Math.PI * 2 - Math.PI / 2);
+  }
+
+  // ============ FRAME ============
+  let last = performance.now();
+  function frame(now) {
+    const dt = now - last; last = now;
+    state.t += dt;
+
+    if (state.phase === 'fall') {
+      const t = (state.t - state.fallStart) / 1000;
+      state.walkerX = 0.5 + Math.sin(t * 0.5) * 0.02;
+      if (t > 1.5 && !state.jesterOnRope) {
+        state.jesterOnRope = true;
+        state.jesterX = 0.15;
+        Zara.laugh(0.18);
+      }
+      if (state.jesterOnRope && state.jesterLeapT < 0) {
+        state.jesterX = Math.min(state.walkerX - 0.02, 0.15 + (t - 1.5) * 0.12);
+        if (state.jesterX >= state.walkerX - 0.025) {
+          state.jesterLeapT = state.t;
+          Zara.scream(0.18);
+          setTimeout(() => {
+            state.walkerFalling = true;
+            state.walkerFallT = state.t;
+            Zara.gasp(0.25);
+          }, 280);
+        }
+      }
+      if (state.jesterLeapT >= 0 && state.t - state.jesterLeapT > 800) {
+        state.jesterOnRope = false;
+      }
+      if (state.walkerFalling && !state.bodyLanded) {
+        state.crowdShock = Math.min(1, state.crowdShock + dt / 400);
+        state.crowdDispersed = Math.min(1, state.crowdDispersed + dt / 1200);
+      }
+    }
+    if (state.phase === 'kneel' || state.phase === 'dialogue') {
+      state.crowdDispersed = Math.min(1, state.crowdDispersed + dt / 4000);
+    }
+
+    // Vigil decay/charge while in dialogue
+    if (state.phase === 'dialogue') {
+      if (state.vigilHeld) {
+        state.vigil = Math.min(1, state.vigil + dt / 700);
+      } else {
+        state.vigil = Math.max(0, state.vigil - dt / 1200);
+      }
+      vigilFill.style.width = (state.vigil * 100) + '%';
+      // disable gestures unless vigil >= threshold
+      const close = state.vigil >= 0.65;
+      gesturesEl.classList.toggle('vigil-low', !close);
+      Array.from(gesturesEl.children).forEach(g => {
+        if (g.classList.contains('disabled') || g.classList.contains('taken-correct') || g.classList.contains('taken-wrong')) return;
+        if (close) g.classList.remove('unavailable');
+        else g.classList.add('unavailable');
+      });
+
+      // Breath cycle advance, only when not paused (mid-aftermath)
+      if (!state.breathPaused && state.breathsLeft > 0) {
+        state.breathT += dt;
+        if (state.breathT >= state.breathDur) {
+          state.breathT = 0;
+          state.breathsLeft--;
+          updateBreathIndicator();
+          if (state.breathsLeft <= 0) {
+            // ran out
+            onBreathsExhausted();
+          }
+        }
+      }
+    }
+
+    ctx.clearRect(0, 0, W, H);
+    drawBackground();
+    drawTowers();
+    drawMarketplace();
+    drawLantern();
+    if (state.phase === 'fall' || state.phase === 'idle') drawRope();
+    drawCrowdPanic();
+    drawCrowdQuiet();
+    drawWalker();
+    drawJester();
+    drawFallingBody();
+    drawCorpseAndFace();
+    drawZarathustra();
+    drawVignette();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ============ ORCHESTRATION ============
+  const captionEl = document.getElementById('caption');
+  const speechEl = document.getElementById('speech');
+  const speechLineEl = speechEl.querySelector('.line');
+  const gesturesEl = document.getElementById('gestures');
+  const promptEl = document.getElementById('prompt');
+  const beginEl = document.getElementById('begin');
+  const startBtn = document.getElementById('startBtn');
+  const kneelBtn = document.getElementById('kneelBtn');
+  const endingEl = document.getElementById('ending');
+  const endTitleEl = document.getElementById('endTitle');
+  const endLineEl = document.getElementById('endLine');
+  const endSourceEl = document.getElementById('endSource');
+  const vigilEl = document.getElementById('vigil');
+  const vigilFill = document.getElementById('vigilFill');
+  const breathEl = document.getElementById('breath');
+  const breathCount = document.getElementById('breathCount');
+  const lanternEl = document.getElementById('lantern');
+
+  function showCaption(text, ms) {
+    captionEl.innerHTML = text;
+    captionEl.classList.add('visible');
+    if (ms) setTimeout(() => captionEl.classList.remove('visible'), ms);
+  }
+  function hideCaption() { captionEl.classList.remove('visible'); }
+  function showSpeech(text) {
+    speechLineEl.textContent = '';
+    speechEl.classList.add('visible');
+    Zara.typewrite(speechLineEl, text, { cps: 36 });
+  }
+  function hideSpeech() { speechEl.classList.remove('visible'); }
+  function updateBreathIndicator() {
+    breathCount.textContent = state.breathsLeft;
+  }
+  function setLanternStage(stage) {
+    state.lanternStage = Math.max(0, Math.min(3, stage));
+    lanternEl.classList.remove('dim1', 'dim2', 'out');
+    if (state.lanternStage === 1) lanternEl.classList.add('dim1');
+    if (state.lanternStage === 2) lanternEl.classList.add('dim2');
+    if (state.lanternStage === 3) lanternEl.classList.add('out');
+  }
+
+  // Fall sequence — same as before
+  function beginFall() {
+    state.phase = 'fall';
+    state.fallStart = state.t;
+    state.walkerX = 0.5;
+    state.walkerY = 0.22;
+    state.jesterOnRope = false;
+    state.jesterLeapT = -1;
+    state.walkerFalling = false;
+    state.bodyLanded = false;
+    beginEl.classList.add('hidden');
+    setTimeout(() => { beginEl.style.display = 'none'; }, 1200);
+    Zara.audio();
+    Zara.playMurmur(0.06);
+
+    setTimeout(() => {
+      showCaption('A jester emerges from the tower.', 3000);
+    }, 1200);
+    setTimeout(() => {
+      showCaption('&ldquo;The tower is where you belong. You block the way for one better than yourself.&rdquo;', 4200);
+    }, 3400);
+  }
+
+  function onLand() {
+    state.phase = 'kneel';
+    Zara.stopMurmur();
+    setTimeout(() => { state.crowdShock = 0; }, 1500);
+    setTimeout(() => {
+      showCaption('The market scatters. The body fell beside you. Not yet dead.', 5000);
+    }, 900);
+    setTimeout(() => {
+      hideCaption();
+      promptEl.classList.add('visible');
+    }, 4500);
+  }
+
+  kneelBtn.addEventListener('click', () => {
+    promptEl.classList.remove('visible');
+    hideCaption();
+    startDialogue();
+  });
+
+  // ============ DIALOGUE ENGINE ============
+  // Each exchange: walker speaks, three gestures appear.
+  // The player must (1) hold SPACE to keep vigil (vigil >= 0.65), and
+  // (2) hover gestures to read his eyes, then click to commit.
+  // Wrong gestures dim the lantern. Three breaths total.
+
+  const EXCHANGES = [
+    {
+      line: "I have long known that the devil would trip me. Now he will drag me to hell. Would you prevent him?",
+      gestures: [
+        // Each: { verb, kind, after, [quote] }
+        { verb: 'fold your hands', kind: 'christian',
+          icon: 'pray',
+          after: "His eyes shut tight. &ldquo;Then I am already damned.&rdquo;" },
+        { verb: 'shake your head', kind: 'zarathustra',
+          icon: 'shake',
+          after: "The dying man looks up, suspicious. The fear loosens from his face.",
+          quoteId: 'p6-no-hell',
+          quoteText: "By my honor, friend, that of which you speak does not exist: there is no devil and no hell.",
+          source: "Prologue §6",
+          spoken: "By my honor, friend, that of which you speak does not exist: there is no devil and no hell." },
+        { verb: 'turn away', kind: 'nihilist',
+          icon: 'turn',
+          after: "He turns his head away. A dry laugh, then nothing.",
+          spoken: "The devil tripped you because you were weak." },
+      ],
+    },
+    {
+      line: "If you speak the truth, I lose nothing when I lose my life. I am not much more than a beast that has been taught to dance by blows and a few meager morsels.",
+      gestures: [
+        { verb: 'point to the sky', kind: 'christian',
+          icon: 'pray',
+          after: "&ldquo;So even my dying is owed to someone,&rdquo; he whispers.",
+          spoken: "Your pain will be rewarded in heaven." },
+        { verb: 'set him down', kind: 'nihilist',
+          icon: 'turn',
+          after: "His mouth tightens. He does not speak again this breath.",
+          spoken: "Then you die as you lived — nothing." },
+        { verb: 'hold his gaze', kind: 'zarathustra',
+          icon: 'gaze',
+          after: "Something like gratitude passes over him. He breathes easier.",
+          quoteId: 'p6-vocation',
+          quoteText: "You have made danger your vocation; there is nothing contemptible in that.",
+          source: "Prologue §6",
+          spoken: "By no means. You have made danger your vocation; there is nothing contemptible in that." },
+      ],
+    },
+    {
+      line: "(He moves his hand. He is searching for yours.)",
+      tag: "the dying man",
+      gestures: [
+        { verb: 'bless him', kind: 'christian',
+          icon: 'pray',
+          after: "His hand finds yours, but he is looking past you, searching for someone else.",
+          spoken: "Go in peace, child of God." },
+        { verb: 'stand and leave', kind: 'nihilist',
+          icon: 'turn',
+          after: "His hand closes on air.",
+          spoken: "Nothing follows. That is all." },
+        { verb: 'take his hand', kind: 'zarathustra',
+          icon: 'hand',
+          after: "His fingers grip yours. He does not let go until the breath has gone out of him.",
+          quoteId: 'p6-bury',
+          quoteText: "You perish of your vocation: for that I will bury you with my own hands.",
+          source: "Prologue §6",
+          spoken: "Now you perish of your vocation: for that I will bury you with my own hands." },
+      ],
+    },
+  ];
+
+  let exchangeIdx = 0;
+  let correctCount = 0;
+  let lateCount = 0;       // exchanges where he spoke without you having vigil
+  const chosenKinds = [];
+
+  function startDialogue() {
+    state.phase = 'dialogue';
+    state.breathT = 0;
+    state.breathsLeft = 3;
+    state.breathPaused = false;
+    state.lanternStage = 0;
+    setLanternStage(0);
+    lanternEl.classList.add('visible');
+    breathEl.classList.add('visible');
+    vigilEl.classList.add('visible');
+    updateBreathIndicator();
+    exchangeIdx = 0;
+    correctCount = 0;
+    runExchange();
+  }
+
+  function runExchange() {
+    const ex = EXCHANGES[exchangeIdx];
+    if (!ex) { endScene('finished'); return; }
+    const tag = ex.tag || 'the dying man';
+    speechEl.querySelector('.tag').textContent = tag;
+    state.pulseRate = 1 + exchangeIdx * 0.3;
+    state.breathDur = Math.max(2800, 4500 - exchangeIdx * 700); // dur shortens as he weakens
+    state.breathT = 0;
+    state.breathPaused = false;
+
+    showSpeech(ex.line);
+    hideGestures();
+    setTimeout(() => {
+      showGestures(ex);
+    }, Math.min(4200, 1100 + ex.line.length * 18));
+  }
+
+  // SVG icons drawn inline as <svg>
+  function iconSvg(kind) {
+    if (kind === 'pray') return `<svg class="icon" viewBox="0 0 60 60"><g stroke="#eae4d2" stroke-width="2" fill="none"><circle cx="30" cy="14" r="6"/><path d="M22 28 L30 22 L38 28"/><path d="M24 50 L24 32 L36 32 L36 50"/><path d="M30 32 L30 26"/></g></svg>`;
+    if (kind === 'shake') return `<svg class="icon" viewBox="0 0 60 60"><g stroke="#eae4d2" stroke-width="2" fill="none"><circle cx="30" cy="16" r="6"/><path d="M22 32 L38 32"/><path d="M22 32 L18 24"/><path d="M38 32 L42 24"/><path d="M24 50 L36 50"/><path d="M30 22 L30 32"/></g></svg>`;
+    if (kind === 'turn') return `<svg class="icon" viewBox="0 0 60 60"><g stroke="#eae4d2" stroke-width="2" fill="none"><circle cx="38" cy="16" r="6"/><path d="M38 22 L38 38"/><path d="M38 30 L46 26"/><path d="M14 50 L26 50 L40 38"/></g></svg>`;
+    if (kind === 'gaze') return `<svg class="icon" viewBox="0 0 60 60"><g stroke="#eae4d2" stroke-width="2" fill="none"><circle cx="30" cy="14" r="6"/><path d="M22 30 L38 30"/><path d="M30 20 L30 36"/><circle cx="30" cy="44" r="4" fill="#d4a017"/></g></svg>`;
+    if (kind === 'hand') return `<svg class="icon" viewBox="0 0 60 60"><g stroke="#eae4d2" stroke-width="2" fill="none"><circle cx="20" cy="14" r="5"/><path d="M16 22 L16 38 L24 38 L24 22"/><path d="M20 38 L20 50"/><path d="M24 30 L40 30"/><path d="M40 30 L36 26"/><path d="M40 30 L36 34"/></g></svg>`;
+    return `<svg class="icon" viewBox="0 0 60 60"></svg>`;
+  }
+
+  function showGestures(ex) {
+    gesturesEl.innerHTML = '';
+    // Order: keep as defined to preserve narrative variety; player learns by hovering.
+    ex.gestures.forEach((g, i) => {
+      const b = document.createElement('button');
+      b.className = 'gesture';
+      b.innerHTML = `${iconSvg(g.icon)}<span class="verb">${g.verb}</span>`;
+      b.addEventListener('mouseenter', () => { state.hoveredKind = g.kind; });
+      b.addEventListener('mouseleave', () => { if (state.hoveredKind === g.kind) state.hoveredKind = null; });
+      b.addEventListener('click', () => chooseGesture(ex, g, b));
+      gesturesEl.appendChild(b);
+    });
+    gesturesEl.classList.add('visible');
+  }
+  function hideGestures() { gesturesEl.classList.remove('visible'); }
+
+  function chooseGesture(ex, g, btn) {
+    // require vigil
+    if (state.vigil < 0.65) {
+      // gentle hint: do nothing, but flash the vigil bar
+      vigilFill.style.transition = 'background 0.2s ease';
+      vigilFill.style.background = 'var(--blood)';
+      setTimeout(() => { vigilFill.style.background = ''; vigilFill.style.transition = ''; }, 400);
+      return;
+    }
+    // pause the breath clock during aftermath
+    state.breathPaused = true;
+    state.hoveredKind = null;
+
+    Array.from(gesturesEl.children).forEach(c => c.classList.add('disabled'));
+    btn.classList.remove('disabled');
+    btn.classList.add(g.kind === 'zarathustra' ? 'taken-correct' : 'taken-wrong');
+    chosenKinds.push(g.kind);
+
+    if (g.kind === 'zarathustra') {
+      correctCount++;
+      if (g.quoteId) Zara.addQuote(g.quoteId, g.quoteText, g.source);
+      Zara.chime(0.05);
+      // restore lantern partially? No — only damage on wrong. Keeps stakes meaningful.
+    } else {
+      Zara.gasp(0.08);
+      setLanternStage(state.lanternStage + 1);
+      // wrong choice → lose a breath sooner
+      state.breathT = Math.max(state.breathT, state.breathDur * 0.7);
+    }
+
+    setTimeout(() => {
+      hideSpeech();
+      hideGestures();
+      const spokenLine = g.spoken
+        ? `<span style="color:var(--ink-dim);font-style:normal;font-size:0.8rem;letter-spacing:0.18em;text-transform:uppercase;display:block;margin-bottom:0.5rem;">Zarathustra</span><span style="font-style:italic;color:var(--accent);display:block;margin-bottom:0.6rem;">&ldquo;${g.spoken}&rdquo;</span>` : '';
+      captionEl.innerHTML = spokenLine + g.after;
+      captionEl.classList.add('visible');
+    }, 360);
+
+    // resume breath after aftermath
+    setTimeout(() => {
+      captionEl.classList.remove('visible');
+      state.breathPaused = false;
+      // lantern out → he dies before next exchange
+      if (state.lanternStage >= 3) {
+        endScene('darkness');
+        return;
+      }
+      exchangeIdx++;
+      if (exchangeIdx < EXCHANGES.length && state.breathsLeft > 0) {
+        setTimeout(runExchange, 800);
+      } else {
+        endScene(state.breathsLeft > 0 ? 'finished' : 'expired');
+      }
+    }, 4200);
+  }
+
+  function onBreathsExhausted() {
+    // He stops breathing mid-gesture
+    if (state.phase !== 'dialogue') return;
+    // If currently waiting for choice, fail this one
+    if (gesturesEl.classList.contains('visible')) {
+      hideGestures();
+      hideSpeech();
+      lateCount++;
+      showCaption('His chest stops rising. The breath is gone before you spoke.', 3500);
+      setTimeout(() => endScene('expired'), 3700);
+    }
+  }
+
+  function endScene(why) {
+    if (state.phase === 'ending') return;
+    state.phase = 'ending';
+    state.pulseRate = 0.2;
+    breathEl.classList.remove('visible');
+    vigilEl.classList.remove('visible');
+    hideGestures();
+
+    let title, line, source;
+    if (why === 'darkness') {
+      title = 'The lantern goes out.';
+      line = '&ldquo;You spoke wrong words over the right body. He died in the dark.&rdquo;';
+      source = '— what you carry away from §6';
+      Zara.addQuote('p7-fool-corpse',
+        "To men I am still the mean between a fool and a corpse.",
+        "Prologue §7");
+    } else if (why === 'expired') {
+      title = 'He dies before you finish.';
+      line = '&ldquo;Time is short and the breath is shorter. He took his words with him.&rdquo;';
+      source = '— what you carry away from §6';
+      Zara.addQuote('p7-uncanny',
+        "Human existence is uncanny and still without meaning: a jester can become man's fatality.",
+        "Prologue §7");
+    } else if (correctCount === 3) {
+      title = 'The body grows cold.';
+      line = '&ldquo;Come, cold, stiff companion! I shall carry you where I may bury you with my own hands.&rdquo;';
+      source = 'Prologue §7';
+      Zara.addQuote('p6-companion',
+        "Come, cold, stiff companion! I shall carry you where I may bury you with my own hands.",
+        "Prologue §7");
+    } else if (correctCount >= 1) {
+      title = 'He dies uncertain.';
+      line = '&ldquo;Human existence is uncanny and still without meaning: a jester can become man&rsquo;s fatality.&rdquo;';
+      source = 'Prologue §7';
+      Zara.addQuote('p7-uncanny',
+        "Human existence is uncanny and still without meaning: a jester can become man's fatality.",
+        "Prologue §7");
+    } else {
+      title = 'He dies afraid.';
+      line = '&ldquo;To men I am still the mean between a fool and a corpse.&rdquo;';
+      source = 'Prologue §7';
+      Zara.addQuote('p7-fool-corpse',
+        "To men I am still the mean between a fool and a corpse.",
+        "Prologue §7");
+    }
+
+    setTimeout(() => {
+      endTitleEl.textContent = title;
+      endLineEl.innerHTML = line;
+      endSourceEl.textContent = source;
+      endingEl.classList.add('visible');
+    }, 1500);
+  }
+
+  // ===== Begin & key handlers =====
+  startBtn.addEventListener('click', () => beginFall());
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !beginEl.classList.contains('hidden')) {
+      startBtn.click();
+    }
+    if ((e.key === ' ' || e.code === 'Space') && state.phase === 'dialogue') {
+      e.preventDefault();
+      state.vigilHeld = true;
+      state.spacePressed = true;
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if ((e.key === ' ' || e.code === 'Space') && state.phase === 'dialogue') {
+      state.vigilHeld = false;
+      state.spacePressed = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

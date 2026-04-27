@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "spelling-bee",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-c", "import http.server, socketserver, os; os.chdir(r'C:/Users/micha/Documents/all_ai_games/thespellingbee'); handler = http.server.SimpleHTTPRequestHandler; httpd = socketserver.TCPServer(('', 3456), handler); httpd.serve_forever()"],
+      "port": 3456
+    }
+  ]
+}

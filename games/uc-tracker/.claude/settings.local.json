@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(where npx:*)"
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(start \"\" \"C:\\\\Users\\\\micha\\\\Documents\\\\all_ai_games\\\\march13\\\\index.html\")",
+      "Bash(start \"\" \"C:\\\\Users\\\\micha\\\\Documents\\\\all_ai_games\\\\march13\\\\clone-idle.html\")",
+      "mcp__Claude_Preview__preview_start"
+    ]
+  }
+}

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Road Crosser</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #111; display: flex; justify-content: center; align-items: center; height: 100vh; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+  canvas { border: 2px solid #333; border-radius: 4px; }
+  #ui {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    color: #fff; font-size: 18px; text-align: center; pointer-events: none;
+    text-shadow: 1px 1px 3px #000;
+  }
+  #ui .score { font-size: 28px; font-weight: bold; }
+  #overlay {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(0,0,0,0.85); color: #fff; padding: 40px 50px;
+    border-radius: 12px; text-align: center; display: none;
+    border: 2px solid #555;
+  }
+  #overlay h1 { font-size: 36px; margin-bottom: 10px; }
+  #overlay p { font-size: 18px; margin-bottom: 20px; color: #ccc; }
+  #overlay button {
+    padding: 12px 30px; font-size: 18px; cursor: pointer;
+    background: #4CAF50; color: #fff; border: none; border-radius: 8px;
+    transition: background 0.2s;
+  }
+  #overlay button:hover { background: #66BB6A; }
+  #mobile-controls {
+    position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: none; gap: 8px;
+  }
+  #mobile-controls button {
+    width: 60px; height: 60px; font-size: 28px; border: none;
+    background: rgba(255,255,255,0.15); color: #fff; border-radius: 12px;
+    cursor: pointer; user-select: none; -webkit-user-select: none;
+  }
+  @media (pointer: coarse) {
+    #mobile-controls { display: flex; }
+  }
+</style>
+</head>
+<body>
+<div id="ui">
+  <div class="score">Score: <span id="score">0</span></div>
+  <div>Level: <span id="level">1</span> | Lives: <span id="lives">5</span></div>
+  <button id="restart-btn" onclick="startGame()" style="margin-top:6px;padding:6px 18px;font-size:14px;cursor:pointer;background:#e74c3c;color:#fff;border:none;border-radius:6px;pointer-events:auto;display:none;">Restart</button>
+</div>
+<a href="../index.html" style="position:fixed;top:10px;left:10px;padding:8px 16px;font-size:14px;background:#555;color:#fff;border:none;border-radius:6px;text-decoration:none;cursor:pointer;font-family:'Segoe UI',sans-serif;z-index:1000;">Go Back</a>
+<canvas id="game"></canvas>
+<div id="overlay">
+  <h1 id="overlay-title">Road Crosser</h1>
+  <p id="overlay-msg">Guide people safely across the busy roads!<br>Use Arrow Keys or WASD to move.</p>
+  <button id="overlay-btn" onclick="startGame()">Play</button>
+</div>
+<div id="mobile-controls">
+  <button ontouchstart="mobileDir('left')">&#9664;</button>
+  <button ontouchstart="mobileDir('up')">&#9650;</button>
+  <button ontouchstart="mobileDir('down')">&#9660;</button>
+  <button ontouchstart="mobileDir('right')">&#9654;</button>
+</div>
+
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const overlay = document.getElementById('overlay');
+const overlayTitle = document.getElementById('overlay-title');
+const overlayMsg = document.getElementById('overlay-msg');
+const overlayBtn = document.getElementById('overlay-btn');
+const scoreEl = document.getElementById('score');
+const levelEl = document.getElementById('level');
+const livesEl = document.getElementById('lives');
+
+const COLS = 13;
+const ROWS = 15;
+let TILE, W, H;
+
+function resize() {
+  const maxH = window.innerHeight - 40;
+  const maxW = window.innerWidth - 20;
+  TILE = Math.floor(Math.min(maxW / COLS, maxH / ROWS));
+  W = COLS * TILE;
+  H = ROWS * TILE;
+  canvas.width = W;
+  canvas.height = H;
+}
+resize();
+window.addEventListener('resize', () => { resize(); });
+
+// Game state
+let player, cars, score, level, lives, state, animId, lastTime;
+let deathTimer = 0;
+let celebrating = 0;
+
+const CAR_COLORS = ['#e74c3c','#3498db','#e67e22','#9b59b6','#1abc9c','#f1c40f','#e91e63','#00bcd4'];
+const PEOPLE_COLORS = ['#FFD93D','#FF6B6B','#6BCB77','#4D96FF','#FF922B','#CC5DE8','#20C997','#FF8787'];
+const SKIN_TONES = ['#FFDAB9','#F5C6A0','#D4A373','#A67B5B','#8B6547','#6B4423'];
+const HAIR_COLORS = ['#2C1810','#4A3728','#8B6914','#D4A017','#C04000','#1A1A1A','#F5F5DC'];
+const HAT_STYLES = ['none','none','none','cap','beanie','tophat'];
+
+// Row types: 'safe' = sidewalk, 'road' = cars
+function getRowTypes() {
+  return [
+    'safe',  // row 0  (top - goal)
+    'safe',  // row 1
+    'road',  // row 2
+    'road',  // row 3
+    'safe',  // row 4  (median)
+    'safe',  // row 5  (median)
+    'road',  // row 6
+    'road',  // row 7
+    'safe',  // row 8  (median)
+    'safe',  // row 9  (median)
+    'road',  // row 10
+    'road',  // row 11
+    'safe',  // row 12
+    'safe',  // row 13
+    'safe',  // row 14 (bottom - start)
+  ];
+}
+
+const rowTypes = getRowTypes();
+
+function createCars() {
+  const arr = [];
+  // Each level: cars get noticeably faster and more numerous
+  const speedMul = 1 + (level - 1) * 0.25;
+  for (let r = 0; r < ROWS; r++) {
+    if (rowTypes[r] !== 'road') continue;
+    const dir = r % 2 === 0 ? 1 : -1;
+    const baseSpeed = (0.4 + Math.random() * 0.4) * speedMul;
+    const numCars = 1 + Math.floor(Math.random() * 2) + Math.floor((level - 1) / 2);
+    const carLen = 1.5 + Math.random() * 0.8 + Math.min(level * 0.1, 1.5);
+    for (let i = 0; i < numCars; i++) {
+      arr.push({
+        row: r,
+        x: (i * (COLS / numCars) + Math.random() * 2) * TILE,
+        w: carLen * TILE,
+        h: TILE * 0.7,
+        speed: baseSpeed * dir,
+        color: CAR_COLORS[Math.floor(Math.random() * CAR_COLORS.length)],
+        isTruck: carLen > 1.9
+      });
+    }
+  }
+  return arr;
+}
+
+function resetPlayer() {
+  player = {
+    col: Math.floor(COLS / 2),
+    row: ROWS - 1,
+    color: PEOPLE_COLORS[Math.floor(Math.random() * PEOPLE_COLORS.length)],
+    skin: SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)],
+    hair: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
+    hat: HAT_STYLES[Math.floor(Math.random() * HAT_STYLES.length)],
+    targetCol: Math.floor(COLS / 2),
+    targetRow: ROWS - 1,
+    animProgress: 1,
+    dead: false
+  };
+}
+
+function init() {
+  score = 0;
+  level = 1;
+  lives = 5;
+  cars = createCars();
+  resetPlayer();
+  updateUI();
+}
+
+function updateUI() {
+  scoreEl.textContent = score;
+  levelEl.textContent = level;
+  livesEl.textContent = lives;
+}
+
+// Input
+const keys = {};
+document.addEventListener('keydown', e => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d'].includes(e.key)) {
+    e.preventDefault();
+    if (state !== 'playing' || player.animProgress < 1 || player.dead) return;
+    if (e.key === 'ArrowUp' || e.key === 'w') movePlayer(0, -1);
+    else if (e.key === 'ArrowDown' || e.key === 's') movePlayer(0, 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'a') movePlayer(-1, 0);
+    else if (e.key === 'ArrowRight' || e.key === 'd') movePlayer(1, 0);
+  }
+});
+
+function mobileDir(dir) {
+  if (state !== 'playing' || player.animProgress < 1 || player.dead) return;
+  if (dir === 'up') movePlayer(0, -1);
+  else if (dir === 'down') movePlayer(0, 1);
+  else if (dir === 'left') movePlayer(-1, 0);
+  else if (dir === 'right') movePlayer(1, 0);
+}
+
+function movePlayer(dx, dy) {
+  const nc = player.col + dx;
+  const nr = player.row + dy;
+  if (nc < 0 || nc >= COLS || nr < 0 || nr >= ROWS) return;
+  player.targetCol = nc;
+  player.targetRow = nr;
+  player.animProgress = 0;
+}
+
+// Drawing
+function drawTile(r) {
+  const y = r * TILE;
+  if (rowTypes[r] === 'safe') {
+    ctx.fillStyle = r === 0 ? '#4CAF50' : '#555';
+    ctx.fillRect(0, y, W, TILE);
+    if (r === 0) {
+      // goal zone
+      ctx.fillStyle = '#66BB6A';
+      for (let c = 0; c < COLS; c += 2) {
+        ctx.fillRect(c * TILE, y, TILE, TILE);
+      }
+      ctx.fillStyle = '#fff';
+      ctx.font = `${TILE * 0.35}px Segoe UI`;
+      ctx.textAlign = 'center';
+      ctx.fillText('SAFE ZONE', W / 2, y + TILE * 0.65);
+    }
+  } else {
+    ctx.fillStyle = '#333';
+    ctx.fillRect(0, y, W, TILE);
+    // lane markings
+    ctx.setLineDash([TILE * 0.4, TILE * 0.4]);
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, y + TILE / 2);
+    ctx.lineTo(W, y + TILE / 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+}
+
+function drawCar(car) {
+  const y = car.row * TILE + (TILE - car.h) / 2;
+  const x = car.x;
+  const r = 6;
+  const dir = car.speed > 0 ? 1 : -1;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  roundRect(ctx, x + 3, y + 3, car.w, car.h, r);
+  ctx.fill();
+
+  // Body
+  ctx.fillStyle = car.color;
+  roundRect(ctx, x, y, car.w, car.h, r);
+  ctx.fill();
+
+  // Windshield
+  ctx.fillStyle = 'rgba(150,220,255,0.6)';
+  const wsX = dir > 0 ? x + car.w * 0.65 : x + car.w * 0.08;
+  roundRect(ctx, wsX, y + 4, car.w * 0.25, car.h - 8, 3);
+  ctx.fill();
+
+  // Wheels
+  ctx.fillStyle = '#222';
+  const wy1 = y - 2;
+  const wy2 = y + car.h - 4;
+  ctx.fillRect(x + 8, wy1, 10, 5);
+  ctx.fillRect(x + car.w - 18, wy1, 10, 5);
+  ctx.fillRect(x + 8, wy2, 10, 5);
+  ctx.fillRect(x + car.w - 18, wy2, 10, 5);
+
+  // Headlights
+  ctx.fillStyle = '#FFE082';
+  const hlX = dir > 0 ? x + car.w - 5 : x;
+  ctx.fillRect(hlX, y + 5, 5, 4);
+  ctx.fillRect(hlX, y + car.h - 9, 5, 4);
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function drawPerson(px, py, person, dead) {
+  const cx = px + TILE / 2;
+  const cy = py + TILE / 2;
+  const s = TILE * 0.38;
+  const color = person.color || '#FF6B6B';
+  const skin = person.skin || '#FFDAB9';
+  const hair = person.hair || '#2C1810';
+  const hat = person.hat || 'none';
+
+  if (dead) {
+    ctx.fillStyle = 'rgba(255,0,0,0.4)';
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, s * 1.3, s * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.globalAlpha = 0.5;
+    ctx.beginPath();
+    ctx.arc(cx, cy, s * 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    return;
+  }
+
+  const bounce = Math.sin(Date.now() / 100) * 3;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.beginPath();
+  ctx.ellipse(cx, cy + s * 0.85, s * 0.5, s * 0.15, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Legs (pants color = darker shirt)
+  ctx.strokeStyle = '#445';
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - 5, cy + s * 0.15);
+  ctx.lineTo(cx - 7, cy + s * 0.7 + bounce);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 5, cy + s * 0.15);
+  ctx.lineTo(cx + 7, cy + s * 0.7 - bounce);
+  ctx.stroke();
+
+  // Shoes
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx - 7, cy + s * 0.73 + bounce, 3, 0, Math.PI * 2);
+  ctx.arc(cx + 7, cy + s * 0.73 - bounce, 3, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Body / shirt
+  ctx.fillStyle = color;
+  roundRect(ctx, cx - s * 0.45, cy - s * 0.45, s * 0.9, s * 0.65, 4);
+  ctx.fill();
+
+  // Arms
+  ctx.strokeStyle = skin;
+  ctx.lineWidth = 3;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx - s * 0.45, cy - s * 0.2);
+  ctx.lineTo(cx - s * 0.7, cy + s * 0.1 - bounce * 0.5);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + s * 0.45, cy - s * 0.2);
+  ctx.lineTo(cx + s * 0.7, cy + s * 0.1 + bounce * 0.5);
+  ctx.stroke();
+
+  // Hands
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(cx - s * 0.7, cy + s * 0.1 - bounce * 0.5, 2.5, 0, Math.PI * 2);
+  ctx.arc(cx + s * 0.7, cy + s * 0.1 + bounce * 0.5, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Head
+  ctx.fillStyle = skin;
+  ctx.beginPath();
+  ctx.arc(cx, cy - s * 0.65, s * 0.35, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hair
+  ctx.fillStyle = hair;
+  ctx.beginPath();
+  ctx.arc(cx, cy - s * 0.75, s * 0.32, Math.PI, Math.PI * 2);
+  ctx.fill();
+  // Side hair
+  ctx.fillRect(cx - s * 0.33, cy - s * 0.8, s * 0.12, s * 0.2);
+  ctx.fillRect(cx + s * 0.21, cy - s * 0.8, s * 0.12, s * 0.2);
+
+  // Eyes
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx - 4, cy - s * 0.68, 3, 0, Math.PI * 2);
+  ctx.arc(cx + 4, cy - s * 0.68, 3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#222';
+  ctx.beginPath();
+  ctx.arc(cx - 4, cy - s * 0.67, 1.5, 0, Math.PI * 2);
+  ctx.arc(cx + 4, cy - s * 0.67, 1.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Mouth
+  ctx.strokeStyle = '#A0522D';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.arc(cx, cy - s * 0.52, 3, 0.1, Math.PI - 0.1);
+  ctx.stroke();
+
+  // Hat
+  if (hat === 'cap') {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy - s * 0.9, s * 0.4, s * 0.12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - s * 0.25, cy - s * 1.05, s * 0.5, s * 0.2);
+    // Brim
+    ctx.fillRect(cx - s * 0.05, cy - s * 0.9, s * 0.45, s * 0.08);
+  } else if (hat === 'beanie') {
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(cx, cy - s * 0.85, s * 0.3, Math.PI, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(cx - s * 0.3, cy - s * 0.88, s * 0.6, s * 0.12);
+    // Pom pom
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy - s * 1.1, 3, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (hat === 'tophat') {
+    ctx.fillStyle = '#111';
+    ctx.fillRect(cx - s * 0.22, cy - s * 1.25, s * 0.44, s * 0.4);
+    ctx.fillRect(cx - s * 0.35, cy - s * 0.88, s * 0.7, s * 0.08);
+  }
+}
+
+function drawCelebration() {
+  if (celebrating <= 0) return;
+  const t = celebrating;
+  ctx.save();
+  ctx.globalAlpha = Math.min(t / 30, 1);
+  ctx.font = `bold ${TILE}px Segoe UI`;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#FFD700';
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 3;
+  const textY = H / 2 - 20 + Math.sin(Date.now() / 200) * 5;
+  ctx.strokeText('+10 Safe!', W / 2, textY);
+  ctx.fillText('+10 Safe!', W / 2, textY);
+
+  // Confetti
+  for (let i = 0; i < 12; i++) {
+    const angle = (i / 12) * Math.PI * 2 + Date.now() / 500;
+    const dist = (60 - t) * 3;
+    const cx = W / 2 + Math.cos(angle) * dist;
+    const cy = H / 2 + Math.sin(angle) * dist - 40;
+    ctx.fillStyle = CAR_COLORS[i % CAR_COLORS.length];
+    ctx.fillRect(cx, cy, 6, 6);
+  }
+  ctx.restore();
+}
+
+// NPC people on sidewalks
+let npcs = [];
+function spawnNPCs() {
+  npcs = [];
+  const safeRows = [1, 4, 5, 8, 9, 12, 13, 14];
+  for (const r of safeRows) {
+    const count = 1 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) {
+      npcs.push({
+        col: Math.floor(Math.random() * COLS),
+        row: r,
+        color: PEOPLE_COLORS[Math.floor(Math.random() * PEOPLE_COLORS.length)],
+        skin: SKIN_TONES[Math.floor(Math.random() * SKIN_TONES.length)],
+        hair: HAIR_COLORS[Math.floor(Math.random() * HAIR_COLORS.length)],
+        hat: HAT_STYLES[Math.floor(Math.random() * HAT_STYLES.length)]
+      });
+    }
+  }
+}
+
+// Collision
+function checkCollision() {
+  const px = player.col * TILE;
+  const py = player.row * TILE;
+  const pRight = px + TILE * 0.7;
+  const pLeft = px + TILE * 0.15;
+
+  for (const car of cars) {
+    if (car.row !== player.row) continue;
+    let cx = car.x;
+    // Handle wrapping
+    if (cx + car.w > W + car.w && car.speed > 0) continue;
+    if (cx < -car.w * 2 && car.speed < 0) continue;
+
+    if (pRight > cx && pLeft < cx + car.w) {
+      return true;
+    }
+    // Check wrapped version
+    if (car.speed > 0 && cx > W - car.w) {
+      const wx = cx - W - car.w;
+      if (pRight > wx && pLeft < wx + car.w) return true;
+    }
+    if (car.speed < 0 && cx < 0) {
+      const wx = cx + W + car.w;
+      if (pRight > wx && pLeft < wx + car.w) return true;
+    }
+  }
+  return false;
+}
+
+// Update
+function update(dt) {
+  if (state !== 'playing') return;
+
+  // Move cars
+  for (const car of cars) {
+    car.x += car.speed * dt * 60;
+    if (car.speed > 0 && car.x > W + car.w) car.x = -car.w;
+    if (car.speed < 0 && car.x < -car.w) car.x = W + car.w;
+  }
+
+  // Animate player
+  if (player.animProgress < 1) {
+    player.animProgress = Math.min(1, player.animProgress + dt * 10);
+    if (player.animProgress >= 1) {
+      player.col = player.targetCol;
+      player.row = player.targetRow;
+    }
+  }
+
+  // Death timer
+  if (player.dead) {
+    deathTimer -= dt;
+    if (deathTimer <= 0) {
+      lives--;
+      updateUI();
+      if (lives <= 0) {
+        gameOver();
+        return;
+      }
+      resetPlayer();
+    }
+    return;
+  }
+
+  // Celebration timer
+  if (celebrating > 0) {
+    celebrating -= dt * 60;
+    if (celebrating <= 0) {
+      level++;
+      cars = createCars();
+      spawnNPCs();
+      resetPlayer();
+      updateUI();
+    }
+    return;
+  }
+
+  // Check collision
+  if (player.animProgress >= 1 && checkCollision()) {
+    player.dead = true;
+    deathTimer = 1;
+  }
+
+  // Check goal
+  if (player.row === 0 && player.animProgress >= 1) {
+    score += 10;
+    celebrating = 60;
+    updateUI();
+  }
+}
+
+// Render
+function render() {
+  ctx.clearRect(0, 0, W, H);
+
+  // Draw rows
+  for (let r = 0; r < ROWS; r++) drawTile(r);
+
+  // Draw NPCs
+  for (const npc of npcs) {
+    drawPerson(npc.col * TILE, npc.row * TILE, npc, false);
+  }
+
+  // Draw cars
+  for (const car of cars) drawCar(car);
+
+  // Draw player
+  if (!player.dead || deathTimer > 0) {
+    let px, py;
+    if (player.animProgress < 1) {
+      const t = player.animProgress;
+      const ease = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      px = (player.col + (player.targetCol - player.col) * ease) * TILE;
+      py = (player.row + (player.targetRow - player.row) * ease) * TILE;
+    } else {
+      px = player.col * TILE;
+      py = player.row * TILE;
+    }
+    drawPerson(px, py, player, player.dead);
+  }
+
+  drawCelebration();
+}
+
+function gameLoop(time) {
+  animId = requestAnimationFrame(gameLoop);
+  const dt = Math.min((time - lastTime) / 1000, 0.05);
+  lastTime = time;
+  update(dt);
+  render();
+}
+
+function startGame() {
+  overlay.style.display = 'none';
+  document.getElementById('restart-btn').style.display = 'inline-block';
+  init();
+  spawnNPCs();
+  state = 'playing';
+  lastTime = performance.now();
+  if (animId) cancelAnimationFrame(animId);
+  animId = requestAnimationFrame(gameLoop);
+}
+
+function gameOver() {
+  state = 'over';
+  document.getElementById('restart-btn').style.display = 'none';
+  overlayTitle.textContent = 'Game Over!';
+  overlayMsg.textContent = `You scored ${score} points and reached level ${level}!`;
+  overlayBtn.textContent = 'Play Again';
+  overlay.style.display = 'block';
+}
+
+// Show start screen
+overlay.style.display = 'block';
+// Run idle animation
+state = 'idle';
+init();
+spawnNPCs();
+lastTime = performance.now();
+animId = requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

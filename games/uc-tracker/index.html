@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UC Tracker — Ulcerative Colitis Root Cause Finder</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="app">
+        <!-- Top Nav -->
+        <header class="top-bar">
+            <h1 class="logo">UC Tracker</h1>
+            <nav class="nav-tabs">
+                <button class="nav-btn active" data-view="log">Daily Log</button>
+                <button class="nav-btn" data-view="history">History</button>
+                <button class="nav-btn" data-view="insights">Insights</button>
+                <button class="nav-btn" data-view="info">Learn</button>
+            </nav>
+        </header>
+
+        <!-- ==================== DAILY LOG VIEW ==================== -->
+        <main id="view-log" class="view active">
+            <div class="date-picker-bar">
+                <button id="prev-day" class="icon-btn">&larr;</button>
+                <input type="date" id="log-date">
+                <button id="next-day" class="icon-btn">&rarr;</button>
+                <span id="day-label" class="day-label"></span>
+            </div>
+
+            <form id="daily-form" autocomplete="off">
+
+                <!-- SECTION: Disease Activity (Partial Mayo Score) -->
+                <section class="card" id="section-symptoms">
+                    <h2 class="card-title" data-toggle="symptoms-body">
+                        <span class="icon">🩺</span> Symptoms &amp; Disease Activity
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="symptoms-body">
+                        <p class="card-hint">Based on the Partial Mayo Score used by gastroenterologists.</p>
+
+                        <label class="field-label">Stool Frequency (above your normal)
+                            <div class="radio-row">
+                                <label class="radio-card"><input type="radio" name="stoolFreq" value="0"><span>Normal</span></label>
+                                <label class="radio-card"><input type="radio" name="stoolFreq" value="1"><span>1–2 extra</span></label>
+                                <label class="radio-card"><input type="radio" name="stoolFreq" value="2"><span>3–4 extra</span></label>
+                                <label class="radio-card"><input type="radio" name="stoolFreq" value="3"><span>5+ extra</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Rectal Bleeding
+                            <div class="radio-row">
+                                <label class="radio-card"><input type="radio" name="bleeding" value="0"><span>None</span></label>
+                                <label class="radio-card"><input type="radio" name="bleeding" value="1"><span>Streaks</span></label>
+                                <label class="radio-card"><input type="radio" name="bleeding" value="2"><span>Obvious</span></label>
+                                <label class="radio-card"><input type="radio" name="bleeding" value="3"><span>Mostly blood</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Overall Wellbeing
+                            <div class="radio-row">
+                                <label class="radio-card"><input type="radio" name="wellbeing" value="0"><span>Great</span></label>
+                                <label class="radio-card"><input type="radio" name="wellbeing" value="1"><span>Okay</span></label>
+                                <label class="radio-card"><input type="radio" name="wellbeing" value="2"><span>Poor</span></label>
+                                <label class="radio-card"><input type="radio" name="wellbeing" value="3"><span>Terrible</span></label>
+                            </div>
+                        </label>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Total Bowel Movements
+                                <input type="number" name="totalBM" min="0" max="30" placeholder="e.g. 4">
+                            </label>
+                            <label class="field-label">Bristol Stool Type (1-7)
+                                <select name="bristolScale">
+                                    <option value="">—</option>
+                                    <option value="1">1 — Hard lumps</option>
+                                    <option value="2">2 — Lumpy sausage</option>
+                                    <option value="3">3 — Cracked sausage</option>
+                                    <option value="4">4 — Smooth snake ✓</option>
+                                    <option value="5">5 — Soft blobs</option>
+                                    <option value="6">6 — Mushy</option>
+                                    <option value="7">7 — Liquid</option>
+                                </select>
+                            </label>
+                        </div>
+
+                        <label class="field-label">Urgency
+                            <div class="radio-row">
+                                <label class="radio-card"><input type="radio" name="urgency" value="0"><span>None</span></label>
+                                <label class="radio-card"><input type="radio" name="urgency" value="1"><span>Mild</span></label>
+                                <label class="radio-card"><input type="radio" name="urgency" value="2"><span>Moderate</span></label>
+                                <label class="radio-card"><input type="radio" name="urgency" value="3"><span>Severe</span></label>
+                            </div>
+                        </label>
+
+                        <div class="slider-field">
+                            <label class="field-label">Abdominal Pain <span class="slider-val" id="pain-val">0</span>/10</label>
+                            <input type="range" name="painLevel" min="0" max="10" value="0">
+                        </div>
+
+                        <div class="slider-field">
+                            <label class="field-label">Fatigue <span class="slider-val" id="fatigue-val">0</span>/10</label>
+                            <input type="range" name="fatigueLevel" min="0" max="10" value="0">
+                        </div>
+
+                        <div class="partial-mayo-display">
+                            <span>Partial Mayo Score:</span>
+                            <span id="partial-mayo" class="mayo-badge">—</span>
+                            <span id="mayo-label" class="mayo-text"></span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Diet -->
+                <section class="card" id="section-diet">
+                    <h2 class="card-title" data-toggle="diet-body">
+                        <span class="icon">🥗</span> Diet &amp; Hydration
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="diet-body">
+                        <p class="card-hint">Processed foods, red meat, dairy, high-sugar, and alcohol are linked to flares. Omega-3s and Mediterranean-style diets may be protective.</p>
+
+                        <label class="field-label">Foods Eaten (one per line or comma-separated)
+                            <textarea name="foods" rows="3" placeholder="e.g. oatmeal, grilled chicken, salad, yogurt"></textarea>
+                        </label>
+
+                        <label class="field-label">Trigger Food Categories Consumed Today
+                            <div class="checkbox-grid">
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="redMeat"><span>Red/Processed Meat</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="dairy"><span>Dairy</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="spicy"><span>Spicy Food</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="processedFood"><span>Processed/Fast Food</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="highSugar"><span>High Sugar</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="highFiber"><span>High Fiber/Raw Veg</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="alcohol"><span>Alcohol</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="caffeine"><span>Caffeine</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="gluten"><span>Gluten</span></label>
+                                <label class="check-card"><input type="checkbox" name="triggerFoods" value="emulsifiers"><span>Emulsifiers/Additives</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Protective Foods Consumed
+                            <div class="checkbox-grid">
+                                <label class="check-card good"><input type="checkbox" name="protectiveFoods" value="fish"><span>Fatty Fish (Omega-3)</span></label>
+                                <label class="check-card good"><input type="checkbox" name="protectiveFoods" value="fermented"><span>Fermented Foods</span></label>
+                                <label class="check-card good"><input type="checkbox" name="protectiveFoods" value="probiotics"><span>Probiotics</span></label>
+                                <label class="check-card good"><input type="checkbox" name="protectiveFoods" value="turmeric"><span>Turmeric/Anti-inflamm.</span></label>
+                                <label class="check-card good"><input type="checkbox" name="protectiveFoods" value="bonebroth"><span>Bone Broth</span></label>
+                            </div>
+                        </label>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Water Intake (glasses)
+                                <input type="number" name="waterIntake" min="0" max="30" placeholder="8">
+                            </label>
+                            <label class="field-label">Alcohol Drinks
+                                <input type="number" name="alcoholDrinks" min="0" max="20" placeholder="0">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Mental Health -->
+                <section class="card" id="section-mental">
+                    <h2 class="card-title" data-toggle="mental-body">
+                        <span class="icon">🧠</span> Stress, Mood &amp; Psychology
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="mental-body">
+                        <p class="card-hint">High perceived stress increases flare odds by 3.6x. Anxiety and depression affect gut permeability and microbiome.</p>
+
+                        <div class="slider-field">
+                            <label class="field-label">Stress Level <span class="slider-val" id="stress-val">0</span>/10</label>
+                            <input type="range" name="stressLevel" min="0" max="10" value="0">
+                        </div>
+
+                        <div class="slider-field">
+                            <label class="field-label">Anxiety Level <span class="slider-val" id="anxiety-val">0</span>/10</label>
+                            <input type="range" name="anxietyLevel" min="0" max="10" value="0">
+                        </div>
+
+                        <div class="slider-field">
+                            <label class="field-label">Mood <span class="slider-val" id="mood-val">5</span>/10 (10 = best)</label>
+                            <input type="range" name="moodLevel" min="0" max="10" value="5">
+                        </div>
+
+                        <label class="field-label">Stressful Events
+                            <textarea name="stressEvents" rows="2" placeholder="e.g. work deadline, argument, financial worry"></textarea>
+                        </label>
+
+                        <label class="field-label">Relaxation / Coping Activities
+                            <div class="checkbox-grid">
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="meditation"><span>Meditation</span></label>
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="deepBreathing"><span>Deep Breathing</span></label>
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="yoga"><span>Yoga</span></label>
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="therapy"><span>Therapy</span></label>
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="nature"><span>Time in Nature</span></label>
+                                <label class="check-card good"><input type="checkbox" name="relaxation" value="socializing"><span>Socializing</span></label>
+                            </div>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- SECTION: Sleep -->
+                <section class="card" id="section-sleep">
+                    <h2 class="card-title" data-toggle="sleep-body">
+                        <span class="icon">😴</span> Sleep
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="sleep-body">
+                        <p class="card-hint">Poor sleep increases IL-6 and TNF-alpha, worsening inflammation. Irregular schedules ("social jet lag") correlate with more severe UC.</p>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Hours Slept
+                                <input type="number" name="sleepHours" min="0" max="24" step="0.5" placeholder="7.5">
+                            </label>
+                            <label class="field-label">Bedtime
+                                <input type="time" name="bedtime">
+                            </label>
+                            <label class="field-label">Wake Time
+                                <input type="time" name="wakeTime">
+                            </label>
+                        </div>
+
+                        <div class="slider-field">
+                            <label class="field-label">Sleep Quality <span class="slider-val" id="sleepq-val">5</span>/10</label>
+                            <input type="range" name="sleepQuality" min="0" max="10" value="5">
+                        </div>
+
+                        <label class="field-label">Night Awakenings
+                            <input type="number" name="nightAwakenings" min="0" max="20" placeholder="0">
+                        </label>
+                    </div>
+                </section>
+
+                <!-- SECTION: Exercise -->
+                <section class="card" id="section-exercise">
+                    <h2 class="card-title" data-toggle="exercise-body">
+                        <span class="icon">🏃</span> Physical Activity
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="exercise-body">
+                        <p class="card-hint">Low-moderate exercise reduces inflammation and improves mental health. Yoga showed significantly better outcomes for UC patients in remission.</p>
+
+                        <label class="field-label">Exercise Type
+                            <div class="checkbox-grid">
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="walking"><span>Walking</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="running"><span>Running</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="cycling"><span>Cycling</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="swimming"><span>Swimming</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="yoga"><span>Yoga</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="weights"><span>Weight Training</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="other"><span>Other</span></label>
+                                <label class="check-card"><input type="checkbox" name="exerciseType" value="none"><span>No Exercise</span></label>
+                            </div>
+                        </label>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Duration (minutes)
+                                <input type="number" name="exerciseDuration" min="0" max="600" placeholder="30">
+                            </label>
+                            <label class="field-label">Intensity
+                                <select name="exerciseIntensity">
+                                    <option value="">—</option>
+                                    <option value="light">Light</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="vigorous">Vigorous</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Medications & Supplements -->
+                <section class="card" id="section-meds">
+                    <h2 class="card-title" data-toggle="meds-body">
+                        <span class="icon">💊</span> Medications &amp; Supplements
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="meds-body">
+                        <p class="card-hint">NSAIDs damage intestinal mucosa. Missing UC medication doses is a major cause of flares. Vitamin D, iron, folate, and B12 deficiencies are very common.</p>
+
+                        <label class="field-label">UC Medications Taken Today
+                            <textarea name="ucMeds" rows="2" placeholder="e.g. Mesalamine 800mg x3, Prednisone 20mg"></textarea>
+                        </label>
+
+                        <label class="field-label">
+                            <div class="checkbox-grid">
+                                <label class="check-card warn"><input type="checkbox" name="missedMeds" value="yes"><span>Missed a UC med dose</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="tookNSAID" value="yes"><span>Took NSAID (ibuprofen etc.)</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="tookAntibiotic" value="yes"><span>Taking Antibiotics</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Supplements Taken
+                            <div class="checkbox-grid">
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="vitD"><span>Vitamin D</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="iron"><span>Iron</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="b12"><span>Vitamin B12</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="folate"><span>Folate</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="zinc"><span>Zinc</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="magnesium"><span>Magnesium</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="omega3"><span>Omega-3 / Fish Oil</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="probiotic"><span>Probiotic</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="calcium"><span>Calcium</span></label>
+                                <label class="check-card good"><input type="checkbox" name="supplements" value="turmeric"><span>Turmeric/Curcumin</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Other Medications
+                            <textarea name="otherMeds" rows="1" placeholder="e.g. Tylenol, birth control"></textarea>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- SECTION: Environment -->
+                <section class="card" id="section-env">
+                    <h2 class="card-title" data-toggle="env-body">
+                        <span class="icon">🌤️</span> Environment &amp; Weather
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="env-body">
+                        <p class="card-hint">Higher PM2.5 and NO2 exposure increase UC risk by ~20%. Temperature and humidity changes may also affect symptoms.</p>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Air Quality Index (AQI)
+                                <input type="number" name="aqi" min="0" max="500" placeholder="Check AirNow.gov">
+                            </label>
+                            <label class="field-label">Temperature (°F)
+                                <input type="number" name="temperature" min="-50" max="150" placeholder="72">
+                            </label>
+                            <label class="field-label">Humidity (%)
+                                <input type="number" name="humidity" min="0" max="100" placeholder="50">
+                            </label>
+                        </div>
+
+                        <label class="field-label">Weather
+                            <div class="radio-row">
+                                <label class="radio-card"><input type="radio" name="weather" value="sunny"><span>Sunny</span></label>
+                                <label class="radio-card"><input type="radio" name="weather" value="cloudy"><span>Cloudy</span></label>
+                                <label class="radio-card"><input type="radio" name="weather" value="rainy"><span>Rainy</span></label>
+                                <label class="radio-card"><input type="radio" name="weather" value="stormy"><span>Stormy</span></label>
+                                <label class="radio-card"><input type="radio" name="weather" value="snowy"><span>Snowy</span></label>
+                            </div>
+                        </label>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Hours Outdoors
+                                <input type="number" name="outdoorHours" min="0" max="24" step="0.5" placeholder="2">
+                            </label>
+                            <label class="field-label">Sun Exposure (mins)
+                                <input type="number" name="sunExposure" min="0" max="600" placeholder="30">
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Hormonal (optional) -->
+                <section class="card" id="section-hormonal">
+                    <h2 class="card-title" data-toggle="hormonal-body">
+                        <span class="icon">🔄</span> Hormonal Cycle (Optional)
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body collapsed" id="hormonal-body">
+                        <p class="card-hint">Over 50% of women with IBD report worse GI symptoms during menstruation, when estrogen is at its lowest.</p>
+
+                        <div class="inline-fields">
+                            <label class="field-label">Cycle Day
+                                <input type="number" name="cycleDay" min="1" max="45" placeholder="e.g. 14">
+                            </label>
+                            <label class="field-label">Period?
+                                <select name="period">
+                                    <option value="">—</option>
+                                    <option value="no">No</option>
+                                    <option value="light">Light</option>
+                                    <option value="moderate">Moderate</option>
+                                    <option value="heavy">Heavy</option>
+                                </select>
+                            </label>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SECTION: Illness -->
+                <section class="card" id="section-illness">
+                    <h2 class="card-title" data-toggle="illness-body">
+                        <span class="icon">🤒</span> Illness &amp; Infections
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body collapsed" id="illness-body">
+                        <p class="card-hint">C. difficile is 8x more common in UC patients. Any infection can trigger a flare. Always test for CDI during flares.</p>
+
+                        <label class="field-label">
+                            <div class="checkbox-grid">
+                                <label class="check-card warn"><input type="checkbox" name="illness" value="cold"><span>Cold / Flu</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="illness" value="gi"><span>Stomach Bug / GI Infection</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="illness" value="fever"><span>Fever</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="illness" value="cdiff"><span>C. diff confirmed</span></label>
+                                <label class="check-card warn"><input type="checkbox" name="illness" value="other"><span>Other Infection</span></label>
+                            </div>
+                        </label>
+
+                        <label class="field-label">Details
+                            <textarea name="illnessDetails" rows="1" placeholder="Describe symptoms or diagnosis"></textarea>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- SECTION: Notes -->
+                <section class="card" id="section-notes">
+                    <h2 class="card-title" data-toggle="notes-body">
+                        <span class="icon">📝</span> Notes
+                        <span class="chevron">▾</span>
+                    </h2>
+                    <div class="card-body" id="notes-body">
+                        <label class="field-label">Anything else noteworthy today?
+                            <textarea name="notes" rows="3" placeholder="Travel, unusual events, new products tried, etc."></textarea>
+                        </label>
+                    </div>
+                </section>
+
+                <div class="save-bar">
+                    <button type="submit" class="save-btn" id="save-btn">Save Entry</button>
+                    <span id="save-status" class="save-status"></span>
+                </div>
+            </form>
+        </main>
+
+        <!-- ==================== HISTORY VIEW ==================== -->
+        <main id="view-history" class="view">
+            <div class="history-controls">
+                <select id="history-range">
+                    <option value="7">Last 7 Days</option>
+                    <option value="14">Last 14 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="all">All Time</option>
+                </select>
+                <button class="btn-secondary" id="export-btn">Export CSV</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
+        </main>
+
+        <!-- ==================== INSIGHTS VIEW ==================== -->
+        <main id="view-insights" class="view">
+            <div class="insights-controls">
+                <select id="insights-range">
+                    <option value="14">Last 14 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="60">Last 60 Days</option>
+                    <option value="90">Last 90 Days</option>
+                    <option value="all">All Time</option>
+                </select>
+            </div>
+
+            <section class="card">
+                <h2 class="card-title">Symptom Trend</h2>
+                <div class="card-body">
+                    <canvas id="chart-symptoms" height="200"></canvas>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="card-title">Trigger Correlation Analysis</h2>
+                <div class="card-body">
+                    <p class="card-hint">Shows how each factor correlates with worse symptoms. Higher positive values = stronger association with flares. Needs 7+ entries for meaningful results.</p>
+                    <div id="correlation-results"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="card-title">Flare Day vs. Good Day Comparison</h2>
+                <div class="card-body">
+                    <p class="card-hint">Compares average values on days with high symptoms (partial Mayo ≥ 4) vs. low symptoms (partial Mayo ≤ 2).</p>
+                    <div id="comparison-results"></div>
+                </div>
+            </section>
+
+            <section class="card">
+                <h2 class="card-title">Your Top Suspected Triggers</h2>
+                <div class="card-body">
+                    <div id="top-triggers"></div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ==================== LEARN VIEW ==================== -->
+        <main id="view-info" class="view">
+            <section class="card">
+                <h2 class="card-title">Understanding Ulcerative Colitis Triggers</h2>
+                <div class="card-body info-body">
+                    <p>This app is built on peer-reviewed research to help you identify <strong>your personal triggers</strong>. UC is highly individual — what triggers one person may not affect another.</p>
+
+                    <h3>Key Research Findings</h3>
+
+                    <div class="info-block">
+                        <h4>Stress (3.6x Flare Risk)</h4>
+                        <p>A UCLA study found patients with high perceived stress had <strong>3.6 times higher odds</strong> of a flare. Stress releases cortisol and inflammatory cytokines, disrupts intestinal barrier permeability, and alters gut microbiota. The gut-brain axis makes this bidirectional — inflammation also worsens mood.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Diet (2x Risk with Pro-Inflammatory Diet)</h4>
+                        <p>A 2025 meta-analysis found pro-inflammatory diets doubled UC risk (OR=2.09). Red/processed meat, refined sugars, and food additives/emulsifiers are linked to flares. Omega-3 fatty acids and Mediterranean-style diets appear protective. During flares, low-fiber foods are generally better tolerated.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Sleep &amp; Circadian Rhythm</h4>
+                        <p>Sleep deprivation increases IL-6 and TNF-alpha (inflammatory markers) and increases intestinal permeability. Evening chronotypes tend to have more severe disease. "Social jet lag" (irregular sleep-wake cycles) is associated with microbiota dysbiosis and more aggressive disease.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Air Pollution (~20% Increased Risk)</h4>
+                        <p>UK Biobank data shows higher PM2.5 and NO2 exposure increases UC risk by ~20%. Air pollution causes epigenetic changes (DNA methylation) at inflammation-related genes. Track your local AQI on high-pollution days.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Medications</h4>
+                        <p><strong>NSAIDs</strong> (ibuprofen, naproxen) damage intestinal mucosa and are a common flare trigger. Use acetaminophen instead. <strong>Antibiotics</strong> disrupt the microbiome and increase IBD risk. <strong>Missing UC medication doses</strong>, even during remission, is a major cause of flares.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Gut Microbiome</h4>
+                        <p>UC patients typically have reduced microbial diversity with less Bifidobacterium, Lactobacillus, and Akkermansia. Probiotics, fermented foods, and adequate fiber (during remission) support a healthier microbiome. Avoid unnecessary antibiotics.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Nutrient Deficiencies</h4>
+                        <p>94% of UC patients are folate-deficient. ~30% have anemia. Vitamin D, B12, iron, zinc, and magnesium are commonly low. Low vitamin D is associated with worse disease severity and poorer response to biologics.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Hormonal Factors</h4>
+                        <p>Over 50% of women with IBD report worse GI symptoms during menstruation, when estrogen (which has anti-inflammatory properties) drops to its lowest level.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>Infections</h4>
+                        <p>C. difficile is 8x more prevalent in UC patients. Any GI infection can trigger or mimic a flare. The Crohn's & Colitis Foundation recommends CDI testing during every flare.</p>
+                    </div>
+
+                    <div class="info-block">
+                        <h4>The Partial Mayo Score</h4>
+                        <p>This app calculates your Partial Mayo Score (0-9) daily, the same metric gastroenterologists use:</p>
+                        <ul>
+                            <li><strong>0-1:</strong> Remission</li>
+                            <li><strong>2-4:</strong> Mild activity</li>
+                            <li><strong>5-7:</strong> Moderate activity</li>
+                            <li><strong>8-9:</strong> Severe activity</li>
+                        </ul>
+                    </div>
+
+                    <div class="info-block disclaimer">
+                        <h4>Disclaimer</h4>
+                        <p>This app is for personal tracking only and does not constitute medical advice. Always consult your gastroenterologist about treatment decisions. Data is stored locally on your device only — nothing is sent to any server.</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "eie-game",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "3848"],
+      "port": 3848
+    }
+  ]
+}

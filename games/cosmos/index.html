@@ -1,0 +1,1478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cosmos: The Knowledge Engine</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0a1a;--panel:rgba(15,15,40,0.85);--border:rgba(100,140,255,0.2);
+  --accent:#6cf;--accent2:#f6c;--gold:#ffd700;--text:#e0e8ff;--dim:#6678a0;
+  --success:#4f8;--danger:#f66;
+}
+@font-face{font-family:'Game';src:local('Segoe UI'),local('Helvetica Neue'),local('Arial')}
+html,body{width:100%;height:100%;overflow:hidden;font-family:'Game',sans-serif;background:var(--bg);color:var(--text)}
+canvas#bgCanvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none}
+#gameUI{position:relative;z-index:1;width:100%;height:100%;display:flex;flex-direction:column}
+
+/* Header */
+#header{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+#eraInfo{display:flex;align-items:center;gap:12px}
+#eraName{font-size:1.1em;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+#eraBar{width:200px;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden}
+#eraBarFill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:4px;transition:width 0.3s}
+#resources{display:flex;gap:20px;font-size:0.95em}
+.resource{display:flex;align-items:center;gap:6px}
+.resource .icon{font-size:1.2em}
+.resource .val{font-weight:700;color:var(--gold);min-width:60px}
+#headerBtns{display:flex;gap:8px}
+#headerBtns button{background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text);padding:6px 12px;border-radius:6px;cursor:pointer;font-size:0.85em;transition:all 0.2s}
+#headerBtns button:hover{background:rgba(255,255,255,0.15);border-color:var(--accent)}
+
+/* Main Layout */
+#main{flex:1;display:flex;overflow:hidden;position:relative}
+
+/* Left Panel - Generators */
+#leftPanel{width:280px;background:var(--panel);border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:12px}
+#leftPanel h3{font-size:0.85em;text-transform:uppercase;letter-spacing:2px;color:var(--dim);margin-bottom:8px}
+.gen-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all 0.2s;position:relative;overflow:hidden}
+.gen-card:hover{background:rgba(255,255,255,0.08);border-color:var(--accent);transform:translateX(2px)}
+.gen-card.locked{opacity:0.4;cursor:default}
+.gen-card .gen-name{font-weight:600;font-size:0.9em;display:flex;justify-content:space-between}
+.gen-card .gen-count{color:var(--accent);font-size:0.85em}
+.gen-card .gen-desc{font-size:0.75em;color:var(--dim);margin:4px 0}
+.gen-card .gen-prod{font-size:0.8em;color:var(--success)}
+.gen-card .gen-cost{font-size:0.8em;color:var(--gold);margin-top:4px}
+.gen-card .gen-fact{font-size:0.7em;color:var(--accent2);font-style:italic;margin-top:4px;display:none}
+.gen-card:hover .gen-fact{display:block}
+.gen-card.affordable{border-color:var(--success);box-shadow:0 0 8px rgba(80,255,130,0.15)}
+.gen-card .gen-fill{position:absolute;bottom:0;left:0;height:2px;background:var(--accent);transition:width 0.1s}
+
+/* Center - Orb Area */
+#center{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative}
+#orbContainer{position:relative;width:220px;height:220px;cursor:pointer;user-select:none;-webkit-user-select:none}
+#orb{width:100%;height:100%;border-radius:50%;background:radial-gradient(circle at 35% 35%,#8bf,#36c,#124);box-shadow:0 0 40px rgba(100,180,255,0.4),0 0 80px rgba(100,180,255,0.2),inset 0 0 30px rgba(255,255,255,0.1);transition:transform 0.1s,box-shadow 0.3s;position:relative;z-index:2}
+#orb:active{transform:scale(0.95)}
+#orb.combo2{box-shadow:0 0 50px rgba(100,255,180,0.5),0 0 100px rgba(100,255,180,0.25),inset 0 0 30px rgba(255,255,255,0.15)}
+#orb.combo5{box-shadow:0 0 60px rgba(255,200,50,0.6),0 0 120px rgba(255,200,50,0.3),inset 0 0 30px rgba(255,255,255,0.2)}
+#orb.combo10{box-shadow:0 0 80px rgba(255,100,200,0.7),0 0 150px rgba(255,100,200,0.35),inset 0 0 40px rgba(255,255,255,0.25);animation:orbPulse 0.3s infinite alternate}
+@keyframes orbPulse{from{transform:scale(1)}to{transform:scale(1.03)}}
+#orbLabel{text-align:center;margin-top:12px;font-size:0.9em;color:var(--dim)}
+#clickPower{font-weight:700;color:var(--accent)}
+#comboDisplay{margin-top:6px;font-size:1.1em;font-weight:700;opacity:0;transition:opacity 0.3s}
+#ipsDisplay{margin-top:16px;font-size:0.85em;color:var(--dim)}
+canvas#particleCanvas{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:3}
+
+/* Right Panel - Research & Upgrades */
+#rightPanel{width:300px;background:var(--panel);border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:12px}
+#tabBar{display:flex;gap:4px;margin-bottom:12px}
+.tab-btn{flex:1;padding:8px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:6px;color:var(--dim);cursor:pointer;font-size:0.8em;text-align:center;transition:all 0.2s}
+.tab-btn.active{background:rgba(100,200,255,0.15);border-color:var(--accent);color:var(--accent)}
+.tab-content{display:none}
+.tab-content.active{display:block}
+
+/* Research Tree */
+.research-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all 0.2s}
+.research-card:hover{background:rgba(255,255,255,0.08)}
+.research-card.owned{border-color:var(--success);opacity:0.7}
+.research-card.locked{opacity:0.35;cursor:default}
+.research-card .r-name{font-weight:600;font-size:0.88em}
+.research-card .r-path{font-size:0.7em;text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+.research-card .r-path.science{color:#4cf}
+.research-card .r-path.arts{color:#f8a}
+.research-card .r-path.philosophy{color:#cf8}
+.research-card .r-desc{font-size:0.75em;color:var(--dim);margin:4px 0}
+.research-card .r-effect{font-size:0.78em;color:var(--success)}
+.research-card .r-cost{font-size:0.78em;color:var(--gold);margin-top:3px}
+.research-card .r-fact{font-size:0.7em;color:var(--accent2);font-style:italic;margin-top:4px}
+
+/* Upgrades */
+.upgrade-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:8px;cursor:pointer;transition:all 0.2s}
+.upgrade-card:hover{background:rgba(255,255,255,0.08)}
+.upgrade-card.owned{border-color:var(--success);opacity:0.6}
+.upgrade-card .u-name{font-weight:600;font-size:0.88em}
+.upgrade-card .u-desc{font-size:0.75em;color:var(--dim);margin:4px 0}
+.upgrade-card .u-cost{font-size:0.78em;color:var(--gold)}
+
+/* Achievements */
+.achiev-card{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px;display:flex;align-items:center;gap:8px}
+.achiev-card.earned{border-color:var(--gold);background:rgba(255,215,0,0.05)}
+.achiev-card .a-icon{font-size:1.4em;width:30px;text-align:center}
+.achiev-card .a-info{flex:1}
+.achiev-card .a-name{font-weight:600;font-size:0.85em}
+.achiev-card .a-desc{font-size:0.72em;color:var(--dim)}
+
+/* Bottom Bar */
+#bottomBar{display:flex;align-items:center;justify-content:space-between;padding:8px 16px;background:var(--panel);border-top:1px solid var(--border);flex-shrink:0}
+#challengeBtn{padding:8px 20px;background:linear-gradient(135deg,#36c,#63c);border:none;color:#fff;border-radius:8px;cursor:pointer;font-size:0.9em;font-weight:600;transition:all 0.3s;position:relative;overflow:hidden}
+#challengeBtn:hover{transform:scale(1.05);box-shadow:0 0 20px rgba(100,100,255,0.4)}
+#challengeBtn.ready{animation:challengePulse 1.5s infinite}
+#challengeBtn:disabled{opacity:0.5;cursor:default;animation:none}
+@keyframes challengePulse{0%,100%{box-shadow:0 0 10px rgba(100,100,255,0.3)}50%{box-shadow:0 0 25px rgba(100,100,255,0.6)}}
+#eventText{font-size:0.8em;color:var(--dim);max-width:400px;text-align:center;font-style:italic}
+#statsInfo{font-size:0.8em;color:var(--dim)}
+
+/* Modal */
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:100;display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-overlay.show{display:flex}
+.modal{background:linear-gradient(135deg,#141430,#1a1a3a);border:1px solid var(--border);border-radius:16px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 0 60px rgba(100,140,255,0.2)}
+.modal h2{font-size:1.3em;margin-bottom:16px;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.modal p{font-size:0.9em;color:var(--dim);margin-bottom:12px;line-height:1.5}
+.modal-btn{padding:10px 24px;border:none;border-radius:8px;cursor:pointer;font-size:0.95em;font-weight:600;margin:4px;transition:all 0.2s}
+.modal-btn.primary{background:linear-gradient(135deg,var(--accent),#48f);color:#000}
+.modal-btn.secondary{background:rgba(255,255,255,0.1);color:var(--text);border:1px solid var(--border)}
+.modal-btn:hover{transform:scale(1.05)}
+.modal-btns{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+
+/* Challenge UI */
+#challengeUI .question{font-size:1.1em;margin-bottom:16px;line-height:1.5}
+#challengeUI .answers{display:flex;flex-direction:column;gap:8px}
+#challengeUI .answer-btn{padding:12px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;font-size:0.95em;text-align:left;transition:all 0.2s}
+#challengeUI .answer-btn:hover{background:rgba(255,255,255,0.12);border-color:var(--accent)}
+#challengeUI .answer-btn.correct{background:rgba(80,255,130,0.2);border-color:var(--success)}
+#challengeUI .answer-btn.wrong{background:rgba(255,100,100,0.2);border-color:var(--danger)}
+#challengeUI .timer-bar{width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;margin-bottom:12px;overflow:hidden}
+#challengeUI .timer-fill{height:100%;background:var(--accent);transition:width 0.1s linear}
+#challengeUI .streak{font-size:0.85em;color:var(--gold);margin-bottom:8px}
+#challengeUI .reward{font-size:0.9em;color:var(--success);margin-top:12px;text-align:center}
+#challengeUI .fact-box{background:rgba(100,200,255,0.08);border:1px solid rgba(100,200,255,0.2);border-radius:8px;padding:10px;margin-top:12px;font-size:0.82em;color:var(--accent);line-height:1.4}
+
+/* Prestige Modal */
+#prestigeUI .bonus-list{list-style:none;padding:0}
+#prestigeUI .bonus-list li{padding:6px 0;font-size:0.9em;color:var(--success)}
+
+/* Floating Text */
+.float-text{position:absolute;pointer-events:none;font-weight:700;font-size:1.2em;z-index:10;animation:floatUp 1.2s ease-out forwards;white-space:nowrap}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0) scale(1)}50%{opacity:1}100%{opacity:0;transform:translateY(-80px) scale(0.7)}}
+
+/* Achievement Toast */
+#toastContainer{position:fixed;top:60px;right:16px;z-index:50;display:flex;flex-direction:column;gap:8px}
+.toast{background:linear-gradient(135deg,#1a1a3a,#252550);border:1px solid var(--gold);border-radius:10px;padding:12px 16px;display:flex;align-items:center;gap:10px;animation:slideIn 0.4s ease-out,fadeOut 0.5s 3s ease-in forwards;box-shadow:0 0 20px rgba(255,215,0,0.2)}
+@keyframes slideIn{from{transform:translateX(100px);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeOut{to{opacity:0;transform:translateX(50px)}}
+.toast .t-icon{font-size:1.5em}
+.toast .t-info .t-title{font-weight:700;font-size:0.9em;color:var(--gold)}
+.toast .t-info .t-desc{font-size:0.75em;color:var(--dim)}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.15);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.25)}
+
+/* Audio Toggle */
+#audioBtn{position:relative}
+#audioBtn.muted::after{content:'';position:absolute;top:50%;left:50%;width:70%;height:2px;background:var(--danger);transform:translate(-50%,-50%) rotate(-45deg)}
+
+/* Wisdom Quote */
+#wisdomQuote{position:fixed;bottom:50px;left:50%;transform:translateX(-50%);font-size:0.8em;color:rgba(200,180,255,0.4);font-style:italic;z-index:0;text-align:center;max-width:500px;pointer-events:none;transition:opacity 1s}
+
+/* Event Choice */
+.event-choice{padding:10px 16px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;cursor:pointer;margin:6px 0;transition:all 0.2s;font-size:0.9em}
+.event-choice:hover{background:rgba(255,255,255,0.12);border-color:var(--accent)}
+.event-choice .choice-label{font-weight:600}
+.event-choice .choice-desc{font-size:0.8em;color:var(--dim);margin-top:2px}
+
+/* Mini-game: Falling Stars */
+#miniGameCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:20}
+
+/* Responsive */
+@media(max-width:900px){
+  #leftPanel,#rightPanel{width:240px}
+}
+@media(max-width:700px){
+  #main{flex-direction:column}
+  #leftPanel,#rightPanel{width:100%;max-height:200px;border:none;border-bottom:1px solid var(--border)}
+  #orbContainer{width:150px;height:150px}
+}
+</style>
+</head>
+<body>
+<canvas id="bgCanvas"></canvas>
+<div id="gameUI">
+  <!-- Header -->
+  <div id="header">
+    <div id="eraInfo">
+      <div id="eraName">Dawn of Time</div>
+      <div id="eraBar"><div id="eraBarFill"></div></div>
+    </div>
+    <div id="resources">
+      <div class="resource"><span class="icon">💡</span><span>Insight:</span><span class="val" id="insightVal">0</span></div>
+      <div class="resource"><span class="icon">⭐</span><span>Wisdom:</span><span class="val" id="wisdomVal">0</span></div>
+      <div class="resource"><span class="icon">🔮</span><span>IPS:</span><span class="val" id="ipsVal">0</span></div>
+    </div>
+    <div id="headerBtns">
+      <button id="audioBtn" title="Toggle Music">♪ Music</button>
+      <button id="prestigeBtn" title="Transcend">✦ Transcend</button>
+      <button id="saveBtn" title="Save Game">💾 Save</button>
+    </div>
+  </div>
+
+  <!-- Main -->
+  <div id="main">
+    <!-- Left Panel -->
+    <div id="leftPanel">
+      <h3>⚡ Generators</h3>
+      <div id="genList"></div>
+    </div>
+
+    <!-- Center -->
+    <div id="center">
+      <canvas id="particleCanvas"></canvas>
+      <div id="orbContainer">
+        <div id="orb"></div>
+      </div>
+      <div id="orbLabel">Click for <span id="clickPower">1</span> Insight</div>
+      <div id="comboDisplay"></div>
+      <div id="ipsDisplay"></div>
+    </div>
+
+    <!-- Right Panel -->
+    <div id="rightPanel">
+      <div id="tabBar">
+        <div class="tab-btn active" data-tab="research">🔬 Research</div>
+        <div class="tab-btn" data-tab="upgrades">⬆ Upgrades</div>
+        <div class="tab-btn" data-tab="achievements">🏆 Feats</div>
+      </div>
+      <div id="researchTab" class="tab-content active"></div>
+      <div id="upgradesTab" class="tab-content"></div>
+      <div id="achievementsTab" class="tab-content"></div>
+    </div>
+  </div>
+
+  <!-- Bottom Bar -->
+  <div id="bottomBar">
+    <div id="statsInfo">Clicks: <span id="totalClicks">0</span> | Time: <span id="playTime">0:00</span></div>
+    <button id="challengeBtn">🧠 Knowledge Challenge</button>
+    <div id="eventText">Welcome to Cosmos. Click the orb to begin your journey.</div>
+  </div>
+</div>
+
+<div id="wisdomQuote"></div>
+<div id="toastContainer"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<script>
+// ==================== GAME DATA ====================
+const ERAS = [
+  {name:"Dawn of Time",color:"#4488ff",bg1:"#0a0a2a",bg2:"#101040",insightReq:0,desc:"The universe awakens from nothing..."},
+  {name:"Ancient World",color:"#cc8844",bg1:"#1a1008",bg2:"#2a1a10",insightReq:500,desc:"Great civilizations rise along fertile rivers."},
+  {name:"Classical Age",color:"#44cc88",bg1:"#081a10",bg2:"#102a18",insightReq:5e3,desc:"Democracy, philosophy, and reason flourish."},
+  {name:"Medieval Era",color:"#8866cc",bg1:"#140a2a",bg2:"#1e1040",insightReq:5e4,desc:"Castles rise, knowledge is preserved in monasteries."},
+  {name:"Renaissance",color:"#cc6688",bg1:"#2a0a1a",bg2:"#401028",insightReq:5e5,desc:"Art and science ignite an explosion of creativity."},
+  {name:"Age of Reason",color:"#66cccc",bg1:"#0a2a2a",bg2:"#104040",insightReq:5e6,desc:"The scientific method transforms our understanding."},
+  {name:"Industrial Age",color:"#ccaa44",bg1:"#2a2008",bg2:"#403010",insightReq:5e7,desc:"Steam and steel reshape civilization."},
+  {name:"Modern Era",color:"#4488cc",bg1:"#0a1a2a",bg2:"#102840",insightReq:5e8,desc:"Electricity, computing, and connection change everything."},
+  {name:"Space Age",color:"#8844cc",bg1:"#1a0a2a",bg2:"#281040",insightReq:5e9,desc:"Humanity reaches for the stars."},
+  {name:"Transcendence",color:"#ff88ff",bg1:"#2a0a2a",bg2:"#401040",insightReq:5e10,desc:"Consciousness expands beyond all limits."}
+];
+
+const GENERATORS = [
+  // Era 0: Dawn of Time
+  [{name:"Quantum Fluctuation",base:0.1,baseCost:10,desc:"Tiny ripples in spacetime",fact:"The universe began from quantum fluctuations ~13.8 billion years ago."},
+   {name:"Primordial Spark",base:0.5,baseCost:50,desc:"Energy condensing into matter",fact:"E=mc² — Einstein showed mass and energy are interchangeable."},
+   {name:"Stellar Forge",base:2,baseCost:250,desc:"Stars fusing heavier elements",fact:"Every atom in your body heavier than hydrogen was forged inside a star."},
+   {name:"Cosmic Web",base:8,baseCost:1200,desc:"Galaxies connected by dark matter",fact:"Only ~5% of the universe is ordinary matter. The rest is dark matter and dark energy."}],
+  // Era 1: Ancient World
+  [{name:"Scribe",base:4,baseCost:500,desc:"Recording knowledge on clay tablets",fact:"Cuneiform, the earliest writing system, dates to ~3400 BCE in Mesopotamia."},
+   {name:"Library of Alexandria",base:20,baseCost:2500,desc:"The ancient world's greatest collection",fact:"The Great Library held perhaps 400,000 scrolls — an ancient internet of knowledge."},
+   {name:"Pyramid Builder",base:80,baseCost:12000,desc:"Engineering marvels of the ancient world",fact:"The Great Pyramid was the tallest structure on Earth for 3,800 years."},
+   {name:"Silk Road Caravan",base:300,baseCost:55000,desc:"Trading goods and ideas across continents",fact:"The Silk Road connected Rome to China — spreading ideas as much as goods."}],
+  // Era 2: Classical Age
+  [{name:"Philosopher's Garden",base:200,baseCost:50000,desc:"Where great minds debate truth",fact:"Socrates said 'The unexamined life is not worth living.'"},
+   {name:"Agora",base:800,baseCost:200000,desc:"The marketplace of democracy",fact:"Athenian democracy let citizens vote directly on laws — the first of its kind."},
+   {name:"Roman Aqueduct",base:3000,baseCost:800000,desc:"Engineering water across empires",fact:"Roman aqueducts moved water using only gravity over distances of 60+ miles."},
+   {name:"Academy",base:12000,baseCost:3.5e6,desc:"Plato's school of higher learning",fact:"Plato's Academy operated for nearly 900 years — history's longest-running school."}],
+  // Era 3: Medieval Era
+  [{name:"Monastery Scriptorium",base:8000,baseCost:3e6,desc:"Monks preserving ancient texts",fact:"Without medieval monks copying manuscripts, much of Greek philosophy would be lost."},
+   {name:"Alchemist's Lab",base:35000,baseCost:15e6,desc:"Seeking gold, finding chemistry",fact:"Alchemists discovered phosphorus, sulfuric acid, and distillation — the roots of chemistry."},
+   {name:"Cathedral School",base:150000,baseCost:70e6,desc:"Education growing in city centers",fact:"The University of Bologna (1088) is the world's oldest continuously operating university."},
+   {name:"Printing Press",base:600000,baseCost:300e6,desc:"Gutenberg's revolution",fact:"The printing press made books 80% cheaper — democratizing knowledge forever."}],
+  // Era 4: Renaissance
+  [{name:"Artist's Studio",base:400000,baseCost:250e6,desc:"Where beauty meets genius",fact:"Leonardo da Vinci designed helicopters, tanks, and solar power — centuries ahead of his time."},
+   {name:"Observatory",base:1.8e6,baseCost:1.2e9,desc:"Mapping the heavens",fact:"Copernicus showed the Earth orbits the Sun — not the other way around."},
+   {name:"Anatomy Theater",base:7e6,baseCost:5e9,desc:"Understanding the human body",fact:"Vesalius corrected 200+ errors of Galen by actually dissecting human bodies."},
+   {name:"Navigator's Guild",base:28e6,baseCost:22e9,desc:"Charting unknown seas",fact:"Magellan's expedition was the first to circumnavigate the Earth (1519-1522)."}],
+  // Era 5: Age of Reason
+  [{name:"Newton's Workshop",base:20e6,baseCost:20e9,desc:"Laws governing the cosmos",fact:"Newton invented calculus and described gravity — while quarantined during a plague."},
+   {name:"Enlightenment Salon",base:80e6,baseCost:90e9,desc:"Where ideas change society",fact:"Voltaire championed freedom of speech: defending the right to disagree."},
+   {name:"Chemistry Lab",base:350e6,baseCost:400e9,desc:"Discovering the elements",fact:"Lavoisier discovered oxygen and established modern chemistry — and was executed during the French Revolution."},
+   {name:"Constitution Hall",base:1.5e9,baseCost:1.8e12,desc:"Codifying human rights",fact:"The Declaration of Independence drew on Enlightenment philosophy about natural rights."}],
+  // Era 6: Industrial Age
+  [{name:"Steam Engine",base:1e9,baseCost:1.5e12,desc:"Power transforming civilization",fact:"James Watt's steam engine improved efficiency 3x — powering the Industrial Revolution."},
+   {name:"Telegraph Office",base:4e9,baseCost:7e12,desc:"Instant communication across continents",fact:"Samuel Morse's first telegraph message in 1844: 'What hath God wrought?'"},
+   {name:"Laboratory",base:18e9,baseCost:30e12,desc:"Systematic scientific research",fact:"Marie Curie discovered radioactivity and was the first person to win Nobel Prizes in two different sciences."},
+   {name:"Power Plant",base:75e9,baseCost:130e12,desc:"Harnessing electricity",fact:"Tesla and Edison's rivalry electrified the world — AC power won for long-distance transmission."}],
+  // Era 7: Modern Era
+  [{name:"Computer Lab",base:50e9,baseCost:100e12,desc:"Calculating at the speed of light",fact:"The first computer programmer was Ada Lovelace, in the 1840s — a century before computers existed."},
+   {name:"Particle Accelerator",base:200e9,baseCost:450e12,desc:"Smashing atoms to find truth",fact:"The Higgs boson, discovered in 2012, explains why particles have mass."},
+   {name:"Internet Hub",base:900e9,baseCost:2e15,desc:"Connecting all human knowledge",fact:"The internet carries roughly 5 exabytes of data per day — more than all words ever spoken."},
+   {name:"Biotech Center",base:4e12,baseCost:9e15,desc:"Editing the code of life",fact:"CRISPR lets scientists edit DNA like editing text — potentially curing genetic diseases."}],
+  // Era 8: Space Age
+  [{name:"Launch Pad",base:3e12,baseCost:8e15,desc:"Reaching beyond our world",fact:"The Voyager 1 probe, launched in 1977, is the farthest human-made object — over 15 billion miles away."},
+   {name:"Space Station",base:12e12,baseCost:35e15,desc:"Living among the stars",fact:"The ISS orbits Earth every 90 minutes — astronauts see 16 sunrises per day."},
+   {name:"Dyson Collector",base:50e12,baseCost:150e15,desc:"Harvesting stellar energy",fact:"A Dyson sphere could capture all of a star's energy output — powering civilizations for billions of years."},
+   {name:"Warp Lab",base:200e12,baseCost:650e15,desc:"Bending spacetime itself",fact:"Einstein's equations technically allow 'warp bubbles' — though the energy required is astronomical."}],
+  // Era 9: Transcendence
+  [{name:"Quantum Mind",base:150e12,baseCost:500e15,desc:"Consciousness beyond biology",fact:"Quantum computing could solve in seconds what takes classical computers millions of years."},
+   {name:"Singularity Core",base:600e12,baseCost:2.2e18,desc:"Intelligence bootstrapping itself",fact:"The concept of technological singularity suggests a point where AI surpasses human intelligence."},
+   {name:"Multiverse Gateway",base:2.5e15,baseCost:10e18,desc:"Accessing parallel realities",fact:"The many-worlds interpretation suggests every quantum event branches into parallel universes."},
+   {name:"Omega Point",base:10e15,baseCost:45e18,desc:"The final convergence of all knowledge",fact:"Teilhard de Chardin theorized an 'Omega Point' where consciousness and complexity reach their maximum."}]
+];
+
+const RESEARCH = [
+  // Era 0
+  [{name:"Particle Physics",path:"science",cost:100,effect:"Generators 20% faster",mult:1.2,fact:"Quarks combine in threes to make protons and neutrons — the building blocks of atoms."},
+   {name:"Cosmic Harmony",path:"arts",cost:150,effect:"Click power x2",clickMult:2,fact:"The Pythagoreans believed the universe was fundamentally mathematical — 'all is number.'"},
+   {name:"First Principles",path:"philosophy",cost:200,effect:"Wisdom gain +50%",wisdomMult:1.5,fact:"Thales of Miletus asked 'What is everything made of?' — birthing Western philosophy."}],
+  // Era 1
+  [{name:"Mathematics",path:"science",cost:2000,effect:"Generators 30% faster",mult:1.3,fact:"The Babylonians used base-60 math — that's why we have 60 seconds and 360 degrees."},
+   {name:"Hieroglyphics",path:"arts",cost:2500,effect:"Click power x3",clickMult:3,fact:"Egyptian hieroglyphs contain over 700 symbols — combining pictures and sounds."},
+   {name:"Code of Hammurabi",path:"philosophy",cost:3000,effect:"Wisdom gain x2",wisdomMult:2,fact:"Hammurabi's Code (~1754 BCE) is one of the oldest written legal codes — 282 laws on a stone pillar."}],
+  // Era 2
+  [{name:"Euclidean Geometry",path:"science",cost:25000,effect:"Generators 40% faster",mult:1.4,fact:"Euclid's Elements was the math textbook for 2,000 years — second only to the Bible in editions printed."},
+   {name:"Greek Theater",path:"arts",cost:30000,effect:"Click power x4",clickMult:4,fact:"Greek theater invented comedy and tragedy — and the word 'theater' means 'a place for viewing.'"},
+   {name:"Aristotelian Logic",path:"philosophy",cost:35000,effect:"Wisdom gain x3",wisdomMult:3,fact:"Aristotle created formal logic — the systematic study of valid reasoning."}],
+  // Era 3
+  [{name:"Algebra",path:"science",cost:2e5,effect:"Generators 50% faster",mult:1.5,fact:"Al-Khwarizmi invented algebra — the word comes from Arabic 'al-jabr' meaning 'reunion of broken parts.'"},
+   {name:"Gothic Architecture",path:"arts",cost:2.5e5,effect:"Click power x5",clickMult:5,fact:"Flying buttresses let Gothic cathedrals have enormous stained glass windows — engineering enabling art."},
+   {name:"Scholasticism",path:"philosophy",cost:3e5,effect:"Wisdom gain x4",wisdomMult:4,fact:"Thomas Aquinas harmonized Aristotle with Christian theology — reason and faith working together."}],
+  // Era 4
+  [{name:"Heliocentric Model",path:"science",cost:2e6,effect:"Generators 60% faster",mult:1.6,fact:"Galileo's telescope proved Copernicus right — and got him placed under house arrest for it."},
+   {name:"Perspective Art",path:"arts",cost:2.5e6,effect:"Click power x6",clickMult:6,fact:"Brunelleschi discovered linear perspective ~1415 — transforming flat paintings into windows to other worlds."},
+   {name:"Humanism",path:"philosophy",cost:3e6,effect:"Wisdom gain x5",wisdomMult:5,fact:"Renaissance humanism placed humans at the center of intellectual life, reviving classical learning."}],
+  // Era 5
+  [{name:"Calculus",path:"science",cost:2e7,effect:"Generators 80% faster",mult:1.8,fact:"Newton and Leibniz independently invented calculus — sparking one of history's greatest rivalries."},
+   {name:"Classical Music",path:"arts",cost:2.5e7,effect:"Click power x8",clickMult:8,fact:"Bach's mathematical precision and emotional depth made him a bridge between science and art."},
+   {name:"Social Contract",path:"philosophy",cost:3e7,effect:"Wisdom gain x6",wisdomMult:6,fact:"Rousseau argued legitimate rule comes from the consent of the governed — inspiring revolutions."}],
+  // Era 6
+  [{name:"Thermodynamics",path:"science",cost:2e8,effect:"Generators x2",mult:2,fact:"The laws of thermodynamics: energy is conserved, entropy always increases, absolute zero is unreachable."},
+   {name:"Photography",path:"arts",cost:2.5e8,effect:"Click power x10",clickMult:10,fact:"The first photograph took 8 hours of exposure. Today your phone captures millions of pixels in milliseconds."},
+   {name:"Utilitarianism",path:"philosophy",cost:3e8,effect:"Wisdom gain x8",wisdomMult:8,fact:"John Stuart Mill: 'The greatest good for the greatest number' — the foundation of modern ethics debates."}],
+  // Era 7
+  [{name:"Quantum Mechanics",path:"science",cost:2e9,effect:"Generators x3",mult:3,fact:"Heisenberg's uncertainty principle: you can't know both position and momentum precisely. Nature has limits."},
+   {name:"Digital Art",path:"arts",cost:2.5e9,effect:"Click power x15",clickMult:15,fact:"Digital art democratized creation — anyone with a computer can make and share art globally."},
+   {name:"Existentialism",path:"philosophy",cost:3e9,effect:"Wisdom gain x10",wisdomMult:10,fact:"Sartre: 'Existence precedes essence' — we are not born with purpose, we create it."}],
+  // Era 8
+  [{name:"Fusion Power",path:"science",cost:2e10,effect:"Generators x5",mult:5,fact:"Fusion powers the sun — achieving it on Earth would give us nearly unlimited clean energy."},
+   {name:"Cosmic Art",path:"arts",cost:2.5e10,effect:"Click power x20",clickMult:20,fact:"The Hubble Deep Field image revealed 10,000 galaxies in a patch of sky the size of a grain of sand."},
+   {name:"Cosmic Ethics",path:"philosophy",cost:3e10,effect:"Wisdom gain x15",wisdomMult:15,fact:"As we reach for the stars, we face new ethical questions about AI, life extension, and our cosmic responsibility."}],
+  // Era 9
+  [{name:"Theory of Everything",path:"science",cost:2e11,effect:"Generators x10",mult:10,fact:"A Theory of Everything would unify quantum mechanics and gravity — the holy grail of physics."},
+   {name:"Universal Language",path:"arts",cost:2.5e11,effect:"Click power x50",clickMult:50,fact:"Mathematics may be the universal language — any intelligent civilization would discover the same truths."},
+   {name:"Omega Philosophy",path:"philosophy",cost:3e11,effect:"Wisdom gain x25",wisdomMult:25,fact:"What is consciousness? This may be the deepest question — and its answer could change everything."}]
+];
+
+const UPGRADES = [
+  {name:"Double Click",cost:100,desc:"Click power x2",type:"click",val:2},
+  {name:"Swift Fingers",cost:500,desc:"Click power x3",type:"click",val:3},
+  {name:"Insight Surge",cost:2500,desc:"All generators +50%",type:"gen",val:1.5},
+  {name:"Combo Master",cost:5000,desc:"Combo decays 50% slower",type:"combo",val:0.5},
+  {name:"Wisdom Eyes",cost:1e4,desc:"Challenges give 2x Wisdom",type:"wisdom",val:2},
+  {name:"Auto-Click",cost:2.5e4,desc:"+1 auto-click per second",type:"auto",val:1},
+  {name:"Mega Click",cost:5e4,desc:"Click power x5",type:"click",val:5},
+  {name:"Generator Boost",cost:1e5,desc:"All generators x2",type:"gen",val:2},
+  {name:"Lucky Stars",cost:2.5e5,desc:"2x chance of golden orbs",type:"lucky",val:2},
+  {name:"Time Warp",cost:5e5,desc:"+3 auto-clicks per second",type:"auto",val:3},
+  {name:"Insight Flood",cost:1e6,desc:"All generators x3",type:"gen",val:3},
+  {name:"Ultra Click",cost:5e6,desc:"Click power x10",type:"click",val:10},
+  {name:"Challenge Expert",cost:1e7,desc:"Challenges give 3x Wisdom",type:"wisdom",val:3},
+  {name:"Hyper Generators",cost:5e7,desc:"All generators x5",type:"gen",val:5},
+  {name:"Cosmic Click",cost:5e8,desc:"Click power x25",type:"click",val:25},
+  {name:"Infinite Engine",cost:5e9,desc:"All generators x10",type:"gen",val:10}
+];
+
+const ACHIEVEMENTS = [
+  {name:"First Light",desc:"Click the orb for the first time",icon:"✨",check:s=>s.totalClicks>=1},
+  {name:"Curious Mind",desc:"Reach 100 Insight",icon:"🧠",check:s=>s.totalInsight>=100},
+  {name:"Scholar",desc:"Complete your first challenge",icon:"📚",check:s=>s.challengesCompleted>=1},
+  {name:"Thinker",desc:"Reach 1,000 Insight",icon:"💭",check:s=>s.totalInsight>=1000},
+  {name:"Builder",desc:"Buy 10 generators",icon:"🏗️",check:s=>s.totalGensBought>=10},
+  {name:"Clicker",desc:"Click 100 times",icon:"👆",check:s=>s.totalClicks>=100},
+  {name:"Researcher",desc:"Complete your first research",icon:"🔬",check:s=>s.researchCompleted>=1},
+  {name:"Wise One",desc:"Earn 10 Wisdom",icon:"⭐",check:s=>s.totalWisdom>=10},
+  {name:"Historian",desc:"Reach the Ancient World",icon:"🏛️",check:s=>s.era>=1},
+  {name:"Philosopher",desc:"Reach the Classical Age",icon:"🏺",check:s=>s.era>=2},
+  {name:"Combo King",desc:"Reach a 10x combo",icon:"🔥",check:s=>s.maxCombo>=10},
+  {name:"Millionaire",desc:"Reach 1,000,000 Insight",icon:"💰",check:s=>s.totalInsight>=1e6},
+  {name:"Renaissance Mind",desc:"Reach the Renaissance",icon:"🎨",check:s=>s.era>=4},
+  {name:"Billionaire",desc:"Reach 1,000,000,000 Insight",icon:"💎",check:s=>s.totalInsight>=1e9},
+  {name:"Enlightened",desc:"Reach the Age of Reason",icon:"💡",check:s=>s.era>=5},
+  {name:"Industrialist",desc:"Reach the Industrial Age",icon:"⚙️",check:s=>s.era>=6},
+  {name:"Modern Mind",desc:"Reach the Modern Era",icon:"🖥️",check:s=>s.era>=7},
+  {name:"Star Voyager",desc:"Reach the Space Age",icon:"🚀",check:s=>s.era>=8},
+  {name:"Transcendent",desc:"Reach Transcendence",icon:"🌌",check:s=>s.era>=9},
+  {name:"Speed Demon",desc:"Click 1,000 times",icon:"⚡",check:s=>s.totalClicks>=1000},
+  {name:"Knowledge Master",desc:"Complete 50 challenges",icon:"🎓",check:s=>s.challengesCompleted>=50},
+  {name:"Mega Builder",desc:"Buy 100 generators",icon:"🏰",check:s=>s.totalGensBought>=100}
+];
+
+const CHALLENGES = [
+  // Math
+  {type:"math",q:()=>{let a=rr(2,12),b=rr(2,12);return{q:`What is ${a} × ${b}?`,a:a*b,opts:shuffle([a*b,a*b+rr(1,5),a*b-rr(1,5),a*(b+1)])}},cat:"Mathematics",era:0},
+  {type:"math",q:()=>{let a=rr(10,99),b=rr(10,99);return{q:`What is ${a} + ${b}?`,a:a+b,opts:shuffle([a+b,a+b+rr(1,10),a+b-rr(1,10),(a+1)+b])}},cat:"Arithmetic",era:0},
+  {type:"math",q:()=>{let a=rr(2,10),b=rr(2,4);return{q:`What is ${a}^${b} (${a} to the power of ${b})?`,a:Math.pow(a,b),opts:shuffle([Math.pow(a,b),Math.pow(a,b)+rr(1,10),a*b,Math.pow(a,b-1)])}},cat:"Exponents",era:1},
+  {type:"math",q:()=>{let a=rr(50,200),p=rr(1,5)*10;return{q:`What is ${p}% of ${a}?`,a:a*p/100,opts:shuffle([a*p/100,a*p/100+rr(1,10),a*(p+10)/100,a*p/1000])}},cat:"Percentages",era:2},
+  {type:"math",q:()=>{let r=rr(1,10);return{q:`A circle has radius ${r}. What is its area? (use π≈3.14)`,a:+(Math.PI*r*r).toFixed(1),opts:shuffle([+(Math.PI*r*r).toFixed(1),+(2*Math.PI*r).toFixed(1),+(r*r).toFixed(1),+(Math.PI*r).toFixed(1)])}},cat:"Geometry",era:3},
+  // Science
+  {type:"science",q:()=>({q:"What is the chemical symbol for water?",a:"H₂O",opts:shuffle(["H₂O","CO₂","NaCl","O₂"])}),cat:"Chemistry",era:0},
+  {type:"science",q:()=>({q:"What force keeps planets in orbit around the Sun?",a:"Gravity",opts:shuffle(["Gravity","Magnetism","Friction","Nuclear force"])}),cat:"Physics",era:0},
+  {type:"science",q:()=>({q:"What is the speed of light approximately?",a:"300,000 km/s",opts:shuffle(["300,000 km/s","150,000 km/s","1,000,000 km/s","30,000 km/s"])}),cat:"Physics",era:1},
+  {type:"science",q:()=>({q:"What gas do plants absorb from the atmosphere?",a:"Carbon dioxide",opts:shuffle(["Carbon dioxide","Oxygen","Nitrogen","Hydrogen"])}),cat:"Biology",era:0},
+  {type:"science",q:()=>({q:"How many planets are in our solar system?",a:"8",opts:shuffle(["8","9","7","10"])}),cat:"Astronomy",era:1},
+  {type:"science",q:()=>({q:"What is DNA short for?",a:"Deoxyribonucleic acid",opts:shuffle(["Deoxyribonucleic acid","Dinitrogen acid","Dynamic nucleic acid","Dual nitrogen array"])}),cat:"Biology",era:4},
+  {type:"science",q:()=>({q:"What particle has a negative charge?",a:"Electron",opts:shuffle(["Electron","Proton","Neutron","Photon"])}),cat:"Physics",era:2},
+  {type:"science",q:()=>({q:"What is the hardest natural substance?",a:"Diamond",opts:shuffle(["Diamond","Steel","Titanium","Quartz"])}),cat:"Chemistry",era:1},
+  {type:"science",q:()=>({q:"What organ pumps blood through the body?",a:"Heart",opts:shuffle(["Heart","Brain","Lungs","Liver"])}),cat:"Biology",era:0},
+  {type:"science",q:()=>({q:"What is the most abundant gas in Earth's atmosphere?",a:"Nitrogen",opts:shuffle(["Nitrogen","Oxygen","Carbon dioxide","Argon"])}),cat:"Chemistry",era:2},
+  // History
+  {type:"history",q:()=>({q:"Which civilization built the pyramids of Giza?",a:"Ancient Egypt",opts:shuffle(["Ancient Egypt","Ancient Greece","Roman Empire","Mesopotamia"])}),cat:"Ancient History",era:1},
+  {type:"history",q:()=>({q:"Who was the first Emperor of Rome?",a:"Augustus",opts:shuffle(["Augustus","Julius Caesar","Nero","Constantine"])}),cat:"Roman History",era:2},
+  {type:"history",q:()=>({q:"What year did Columbus reach the Americas?",a:"1492",opts:shuffle(["1492","1498","1476","1510"])}),cat:"Exploration",era:4},
+  {type:"history",q:()=>({q:"Who painted the Mona Lisa?",a:"Leonardo da Vinci",opts:shuffle(["Leonardo da Vinci","Michelangelo","Raphael","Donatello"])}),cat:"Renaissance",era:4},
+  {type:"history",q:()=>({q:"What ancient wonder was in Alexandria, Egypt?",a:"The Lighthouse",opts:shuffle(["The Lighthouse","The Colossus","The Hanging Gardens","The Great Pyramid"])}),cat:"Ancient Wonders",era:1},
+  {type:"history",q:()=>({q:"Who invented the printing press?",a:"Johannes Gutenberg",opts:shuffle(["Johannes Gutenberg","Benjamin Franklin","Leonardo da Vinci","Galileo Galilei"])}),cat:"Medieval",era:3},
+  {type:"history",q:()=>({q:"Which empire was ruled from Constantinople?",a:"Byzantine Empire",opts:shuffle(["Byzantine Empire","Roman Empire","Ottoman Empire","Persian Empire"])}),cat:"Medieval",era:3},
+  {type:"history",q:()=>({q:"Who wrote the Declaration of Independence?",a:"Thomas Jefferson",opts:shuffle(["Thomas Jefferson","Benjamin Franklin","George Washington","John Adams"])}),cat:"Modern History",era:5},
+  {type:"history",q:()=>({q:"What was the first animal sent to space?",a:"Fruit flies (1947)",opts:shuffle(["Fruit flies (1947)","Dog Laika (1957)","Monkey Albert (1948)","Cat Félicette (1963)"])}),cat:"Space History",era:7},
+  // Philosophy
+  {type:"philosophy",q:()=>({q:"Who said 'I think, therefore I am'?",a:"René Descartes",opts:shuffle(["René Descartes","Socrates","Aristotle","Immanuel Kant"])}),cat:"Epistemology",era:4},
+  {type:"philosophy",q:()=>({q:"What is Socrates' famous teaching method called?",a:"Socratic method",opts:shuffle(["Socratic method","Dialectic synthesis","Logical positivism","Empiricism"])}),cat:"Greek Philosophy",era:2},
+  {type:"philosophy",q:()=>({q:"Which philosopher wrote 'The Republic'?",a:"Plato",opts:shuffle(["Plato","Aristotle","Socrates","Pythagoras"])}),cat:"Political Philosophy",era:2},
+  {type:"philosophy",q:()=>({q:"What does 'philosophy' literally mean in Greek?",a:"Love of wisdom",opts:shuffle(["Love of wisdom","Love of knowledge","Study of truth","Search for meaning"])}),cat:"Philosophy",era:2},
+  {type:"philosophy",q:()=>({q:"Who proposed the 'categorical imperative'?",a:"Immanuel Kant",opts:shuffle(["Immanuel Kant","John Stuart Mill","Friedrich Nietzsche","David Hume"])}),cat:"Ethics",era:5},
+  {type:"philosophy",q:()=>({q:"What is the study of 'what is real' called?",a:"Metaphysics",opts:shuffle(["Metaphysics","Epistemology","Ethics","Aesthetics"])}),cat:"Philosophy",era:2}
+];
+
+const WISDOM_QUOTES = [
+  {q:"The only true wisdom is in knowing you know nothing.",a:"Socrates"},
+  {q:"In the middle of difficulty lies opportunity.",a:"Albert Einstein"},
+  {q:"The unexamined life is not worth living.",a:"Socrates"},
+  {q:"Imagination is more important than knowledge.",a:"Albert Einstein"},
+  {q:"The mind is everything. What you think you become.",a:"Buddha"},
+  {q:"An investment in knowledge pays the best interest.",a:"Benjamin Franklin"},
+  {q:"The only way to do great work is to love what you do.",a:"Steve Jobs"},
+  {q:"Education is the most powerful weapon.",a:"Nelson Mandela"},
+  {q:"To be or not to be, that is the question.",a:"Shakespeare"},
+  {q:"I think, therefore I am.",a:"René Descartes"},
+  {q:"Knowledge is power.",a:"Francis Bacon"},
+  {q:"The cosmos is all that is or was or ever will be.",a:"Carl Sagan"},
+  {q:"Science is organized knowledge. Wisdom is organized life.",a:"Immanuel Kant"},
+  {q:"We are stardust contemplating the stars.",a:"Carl Sagan"},
+  {q:"The only thing we have to fear is fear itself.",a:"Franklin D. Roosevelt"}
+];
+
+const EVENTS = [
+  {title:"Golden Age",desc:"Your civilization enters a golden age of prosperity!",effect:"insight",val:100,eraMin:1},
+  {title:"Great Discovery",desc:"A scholar makes a breakthrough discovery!",choices:[
+    {label:"Fund their research",desc:"+200% generators for 30s",effect:"genBoost",val:3,dur:30},
+    {label:"Spread the knowledge",desc:"+500 Wisdom",effect:"wisdom",val:500}
+  ],eraMin:1},
+  {title:"Philosophical Debate",desc:"Two great thinkers clash over the nature of reality...",choices:[
+    {label:"Side with reason",desc:"+50% click power for 60s",effect:"clickBoost",val:1.5,dur:60},
+    {label:"Side with intuition",desc:"+100% Wisdom gain for 60s",effect:"wisdomBoost",val:2,dur:60}
+  ],eraMin:2},
+  {title:"Plague!",desc:"A terrible disease threatens your civilization.",choices:[
+    {label:"Invest in medicine",desc:"Lose 10% Insight, but generators x3 for 60s",effect:"plagueMed",val:3,dur:60},
+    {label:"Quarantine",desc:"Generators stop for 15s, then +50% permanently",effect:"plagueQ",val:1.5}
+  ],eraMin:3},
+  {title:"Renaissance Festival",desc:"Art and science merge in a celebration of human achievement!",effect:"both",val:50,eraMin:4},
+  {title:"Meteor Shower",desc:"The sky fills with shooting stars — each one grants a wish!",effect:"clickBoost",val:5,dur:20,eraMin:0},
+  {title:"Time Traveler",desc:"A mysterious figure offers you a choice...",choices:[
+    {label:"Glimpse the future",desc:"+1000% generators for 10s",effect:"genBoost",val:11,dur:10},
+    {label:"Learn from the past",desc:"+200 Wisdom",effect:"wisdom",val:200}
+  ],eraMin:3}
+];
+
+// ==================== UTILITIES ====================
+function rr(a,b){return Math.floor(Math.random()*(b-a+1))+a}
+function shuffle(a){let b=[...a];for(let i=b.length-1;i>0;i--){let j=rr(0,i);[b[i],b[j]]=[b[j],b[i]]}return b}
+function fmt(n){
+  if(n<1000)return n%1===0?n.toString():n.toFixed(1);
+  const suffixes=['','K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc'];
+  let tier=Math.floor(Math.log10(Math.abs(n))/3);
+  if(tier>=suffixes.length)return n.toExponential(2);
+  let suffix=suffixes[tier];
+  let scale=Math.pow(10,tier*3);
+  let scaled=n/scale;
+  return scaled.toFixed(scaled<10?2:scaled<100?1:0)+suffix;
+}
+function lerp(a,b,t){return a+(b-a)*t}
+
+// ==================== AUDIO SYSTEM ====================
+class AudioSystem {
+  constructor(){
+    this.ctx=null;this.enabled=false;this.masterGain=null;
+    this.musicGain=null;this.sfxGain=null;this.musicPlaying=false;
+    this.currentChord=0;this.musicInterval=null;
+  }
+  init(){
+    if(this.ctx)return;
+    this.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    this.masterGain=this.ctx.createGain();this.masterGain.gain.value=0.5;this.masterGain.connect(this.ctx.destination);
+    this.musicGain=this.ctx.createGain();this.musicGain.gain.value=0.15;this.musicGain.connect(this.masterGain);
+    this.sfxGain=this.ctx.createGain();this.sfxGain.gain.value=0.3;this.sfxGain.connect(this.masterGain);
+  }
+  toggle(){
+    if(!this.ctx)this.init();
+    this.enabled=!this.enabled;
+    if(this.enabled){this.ctx.resume();this.startMusic()}
+    else{this.stopMusic()}
+    return this.enabled;
+  }
+  playClick(combo){
+    if(!this.enabled)return;
+    let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+    o.connect(g);g.connect(this.sfxGain);
+    let baseFreq=400+combo*30+Math.random()*50;
+    o.frequency.setValueAtTime(baseFreq,this.ctx.currentTime);
+    o.frequency.exponentialRampToValueAtTime(baseFreq*1.5,this.ctx.currentTime+0.05);
+    o.type=combo>5?'triangle':'sine';
+    g.gain.setValueAtTime(0.3,this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+0.15);
+    o.start(this.ctx.currentTime);o.stop(this.ctx.currentTime+0.15);
+  }
+  playBuy(){
+    if(!this.enabled)return;
+    [523,659,784].forEach((f,i)=>{
+      let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+      o.connect(g);g.connect(this.sfxGain);o.frequency.value=f;o.type='sine';
+      g.gain.setValueAtTime(0,this.ctx.currentTime+i*0.06);
+      g.gain.linearRampToValueAtTime(0.2,this.ctx.currentTime+i*0.06+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+i*0.06+0.2);
+      o.start(this.ctx.currentTime+i*0.06);o.stop(this.ctx.currentTime+i*0.06+0.2);
+    });
+  }
+  playCorrect(){
+    if(!this.enabled)return;
+    [523,659,784,1047].forEach((f,i)=>{
+      let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+      o.connect(g);g.connect(this.sfxGain);o.frequency.value=f;o.type='triangle';
+      g.gain.setValueAtTime(0,this.ctx.currentTime+i*0.08);
+      g.gain.linearRampToValueAtTime(0.25,this.ctx.currentTime+i*0.08+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+i*0.08+0.3);
+      o.start(this.ctx.currentTime+i*0.08);o.stop(this.ctx.currentTime+i*0.08+0.3);
+    });
+  }
+  playWrong(){
+    if(!this.enabled)return;
+    let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+    o.connect(g);g.connect(this.sfxGain);o.frequency.value=200;o.type='sawtooth';
+    let flt=this.ctx.createBiquadFilter();flt.type='lowpass';flt.frequency.value=400;
+    o.disconnect();o.connect(flt);flt.connect(g);g.connect(this.sfxGain);
+    g.gain.setValueAtTime(0.15,this.ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+0.3);
+    o.start(this.ctx.currentTime);o.stop(this.ctx.currentTime+0.3);
+  }
+  playAchievement(){
+    if(!this.enabled)return;
+    [523,659,784,1047,1319].forEach((f,i)=>{
+      let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+      o.connect(g);g.connect(this.sfxGain);o.frequency.value=f;o.type='sine';
+      g.gain.setValueAtTime(0,this.ctx.currentTime+i*0.1);
+      g.gain.linearRampToValueAtTime(0.3,this.ctx.currentTime+i*0.1+0.02);
+      g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+i*0.1+0.5);
+      o.start(this.ctx.currentTime+i*0.1);o.stop(this.ctx.currentTime+i*0.1+0.5);
+    });
+  }
+  playEraUp(){
+    if(!this.enabled)return;
+    const notes=[261,329,392,523,659,784,1047];
+    notes.forEach((f,i)=>{
+      let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+      o.connect(g);g.connect(this.sfxGain);o.frequency.value=f;o.type='triangle';
+      g.gain.setValueAtTime(0,this.ctx.currentTime+i*0.12);
+      g.gain.linearRampToValueAtTime(0.3,this.ctx.currentTime+i*0.12+0.03);
+      g.gain.exponentialRampToValueAtTime(0.001,this.ctx.currentTime+i*0.12+0.6);
+      o.start(this.ctx.currentTime+i*0.12);o.stop(this.ctx.currentTime+i*0.12+0.6);
+    });
+  }
+  startMusic(){
+    if(this.musicPlaying)return;this.musicPlaying=true;
+    const chords=[
+      [130.81,164.81,196.00],[146.83,185.00,220.00],
+      [164.81,207.65,246.94],[174.61,220.00,261.63]
+    ];
+    const playChord=()=>{
+      if(!this.enabled)return;
+      let chord=chords[this.currentChord%chords.length];
+      let eraShift=1+game.state.era*0.05;
+      chord.forEach(f=>{
+        let o=this.ctx.createOscillator();let g=this.ctx.createGain();
+        let flt=this.ctx.createBiquadFilter();
+        flt.type='lowpass';flt.frequency.value=300+game.state.era*50;
+        o.connect(flt);flt.connect(g);g.connect(this.musicGain);
+        o.frequency.value=f*eraShift;o.type='sine';
+        g.gain.setValueAtTime(0,this.ctx.currentTime);
+        g.gain.linearRampToValueAtTime(0.12,this.ctx.currentTime+0.5);
+        g.gain.setValueAtTime(0.12,this.ctx.currentTime+3);
+        g.gain.linearRampToValueAtTime(0,this.ctx.currentTime+4);
+        o.start(this.ctx.currentTime);o.stop(this.ctx.currentTime+4);
+        // Detuned layer
+        let o2=this.ctx.createOscillator();let g2=this.ctx.createGain();
+        o2.connect(flt);
+        o2.frequency.value=f*eraShift*1.003;o2.type='sine';
+        g2.gain.setValueAtTime(0.06,this.ctx.currentTime);
+        g2.gain.linearRampToValueAtTime(0,this.ctx.currentTime+4);
+        o2.connect(g2);g2.connect(this.musicGain);
+        o2.start(this.ctx.currentTime);o2.stop(this.ctx.currentTime+4);
+      });
+      this.currentChord++;
+    };
+    playChord();
+    this.musicInterval=setInterval(playChord,4000);
+  }
+  stopMusic(){
+    this.musicPlaying=false;
+    if(this.musicInterval){clearInterval(this.musicInterval);this.musicInterval=null}
+  }
+}
+
+// ==================== PARTICLE SYSTEM ====================
+class ParticleSystem {
+  constructor(canvas){
+    this.canvas=canvas;this.ctx=canvas.getContext('2d');this.particles=[];
+    this.resize();
+  }
+  resize(){
+    const r=this.canvas.parentElement.getBoundingClientRect();
+    this.canvas.width=r.width;this.canvas.height=r.height;
+  }
+  emit(x,y,count,color,speed=3,life=40){
+    for(let i=0;i<count;i++){
+      let angle=Math.random()*Math.PI*2;
+      let vel=Math.random()*speed+1;
+      this.particles.push({
+        x,y,vx:Math.cos(angle)*vel,vy:Math.sin(angle)*vel,
+        life,maxLife:life,size:Math.random()*3+1,
+        color:color||`hsl(${200+Math.random()*60},80%,70%)`
+      });
+    }
+  }
+  emitGolden(x,y){
+    for(let i=0;i<30;i++){
+      let angle=Math.random()*Math.PI*2;
+      let vel=Math.random()*5+2;
+      this.particles.push({
+        x,y,vx:Math.cos(angle)*vel,vy:Math.sin(angle)*vel,
+        life:60,maxLife:60,size:Math.random()*4+2,
+        color:`hsl(${40+Math.random()*20},90%,${60+Math.random()*20}%)`
+      });
+    }
+  }
+  update(){
+    this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
+    for(let i=this.particles.length-1;i>=0;i--){
+      let p=this.particles[i];
+      p.x+=p.vx;p.y+=p.vy;p.vy+=0.05;p.vx*=0.99;p.life--;
+      if(p.life<=0){this.particles.splice(i,1);continue}
+      let alpha=p.life/p.maxLife;
+      this.ctx.globalAlpha=alpha;
+      this.ctx.fillStyle=p.color;
+      this.ctx.beginPath();
+      this.ctx.arc(p.x,p.y,p.size*alpha,0,Math.PI*2);
+      this.ctx.fill();
+    }
+    this.ctx.globalAlpha=1;
+  }
+}
+
+// ==================== BACKGROUND STARS ====================
+class StarField {
+  constructor(canvas){
+    this.canvas=canvas;this.ctx=canvas.getContext('2d');
+    this.stars=[];this.resize();
+    for(let i=0;i<200;i++){
+      this.stars.push({
+        x:Math.random()*this.canvas.width,
+        y:Math.random()*this.canvas.height,
+        size:Math.random()*1.5+0.3,
+        speed:Math.random()*0.3+0.05,
+        brightness:Math.random()
+      });
+    }
+  }
+  resize(){
+    this.canvas.width=window.innerWidth;this.canvas.height=window.innerHeight;
+  }
+  update(era){
+    let eraData=ERAS[era]||ERAS[0];
+    this.ctx.fillStyle=eraData.bg1;
+    this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+    // Gradient overlay
+    let grd=this.ctx.createRadialGradient(
+      this.canvas.width/2,this.canvas.height/2,0,
+      this.canvas.width/2,this.canvas.height/2,this.canvas.width*0.7
+    );
+    grd.addColorStop(0,eraData.bg2);grd.addColorStop(1,'transparent');
+    this.ctx.fillStyle=grd;this.ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+
+    for(let s of this.stars){
+      s.y+=s.speed;
+      if(s.y>this.canvas.height){s.y=0;s.x=Math.random()*this.canvas.width}
+      let twinkle=0.5+0.5*Math.sin(Date.now()*0.003+s.brightness*100);
+      this.ctx.globalAlpha=twinkle*0.8;
+      this.ctx.fillStyle=eraData.color;
+      this.ctx.beginPath();
+      this.ctx.arc(s.x,s.y,s.size,0,Math.PI*2);
+      this.ctx.fill();
+    }
+    this.ctx.globalAlpha=1;
+  }
+}
+
+// ==================== GAME ENGINE ====================
+class Game {
+  constructor(){
+    this.state={
+      insight:0,wisdom:0,totalInsight:0,totalWisdom:0,
+      era:0,eraInsight:0,
+      generators:[],// [{eraIdx, genIdx, count}]
+      research:[],// [{eraIdx, resIdx}]
+      upgrades:[],// [upgradeIdx]
+      achievements:[],// [achievIdx]
+      totalClicks:0,totalGensBought:0,
+      challengesCompleted:0,challengeStreak:0,
+      researchCompleted:0,maxCombo:0,
+      combo:0,comboTimer:0,
+      clickMult:1,genMult:1,wisdomMult:1,autoClicks:0,
+      comboDecayMult:1,luckyMult:1,
+      prestigeCount:0,prestigeMult:1,
+      playTime:0,lastSave:Date.now(),
+      tempBoosts:{genBoost:{mult:1,end:0},clickBoost:{mult:1,end:0},wisdomBoost:{mult:1,end:0}},
+      challengeCooldown:0,eventCooldown:0,
+      goldenOrbTimer:0,wisdomQuoteTimer:0
+    };
+    this.audio=new AudioSystem();
+    this.particleSys=null;
+    this.starField=null;
+    this.floats=[];
+    this.running=false;
+    this.lastTick=0;
+  }
+
+  init(){
+    this.particleSys=new ParticleSystem(document.getElementById('particleCanvas'));
+    this.starField=new StarField(document.getElementById('bgCanvas'));
+    this.load();
+    this.setupUI();
+    this.running=true;
+    this.lastTick=performance.now();
+    this.loop();
+    this.renderAll();
+    // Auto-save every 30s
+    setInterval(()=>this.save(),30000);
+    window.addEventListener('resize',()=>{
+      this.starField.resize();
+      this.particleSys.resize();
+    });
+  }
+
+  setupUI(){
+    // Orb click
+    document.getElementById('orbContainer').addEventListener('click',(e)=>{
+      this.clickOrb(e);
+    });
+    // Audio
+    document.getElementById('audioBtn').addEventListener('click',()=>{
+      let on=this.audio.toggle();
+      document.getElementById('audioBtn').classList.toggle('muted',!on);
+      document.getElementById('audioBtn').textContent=on?'♪ Music':'♪ Muted';
+    });
+    // Save
+    document.getElementById('saveBtn').addEventListener('click',()=>{
+      this.save();this.showToast('💾','Saved','Game saved successfully!');
+    });
+    // Prestige
+    document.getElementById('prestigeBtn').addEventListener('click',()=>this.showPrestigeModal());
+    // Challenge
+    document.getElementById('challengeBtn').addEventListener('click',()=>this.startChallenge());
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab+'Tab').classList.add('active');
+      });
+    });
+    // Close modal
+    document.getElementById('modalOverlay').addEventListener('click',(e)=>{
+      if(e.target===document.getElementById('modalOverlay'))this.closeModal();
+    });
+  }
+
+  // ---- Core Mechanics ----
+  clickOrb(e){
+    let s=this.state;
+    let base=1*s.clickMult*s.prestigeMult;
+    // Research click multipliers
+    for(let r of s.research){
+      let rd=RESEARCH[r.eraIdx]?.[r.resIdx];
+      if(rd?.clickMult)base*=rd.clickMult;
+    }
+    // Upgrade click multipliers
+    for(let ui of s.upgrades){
+      let u=UPGRADES[ui];
+      if(u.type==='click')base*=u.val;
+    }
+    // Temp boost
+    if(Date.now()<s.tempBoosts.clickBoost.end)base*=s.tempBoosts.clickBoost.mult;
+
+    // Combo
+    s.combo++;s.comboTimer=2;
+    if(s.combo>s.maxCombo)s.maxCombo=s.combo;
+    let comboMult=1;
+    if(s.combo>=10)comboMult=5;
+    else if(s.combo>=5)comboMult=3;
+    else if(s.combo>=2)comboMult=1.5;
+
+    let total=Math.ceil(base*comboMult);
+    s.insight+=total;s.totalInsight+=total;s.eraInsight+=total;
+    s.totalClicks++;
+
+    // Golden orb chance
+    let goldenChance=0.02*s.luckyMult;
+    if(Math.random()<goldenChance){
+      let bonus=total*50;
+      s.insight+=bonus;s.totalInsight+=bonus;s.eraInsight+=bonus;
+      this.spawnFloat(e,'⭐ GOLDEN! +'+fmt(bonus),`#ffd700`);
+      this.particleSys.emitGolden(this.particleSys.canvas.width/2,this.particleSys.canvas.height/2);
+      this.audio.playAchievement();
+    }
+
+    // Particles & float
+    let rect=document.getElementById('orbContainer').getBoundingClientRect();
+    let cRect=document.getElementById('center').getBoundingClientRect();
+    let px=rect.left-cRect.left+rect.width/2;
+    let py=rect.top-cRect.top+rect.height/2;
+    let color=comboMult>=5?'#f8a':comboMult>=3?'#fda':comboMult>=1.5?'#adf':'#8cf';
+    this.particleSys.emit(px,py,3+Math.min(s.combo,15),color,2+comboMult);
+    this.spawnFloat(e,'+'+fmt(total),color);
+    this.audio.playClick(s.combo);
+
+    // Orb visual combo
+    let orb=document.getElementById('orb');
+    orb.className='';
+    if(s.combo>=10)orb.classList.add('combo10');
+    else if(s.combo>=5)orb.classList.add('combo5');
+    else if(s.combo>=2)orb.classList.add('combo2');
+
+    this.updateResources();
+    this.checkAchievements();
+    this.checkEra();
+  }
+
+  spawnFloat(e,text,color){
+    let el=document.createElement('div');
+    el.className='float-text';el.textContent=text;
+    el.style.color=color;
+    let center=document.getElementById('center');
+    let rect=center.getBoundingClientRect();
+    el.style.left=(e.clientX-rect.left-20)+'px';
+    el.style.top=(e.clientY-rect.top-20)+'px';
+    center.appendChild(el);
+    setTimeout(()=>el.remove(),1200);
+  }
+
+  getIPS(){
+    let s=this.state;
+    let ips=0;
+    for(let g of s.generators){
+      let gd=GENERATORS[g.eraIdx]?.[g.genIdx];
+      if(!gd)continue;
+      ips+=gd.base*g.count;
+    }
+    ips*=s.genMult*s.prestigeMult;
+    // Research gen multipliers
+    for(let r of s.research){
+      let rd=RESEARCH[r.eraIdx]?.[r.resIdx];
+      if(rd?.mult)ips*=rd.mult;
+    }
+    // Upgrade gen multipliers
+    for(let ui of s.upgrades){
+      let u=UPGRADES[ui];
+      if(u.type==='gen')ips*=u.val;
+    }
+    // Temp boost
+    if(Date.now()<s.tempBoosts.genBoost.end)ips*=s.tempBoosts.genBoost.mult;
+    // Auto clicks
+    let clickVal=1*s.clickMult*s.prestigeMult;
+    for(let r of s.research){let rd=RESEARCH[r.eraIdx]?.[r.resIdx];if(rd?.clickMult)clickVal*=rd.clickMult}
+    for(let ui of s.upgrades){let u=UPGRADES[ui];if(u.type==='click')clickVal*=u.val}
+    if(Date.now()<s.tempBoosts.clickBoost.end)clickVal*=s.tempBoosts.clickBoost.mult;
+    ips+=s.autoClicks*clickVal;
+    return ips;
+  }
+
+  getGenCost(eraIdx,genIdx,count){
+    let base=GENERATORS[eraIdx][genIdx].baseCost;
+    return Math.ceil(base*Math.pow(1.15,count));
+  }
+
+  buyGenerator(eraIdx,genIdx){
+    let s=this.state;
+    let existing=s.generators.find(g=>g.eraIdx===eraIdx&&g.genIdx===genIdx);
+    let count=existing?existing.count:0;
+    let cost=this.getGenCost(eraIdx,genIdx,count);
+    if(s.insight<cost)return;
+    s.insight-=cost;
+    if(existing)existing.count++;
+    else s.generators.push({eraIdx,genIdx,count:1});
+    s.totalGensBought++;
+    this.audio.playBuy();
+    this.renderGenerators();
+    this.updateResources();
+    this.checkAchievements();
+  }
+
+  buyResearch(eraIdx,resIdx){
+    let s=this.state;
+    if(s.research.find(r=>r.eraIdx===eraIdx&&r.resIdx===resIdx))return;
+    let rd=RESEARCH[eraIdx][resIdx];
+    if(s.insight<rd.cost)return;
+    s.insight-=rd.cost;
+    s.research.push({eraIdx,resIdx});
+    s.researchCompleted++;
+    this.audio.playBuy();
+    this.renderResearch();
+    this.updateResources();
+    this.checkAchievements();
+  }
+
+  buyUpgrade(idx){
+    let s=this.state;
+    if(s.upgrades.includes(idx))return;
+    let u=UPGRADES[idx];
+    if(s.insight<u.cost)return;
+    s.insight-=u.cost;
+    s.upgrades.push(idx);
+    // Apply
+    if(u.type==='combo')s.comboDecayMult*=u.val;
+    if(u.type==='auto')s.autoClicks+=u.val;
+    this.audio.playBuy();
+    this.renderUpgrades();
+    this.updateResources();
+    this.checkAchievements();
+  }
+
+  checkEra(){
+    let s=this.state;
+    let nextEra=ERAS[s.era+1];
+    if(!nextEra)return;
+    if(s.totalInsight>=nextEra.insightReq){
+      s.era++;s.eraInsight=0;
+      this.audio.playEraUp();
+      this.showToast('🌟',`New Era: ${ERAS[s.era].name}`,ERAS[s.era].desc);
+      this.setEvent(`Welcome to the ${ERAS[s.era].name}!`);
+      this.renderAll();
+      // Flash
+      document.getElementById('orb').style.transition='none';
+      document.getElementById('orb').style.background=`radial-gradient(circle at 35% 35%, ${ERAS[s.era].color}, #124)`;
+      setTimeout(()=>{document.getElementById('orb').style.transition=''},100);
+    }
+  }
+
+  checkAchievements(){
+    let s=this.state;
+    for(let i=0;i<ACHIEVEMENTS.length;i++){
+      if(s.achievements.includes(i))continue;
+      if(ACHIEVEMENTS[i].check(s)){
+        s.achievements.push(i);
+        let a=ACHIEVEMENTS[i];
+        s.wisdom+=5;s.totalWisdom+=5;
+        this.audio.playAchievement();
+        this.showToast(a.icon,a.name,a.desc+' (+5 Wisdom)');
+        this.renderAchievements();
+      }
+    }
+  }
+
+  // ---- Challenge System ----
+  startChallenge(){
+    let s=this.state;
+    if(s.challengeCooldown>0)return;
+    let available=CHALLENGES.filter(c=>c.era<=s.era);
+    let ch=available[rr(0,available.length-1)];
+    let data=ch.q();
+    s.challengeCooldown=30;
+
+    let content=document.getElementById('modalContent');
+    let timeLimit=15;
+    let startTime=Date.now();
+
+    content.innerHTML=`
+      <div id="challengeUI">
+        <h2>🧠 ${ch.cat} Challenge</h2>
+        <div class="streak">🔥 Streak: ${s.challengeStreak}</div>
+        <div class="timer-bar"><div class="timer-fill" id="challengeTimer" style="width:100%"></div></div>
+        <div class="question">${data.q}</div>
+        <div class="answers">
+          ${data.opts.map((o,i)=>`<div class="answer-btn" data-idx="${i}" data-val="${typeof o==='number'?o:o}">${o}</div>`).join('')}
+        </div>
+      </div>
+    `;
+    this.openModal();
+
+    let timerInt=setInterval(()=>{
+      let elapsed=(Date.now()-startTime)/1000;
+      let pct=Math.max(0,1-elapsed/timeLimit)*100;
+      let bar=document.getElementById('challengeTimer');
+      if(bar)bar.style.width=pct+'%';
+      if(elapsed>=timeLimit){
+        clearInterval(timerInt);
+        this.endChallenge(false,data,ch);
+      }
+    },50);
+
+    content.querySelectorAll('.answer-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        clearInterval(timerInt);
+        let val=btn.textContent.trim();
+        let correct=val==String(data.a).trim();
+        btn.classList.add(correct?'correct':'wrong');
+        if(!correct){
+          content.querySelectorAll('.answer-btn').forEach(b=>{
+            if(b.textContent.trim()==String(data.a).trim())b.classList.add('correct');
+          });
+        }
+        setTimeout(()=>this.endChallenge(correct,data,ch),800);
+      });
+    });
+  }
+
+  endChallenge(correct,data,ch){
+    let s=this.state;
+    if(correct){
+      s.challengeStreak++;
+      s.challengesCompleted++;
+      let wisdomGain=Math.ceil((5+s.challengeStreak*2)*s.wisdomMult*s.prestigeMult);
+      for(let r of s.research){let rd=RESEARCH[r.eraIdx]?.[r.resIdx];if(rd?.wisdomMult)wisdomGain*=rd.wisdomMult}
+      for(let ui of s.upgrades){let u=UPGRADES[ui];if(u.type==='wisdom')wisdomGain*=u.val}
+      if(Date.now()<s.tempBoosts.wisdomBoost.end)wisdomGain*=s.tempBoosts.wisdomBoost.mult;
+      wisdomGain=Math.ceil(wisdomGain);
+      s.wisdom+=wisdomGain;s.totalWisdom+=wisdomGain;
+      let insightBonus=Math.ceil(this.getIPS()*10*(1+s.challengeStreak*0.5));
+      s.insight+=insightBonus;s.totalInsight+=insightBonus;s.eraInsight+=insightBonus;
+      this.audio.playCorrect();
+      let content=document.getElementById('modalContent');
+      content.querySelector('#challengeUI').innerHTML+=`
+        <div class="reward">✅ Correct! +${fmt(wisdomGain)} Wisdom, +${fmt(insightBonus)} Insight</div>
+        <div class="fact-box">💡 Did you know? ${GENERATORS[Math.min(s.era,9)][rr(0,3)].fact}</div>
+        <div class="modal-btns"><button class="modal-btn primary" onclick="game.closeModal()">Continue</button></div>
+      `;
+    } else {
+      s.challengeStreak=0;
+      this.audio.playWrong();
+      let content=document.getElementById('modalContent');
+      content.querySelector('#challengeUI').innerHTML+=`
+        <div class="reward" style="color:var(--danger)">❌ The answer was: ${data.a}</div>
+        <div class="fact-box">💡 Learn: ${GENERATORS[Math.min(s.era,9)][rr(0,3)].fact}</div>
+        <div class="modal-btns"><button class="modal-btn secondary" onclick="game.closeModal()">Try Again Later</button></div>
+      `;
+    }
+    this.updateResources();
+    this.checkAchievements();
+  }
+
+  // ---- Events ----
+  triggerEvent(){
+    let s=this.state;
+    let available=EVENTS.filter(e=>e.eraMin<=s.era);
+    if(!available.length)return;
+    let ev=available[rr(0,available.length-1)];
+    s.eventCooldown=120;
+
+    let content=document.getElementById('modalContent');
+    if(ev.choices){
+      content.innerHTML=`
+        <h2>⚡ ${ev.title}</h2>
+        <p>${ev.desc}</p>
+        <div>
+          ${ev.choices.map((c,i)=>`
+            <div class="event-choice" data-idx="${i}">
+              <div class="choice-label">${c.label}</div>
+              <div class="choice-desc">${c.desc}</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      content.querySelectorAll('.event-choice').forEach(ch=>{
+        ch.addEventListener('click',()=>{
+          let idx=parseInt(ch.dataset.idx);
+          this.applyEventChoice(ev.choices[idx]);
+          this.closeModal();
+        });
+      });
+    } else {
+      let bonus=Math.ceil(this.getIPS()*ev.val);
+      s.insight+=bonus;s.totalInsight+=bonus;s.eraInsight+=bonus;
+      content.innerHTML=`
+        <h2>⚡ ${ev.title}</h2>
+        <p>${ev.desc}</p>
+        <p style="color:var(--success)">+${fmt(bonus)} Insight!</p>
+        <div class="modal-btns"><button class="modal-btn primary" onclick="game.closeModal()">Wonderful!</button></div>
+      `;
+    }
+    this.openModal();
+  }
+
+  applyEventChoice(choice){
+    let s=this.state;
+    switch(choice.effect){
+      case 'genBoost':
+        s.tempBoosts.genBoost={mult:choice.val,end:Date.now()+choice.dur*1000};break;
+      case 'clickBoost':
+        s.tempBoosts.clickBoost={mult:choice.val,end:Date.now()+choice.dur*1000};break;
+      case 'wisdomBoost':
+        s.tempBoosts.wisdomBoost={mult:choice.val,end:Date.now()+choice.dur*1000};break;
+      case 'wisdom':
+        s.wisdom+=choice.val;s.totalWisdom+=choice.val;break;
+      case 'plagueMed':
+        s.insight*=0.9;
+        s.tempBoosts.genBoost={mult:choice.val,end:Date.now()+choice.dur*1000};break;
+      case 'plagueQ':
+        s.tempBoosts.genBoost={mult:0,end:Date.now()+15000};
+        setTimeout(()=>{s.genMult*=choice.val},15000);break;
+    }
+    this.showToast('⚡','Event Choice',`Applied: ${choice.label}`);
+    this.updateResources();
+  }
+
+  // ---- Prestige ----
+  showPrestigeModal(){
+    let s=this.state;
+    if(s.era<3){
+      this.showToast('✦','Not Ready','Reach the Medieval Era to Transcend.');
+      return;
+    }
+    let newMult=1+Math.log10(Math.max(1,s.totalInsight))*0.1;
+    let content=document.getElementById('modalContent');
+    content.innerHTML=`
+      <div id="prestigeUI">
+        <h2>✦ Transcendence</h2>
+        <p>Reset your progress to gain a permanent multiplier to ALL production.</p>
+        <p>Current multiplier: <strong style="color:var(--gold)">${s.prestigeMult.toFixed(2)}x</strong></p>
+        <p>New multiplier: <strong style="color:var(--success)">${(s.prestigeMult+newMult-1).toFixed(2)}x</strong></p>
+        <ul class="bonus-list">
+          <li>✓ Permanent ${newMult.toFixed(2)}x boost to all production</li>
+          <li>✓ Keep all achievements</li>
+          <li>✗ Reset generators, research, upgrades, and resources</li>
+        </ul>
+        <div class="modal-btns">
+          <button class="modal-btn primary" onclick="game.doPrestige()">Transcend</button>
+          <button class="modal-btn secondary" onclick="game.closeModal()">Not Yet</button>
+        </div>
+      </div>
+    `;
+    this.openModal();
+  }
+
+  doPrestige(){
+    let s=this.state;
+    let newMult=1+Math.log10(Math.max(1,s.totalInsight))*0.1;
+    s.prestigeMult+=newMult-1;
+    s.prestigeCount++;
+    // Keep: achievements, prestigeMult, prestigeCount, totalClicks, totalInsight, totalWisdom
+    s.insight=0;s.wisdom=0;s.era=0;s.eraInsight=0;
+    s.generators=[];s.research=[];s.upgrades=[];
+    s.combo=0;s.comboTimer=0;
+    s.clickMult=1;s.genMult=1;s.wisdomMult=1;s.autoClicks=0;
+    s.comboDecayMult=1;s.luckyMult=1;
+    s.challengeStreak=0;s.challengeCooldown=0;s.eventCooldown=0;
+    s.tempBoosts={genBoost:{mult:1,end:0},clickBoost:{mult:1,end:0},wisdomBoost:{mult:1,end:0}};
+    this.closeModal();
+    this.audio.playEraUp();
+    this.showToast('✦','Transcended!',`New multiplier: ${s.prestigeMult.toFixed(2)}x`);
+    this.renderAll();
+  }
+
+  // ---- UI ----
+  openModal(){document.getElementById('modalOverlay').classList.add('show')}
+  closeModal(){document.getElementById('modalOverlay').classList.remove('show')}
+
+  showToast(icon,title,desc){
+    let t=document.createElement('div');
+    t.className='toast';
+    t.innerHTML=`<div class="t-icon">${icon}</div><div class="t-info"><div class="t-title">${title}</div><div class="t-desc">${desc}</div></div>`;
+    document.getElementById('toastContainer').appendChild(t);
+    setTimeout(()=>t.remove(),4000);
+  }
+
+  setEvent(text){document.getElementById('eventText').textContent=text}
+
+  renderAll(){
+    this.renderGenerators();
+    this.renderResearch();
+    this.renderUpgrades();
+    this.renderAchievements();
+    this.updateResources();
+    this.updateEraBar();
+    this.updateOrbAppearance();
+  }
+
+  renderGenerators(){
+    let s=this.state;
+    let list=document.getElementById('genList');
+    let html='';
+    // Show current era and unlocked eras
+    for(let ei=0;ei<=Math.min(s.era,9);ei++){
+      let gens=GENERATORS[ei];
+      if(ei>0)html+=`<h3 style="margin-top:12px;color:${ERAS[ei].color}">${ERAS[ei].name}</h3>`;
+      for(let gi=0;gi<gens.length;gi++){
+        let g=gens[gi];
+        let owned=s.generators.find(x=>x.eraIdx===ei&&x.genIdx===gi);
+        let count=owned?owned.count:0;
+        let cost=this.getGenCost(ei,gi,count);
+        let affordable=s.insight>=cost;
+        let prod=g.base*Math.max(count,1)*s.genMult*s.prestigeMult;
+        for(let r of s.research){let rd=RESEARCH[r.eraIdx]?.[r.resIdx];if(rd?.mult)prod*=rd.mult}
+        for(let ui of s.upgrades){let u=UPGRADES[ui];if(u.type==='gen')prod*=u.val}
+        html+=`<div class="gen-card ${affordable?'affordable':''}" onclick="game.buyGenerator(${ei},${gi})">
+          <div class="gen-name"><span>${g.name}</span><span class="gen-count">x${count}</span></div>
+          <div class="gen-desc">${g.desc}</div>
+          <div class="gen-prod">+${fmt(g.base)}/s each (total: ${fmt(count>0?g.base*count:0)}/s)</div>
+          <div class="gen-cost">Cost: ${fmt(cost)} Insight</div>
+          <div class="gen-fact">${g.fact}</div>
+        </div>`;
+      }
+    }
+    list.innerHTML=html;
+  }
+
+  renderResearch(){
+    let s=this.state;
+    let tab=document.getElementById('researchTab');
+    let html='';
+    for(let ei=0;ei<=Math.min(s.era,9);ei++){
+      let res=RESEARCH[ei];
+      if(!res)continue;
+      html+=`<h3 style="font-size:0.85em;text-transform:uppercase;letter-spacing:2px;color:${ERAS[ei].color};margin:8px 0">${ERAS[ei].name}</h3>`;
+      for(let ri=0;ri<res.length;ri++){
+        let r=res[ri];
+        let owned=s.research.find(x=>x.eraIdx===ei&&x.resIdx===ri);
+        html+=`<div class="research-card ${owned?'owned':''}" onclick="game.buyResearch(${ei},${ri})">
+          <div class="r-name">${owned?'✅ ':''}${r.name}</div>
+          <div class="r-path ${r.path}">${r.path}</div>
+          <div class="r-desc">${r.effect}</div>
+          ${!owned?`<div class="r-cost">Cost: ${fmt(r.cost)} Insight</div>`:''}
+          <div class="r-fact">${r.fact}</div>
+        </div>`;
+      }
+    }
+    tab.innerHTML=html;
+  }
+
+  renderUpgrades(){
+    let s=this.state;
+    let tab=document.getElementById('upgradesTab');
+    let html='';
+    for(let i=0;i<UPGRADES.length;i++){
+      let u=UPGRADES[i];
+      let owned=s.upgrades.includes(i);
+      html+=`<div class="upgrade-card ${owned?'owned':''}" onclick="game.buyUpgrade(${i})">
+        <div class="u-name">${owned?'✅ ':''}${u.name}</div>
+        <div class="u-desc">${u.desc}</div>
+        ${!owned?`<div class="u-cost">Cost: ${fmt(u.cost)} Insight</div>`:''}
+      </div>`;
+    }
+    tab.innerHTML=html;
+  }
+
+  renderAchievements(){
+    let s=this.state;
+    let tab=document.getElementById('achievementsTab');
+    let html='';
+    for(let i=0;i<ACHIEVEMENTS.length;i++){
+      let a=ACHIEVEMENTS[i];
+      let earned=s.achievements.includes(i);
+      html+=`<div class="achiev-card ${earned?'earned':''}">
+        <div class="a-icon">${earned?a.icon:'🔒'}</div>
+        <div class="a-info">
+          <div class="a-name">${earned?a.name:'???'}</div>
+          <div class="a-desc">${earned?a.desc:'Keep playing to discover...'}</div>
+        </div>
+      </div>`;
+    }
+    tab.innerHTML=html;
+  }
+
+  updateResources(){
+    let s=this.state;
+    document.getElementById('insightVal').textContent=fmt(s.insight);
+    document.getElementById('wisdomVal').textContent=fmt(s.wisdom);
+    document.getElementById('ipsVal').textContent=fmt(this.getIPS())+'/s';
+    let clickVal=1*s.clickMult*s.prestigeMult;
+    for(let r of s.research){let rd=RESEARCH[r.eraIdx]?.[r.resIdx];if(rd?.clickMult)clickVal*=rd.clickMult}
+    for(let ui of s.upgrades){let u=UPGRADES[ui];if(u.type==='click')clickVal*=u.val}
+    document.getElementById('clickPower').textContent=fmt(clickVal);
+  }
+
+  updateEraBar(){
+    let s=this.state;
+    let nextEra=ERAS[s.era+1];
+    document.getElementById('eraName').textContent=ERAS[s.era].name;
+    if(nextEra){
+      let pct=Math.min(100,(s.totalInsight/nextEra.insightReq)*100);
+      document.getElementById('eraBarFill').style.width=pct+'%';
+    }else{
+      document.getElementById('eraBarFill').style.width='100%';
+    }
+  }
+
+  updateOrbAppearance(){
+    let era=ERAS[this.state.era];
+    let orb=document.getElementById('orb');
+    orb.style.background=`radial-gradient(circle at 35% 35%, ${era.color}88, ${era.color}44, #124)`;
+    orb.style.boxShadow=`0 0 40px ${era.color}66, 0 0 80px ${era.color}33, inset 0 0 30px rgba(255,255,255,0.1)`;
+  }
+
+  // ---- Game Loop ----
+  loop(){
+    if(!this.running)return;
+    let now=performance.now();
+    let dt=(now-this.lastTick)/1000;
+    this.lastTick=now;
+    this.tick(dt);
+    this.starField.update(this.state.era);
+    this.particleSys.update();
+    requestAnimationFrame(()=>this.loop());
+  }
+
+  tick(dt){
+    let s=this.state;
+    s.playTime+=dt;
+
+    // Insight from generators
+    let ips=this.getIPS();
+    let gain=ips*dt;
+    if(gain>0){
+      s.insight+=gain;s.totalInsight+=gain;s.eraInsight+=gain;
+    }
+
+    // Combo decay
+    if(s.comboTimer>0){
+      s.comboTimer-=dt*s.comboDecayMult;
+      if(s.comboTimer<=0){s.combo=0;s.comboTimer=0;document.getElementById('orb').className=''}
+    }
+
+    // Combo display
+    let cd=document.getElementById('comboDisplay');
+    if(s.combo>=2){
+      let mult=s.combo>=10?'5x':s.combo>=5?'3x':'1.5x';
+      cd.textContent=`🔥 Combo ${s.combo} (${mult})`;
+      cd.style.opacity='1';
+      cd.style.color=s.combo>=10?'#f8a':s.combo>=5?'#fda':'#adf';
+    }else{cd.style.opacity='0'}
+
+    // Challenge cooldown
+    if(s.challengeCooldown>0){
+      s.challengeCooldown-=dt;
+      let btn=document.getElementById('challengeBtn');
+      if(s.challengeCooldown>0){
+        btn.disabled=true;
+        btn.textContent=`🧠 Challenge (${Math.ceil(s.challengeCooldown)}s)`;
+      }else{
+        btn.disabled=false;
+        btn.textContent='🧠 Knowledge Challenge';
+        btn.classList.add('ready');
+      }
+    }
+
+    // Event timer
+    if(s.eventCooldown>0)s.eventCooldown-=dt;
+    else if(s.era>=1&&Math.random()<0.001){
+      this.triggerEvent();
+    }
+
+    // Wisdom quote
+    s.wisdomQuoteTimer-=dt;
+    if(s.wisdomQuoteTimer<=0){
+      s.wisdomQuoteTimer=30+Math.random()*30;
+      let wq=WISDOM_QUOTES[rr(0,WISDOM_QUOTES.length-1)];
+      let el=document.getElementById('wisdomQuote');
+      el.style.opacity='0';
+      setTimeout(()=>{
+        el.textContent=`"${wq.q}" — ${wq.a}`;
+        el.style.opacity='1';
+      },1000);
+      setTimeout(()=>{el.style.opacity='0'},10000);
+    }
+
+    // Update UI periodically (every ~200ms)
+    this._uiTimer=(this._uiTimer||0)+dt;
+    if(this._uiTimer>0.2){
+      this._uiTimer=0;
+      this.updateResources();
+      this.updateEraBar();
+      this.checkEra();
+      this.checkAchievements();
+      // Update play time display
+      let mins=Math.floor(s.playTime/60);
+      let hrs=Math.floor(mins/60);
+      mins%=60;
+      document.getElementById('playTime').textContent=hrs>0?`${hrs}:${String(mins).padStart(2,'0')}:${String(Math.floor(s.playTime%60)).padStart(2,'0')}`:`${mins}:${String(Math.floor(s.playTime%60)).padStart(2,'0')}`;
+      document.getElementById('totalClicks').textContent=fmt(s.totalClicks);
+    }
+
+    // Render generators affordability (every ~500ms)
+    this._genTimer=(this._genTimer||0)+dt;
+    if(this._genTimer>0.5){
+      this._genTimer=0;
+      document.querySelectorAll('.gen-card').forEach(card=>{
+        // Quick affordability check via data
+      });
+      this.renderGenerators();
+    }
+  }
+
+  // ---- Save/Load ----
+  save(){
+    let s={...this.state};
+    // Don't save function-based data
+    localStorage.setItem('cosmos_save',JSON.stringify(s));
+  }
+
+  load(){
+    let data=localStorage.getItem('cosmos_save');
+    if(!data)return;
+    try{
+      let saved=JSON.parse(data);
+      // Merge saved data
+      for(let k in saved){
+        if(k in this.state)this.state[k]=saved[k];
+      }
+      // Offline progress
+      let offlineTime=(Date.now()-this.state.lastSave)/1000;
+      if(offlineTime>10){
+        let ips=this.getIPS();
+        let offlineGain=ips*offlineTime*0.5;// 50% efficiency offline
+        if(offlineGain>0){
+          this.state.insight+=offlineGain;
+          this.state.totalInsight+=offlineGain;
+          this.state.eraInsight+=offlineGain;
+          setTimeout(()=>{
+            this.showToast('🌙','Welcome Back!',`Earned ${fmt(offlineGain)} Insight while away (${Math.floor(offlineTime/60)}m).`);
+          },500);
+        }
+      }
+      this.state.lastSave=Date.now();
+    }catch(e){console.error('Load failed:',e)}
+  }
+}
+
+// ==================== INITIALIZE ====================
+const game=new Game();
+window.addEventListener('load',()=>game.init());
+// Prevent context menu on orb
+document.addEventListener('contextmenu',(e)=>{
+  if(e.target.id==='orb'||e.target.id==='orbContainer')e.preventDefault();
+});
+</script>
+</body>
+</html>

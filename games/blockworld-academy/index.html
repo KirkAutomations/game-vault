@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlockWorld Academy - 3D Voxel Adventure</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { overflow: hidden; background: #000; font-family: 'Segoe UI', sans-serif; }
+canvas { display: block; }
+
+#menu {
+  position: fixed; inset: 0; z-index: 100;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+#menu h1 {
+  font-size: 52px; color: #00ff88; text-shadow: 0 0 30px #00ff8855;
+  margin-bottom: 8px; letter-spacing: 3px;
+}
+#menu .subtitle {
+  color: #88aacc; font-size: 18px; margin-bottom: 40px;
+}
+.mode-cards { display: flex; gap: 20px; flex-wrap: wrap; justify-content: center; max-width: 900px; }
+.mode-card {
+  width: 250px; padding: 25px; border-radius: 16px; cursor: pointer;
+  transition: all 0.3s; border: 2px solid transparent;
+  text-align: center;
+}
+.mode-card:hover { transform: translateY(-8px); border-color: #00ff88; }
+.mode-card h2 { font-size: 22px; margin-bottom: 10px; }
+.mode-card p { font-size: 13px; line-height: 1.5; }
+.mode-card .icon { font-size: 48px; margin-bottom: 12px; }
+
+.mode-free { background: rgba(0,200,100,0.15); }
+.mode-free h2 { color: #00ff88; }
+.mode-free p { color: #88ddaa; }
+
+.mode-survival { background: rgba(200,150,0,0.15); }
+.mode-survival h2 { color: #ffcc00; }
+.mode-survival p { color: #ddcc88; }
+
+.mode-hardcore { background: rgba(200,50,50,0.15); }
+.mode-hardcore h2 { color: #ff4444; }
+.mode-hardcore p { color: #dd8888; }
+
+#hud {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+  padding: 12px 20px; display: none;
+  background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+  pointer-events: none;
+}
+#hud > div { pointer-events: auto; }
+.hud-row { display: flex; justify-content: space-between; align-items: center; }
+.hud-stat {
+  color: #fff; font-size: 15px; padding: 4px 12px;
+  background: rgba(0,0,0,0.4); border-radius: 8px; margin: 2px 4px;
+}
+.hud-stat span { font-weight: bold; }
+
+#health-bar-container {
+  width: 200px; height: 18px; background: rgba(0,0,0,0.5);
+  border-radius: 9px; overflow: hidden; border: 1px solid #ff4444;
+}
+#health-bar {
+  width: 100%; height: 100%; background: linear-gradient(90deg, #ff4444, #ff6666);
+  transition: width 0.3s; border-radius: 9px;
+}
+
+#crosshair {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  z-index: 10; pointer-events: none; display: none;
+}
+#crosshair::before, #crosshair::after {
+  content: ''; position: absolute; background: rgba(255,255,255,0.8);
+}
+#crosshair::before { width: 20px; height: 2px; top: -1px; left: -10px; }
+#crosshair::after { width: 2px; height: 20px; top: -10px; left: -1px; }
+
+#quiz-modal {
+  position: fixed; inset: 0; z-index: 200; display: none;
+  background: rgba(0,0,0,0.85); align-items: center; justify-content: center;
+}
+#quiz-box {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  border: 2px solid #00ff88; border-radius: 16px; padding: 30px;
+  max-width: 500px; width: 90%; text-align: center;
+}
+#quiz-box h3 { color: #00ff88; font-size: 16px; margin-bottom: 8px; }
+#quiz-question { color: #fff; font-size: 20px; margin-bottom: 20px; }
+.quiz-answers { display: flex; flex-direction: column; gap: 10px; }
+.quiz-btn {
+  padding: 12px; border: 2px solid #335; border-radius: 10px;
+  background: rgba(0,100,200,0.2); color: #aaddff; font-size: 16px;
+  cursor: pointer; transition: all 0.2s;
+}
+.quiz-btn:hover { background: rgba(0,200,100,0.3); border-color: #00ff88; }
+.quiz-btn.correct { background: rgba(0,200,50,0.5); border-color: #00ff88; color: #fff; }
+.quiz-btn.wrong { background: rgba(200,0,0,0.5); border-color: #ff4444; color: #fff; }
+
+#quiz-result {
+  color: #fff; font-size: 18px; margin-top: 15px; min-height: 30px;
+}
+#quiz-fact {
+  color: #88ccaa; font-size: 14px; margin-top: 10px; font-style: italic;
+  min-height: 20px;
+}
+
+#game-over {
+  position: fixed; inset: 0; z-index: 150; display: none;
+  background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+  flex-direction: column;
+}
+#game-over h1 { color: #ff4444; font-size: 48px; margin-bottom: 10px; }
+#game-over .stats { color: #aaa; font-size: 18px; margin-bottom: 30px; text-align: center; line-height: 2; }
+#game-over button, #victory button {
+  padding: 14px 40px; font-size: 18px; border: 2px solid #00ff88;
+  background: rgba(0,200,100,0.2); color: #00ff88; border-radius: 10px;
+  cursor: pointer; transition: all 0.2s;
+}
+#game-over button:hover, #victory button:hover {
+  background: rgba(0,200,100,0.4);
+}
+
+#victory {
+  position: fixed; inset: 0; z-index: 150; display: none;
+  background: rgba(0,0,0,0.9); align-items: center; justify-content: center;
+  flex-direction: column;
+}
+#victory h1 { color: #00ff88; font-size: 48px; margin-bottom: 10px; }
+#victory .stats { color: #aaa; font-size: 18px; margin-bottom: 30px; text-align: center; line-height: 2; }
+
+#toolbar {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  z-index: 10; display: none; pointer-events: auto;
+}
+.toolbar-inner {
+  display: flex; gap: 4px; padding: 6px;
+  background: rgba(0,0,0,0.7); border-radius: 10px; border: 1px solid #444;
+}
+.tool-slot {
+  width: 50px; height: 50px; border-radius: 8px; border: 2px solid #555;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 24px; cursor: pointer; transition: all 0.2s;
+  background: rgba(50,50,70,0.6);
+}
+.tool-slot.active { border-color: #00ff88; background: rgba(0,200,100,0.2); }
+.tool-slot .key {
+  position: absolute; top: 2px; left: 4px; font-size: 10px; color: #888;
+}
+
+#damage-flash {
+  position: fixed; inset: 0; z-index: 9;
+  background: rgba(255,0,0,0.3); pointer-events: none;
+  opacity: 0; transition: opacity 0.1s;
+}
+
+#notification {
+  position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+  z-index: 20; color: #fff; font-size: 18px; padding: 10px 24px;
+  background: rgba(0,0,0,0.7); border-radius: 10px;
+  opacity: 0; transition: opacity 0.3s; pointer-events: none;
+  text-align: center;
+}
+
+#minimap {
+  position: fixed; bottom: 80px; right: 20px; z-index: 10;
+  width: 120px; height: 120px; border-radius: 50%;
+  border: 2px solid #00ff88; overflow: hidden; display: none;
+  background: rgba(0,0,0,0.5);
+}
+
+#instructions {
+  position: fixed; bottom: 80px; left: 20px; z-index: 10;
+  color: #888; font-size: 12px; line-height: 1.8; display: none;
+  background: rgba(0,0,0,0.4); padding: 10px 14px; border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<!-- MENU -->
+<div id="menu">
+  <h1>BLOCKWORLD ACADEMY</h1>
+  <p class="subtitle">Build, Fight, Learn - A 3D Voxel Adventure</p>
+  <div class="mode-cards">
+    <div class="mode-card mode-free" onclick="startGame('free')">
+      <div class="icon">&#x1f3d7;&#xfe0f;</div>
+      <h2>FREE MODE</h2>
+      <p>Unlimited health. Build freely. Learn at your pace. No pressure, just explore and create!</p>
+    </div>
+    <div class="mode-card mode-survival" onclick="startGame('survival')">
+      <div class="icon">&#x2694;&#xfe0f;</div>
+      <h2>SURVIVAL</h2>
+      <p>100 HP. Fight AI mobs. Answer questions to heal. Defeat the Boss to win!</p>
+    </div>
+    <div class="mode-card mode-hardcore" onclick="startGame('hardcore')">
+      <div class="icon">&#x1f480;</div>
+      <h2>HARDCORE</h2>
+      <p>50 HP. One life. Tougher enemies. Wrong answers deal damage. Only the smartest survive!</p>
+    </div>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hud">
+  <div class="hud-row">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div class="hud-stat">&#x2764;&#xfe0f; <span id="hud-health">100</span></div>
+      <div id="health-bar-container"><div id="health-bar"></div></div>
+      <div class="hud-stat" id="hud-mode-display">FREE</div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div class="hud-stat">&#x1f4a1; Score: <span id="hud-score">0</span></div>
+      <div class="hud-stat">&#x1f9e0; Correct: <span id="hud-correct">0</span></div>
+      <div class="hud-stat">&#x2620;&#xfe0f; Kills: <span id="hud-kills">0</span></div>
+    </div>
+  </div>
+</div>
+
+<div id="crosshair"></div>
+<div id="damage-flash"></div>
+<div id="notification"></div>
+
+<!-- QUIZ MODAL -->
+<div id="quiz-modal">
+  <div id="quiz-box">
+    <h3 id="quiz-category">SCIENCE</h3>
+    <p id="quiz-question">Loading...</p>
+    <div class="quiz-answers" id="quiz-answers"></div>
+    <p id="quiz-result"></p>
+    <p id="quiz-fact"></p>
+  </div>
+</div>
+
+<!-- GAME OVER -->
+<div id="game-over">
+  <h1>GAME OVER</h1>
+  <div class="stats" id="go-stats"></div>
+  <button onclick="location.reload()">Try Again</button>
+</div>
+
+<!-- VICTORY -->
+<div id="victory">
+  <h1>VICTORY!</h1>
+  <div class="stats" id="victory-stats"></div>
+  <button onclick="location.reload()">Play Again</button>
+</div>
+
+<!-- TOOLBAR -->
+<div id="toolbar">
+  <div class="toolbar-inner">
+    <div class="tool-slot active" data-slot="0" title="Sword">&#x2694;&#xfe0f;</div>
+    <div class="tool-slot" data-slot="1" title="Grass Block">&#x1f7e9;</div>
+    <div class="tool-slot" data-slot="2" title="Stone Block">&#x2b1c;</div>
+    <div class="tool-slot" data-slot="3" title="Wood Block">&#x1f7e7;</div>
+    <div class="tool-slot" data-slot="4" title="Pickaxe">&#x26cf;&#xfe0f;</div>
+  </div>
+</div>
+
+<!-- INSTRUCTIONS -->
+<div id="instructions">
+  WASD - Move &nbsp;|&nbsp; SPACE - Jump<br>
+  Hold Left Mouse + Drag - Look Around<br>
+  Click - Attack/Place &nbsp;|&nbsp; Right Click - Remove<br>
+  1-5 - Switch Tools &nbsp;|&nbsp; ESC - Menu
+</div>
+
+<canvas id="minimap"></canvas>
+
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.163.0/build/three.module.js" } }
+</script>
+<script type="module">
+import * as THREE from 'three';
+
+// ==================== GAME STATE ====================
+const state = {
+  mode: 'free',
+  health: 100, maxHealth: 100,
+  score: 0, kills: 0, correctAnswers: 0, totalQuestions: 0,
+  selectedSlot: 0,
+  gameActive: false,
+  paused: false,
+  bossSpawned: false, bossDefeated: false,
+  dayTime: 0,
+};
+
+const keys = {};
+const blocks = new Map();
+const enemies = [];
+const particles = [];
+const projectiles = [];
+let playerVelY = 0;
+let onGround = false;
+const GRAVITY = -25;
+const JUMP_SPEED = 9;
+const PLAYER_HEIGHT = 1.7;
+const BLOCK_TYPES = {
+  grass: { color: 0x4caf50, topColor: 0x66bb6a },
+  stone: { color: 0x9e9e9e },
+  wood: { color: 0x8d6e63 },
+  dirt: { color: 0x795548 },
+  sand: { color: 0xffeb3b },
+  water: { color: 0x2196f3, transparent: true },
+  leaf: { color: 0x2e7d32 },
+  ore: { color: 0x7b1fa2 },
+  boss_block: { color: 0xff1744 },
+};
+
+// ==================== EDUCATIONAL CONTENT ====================
+const questions = [
+  // SCIENCE
+  { cat: "SCIENCE", q: "What planet is known as the Red Planet?", a: ["Mars","Venus","Jupiter","Saturn"], c: 0,
+    fact: "Mars appears red because of iron oxide (rust) on its surface!" },
+  { cat: "SCIENCE", q: "What gas do plants absorb from the air?", a: ["Carbon Dioxide","Oxygen","Nitrogen","Helium"], c: 0,
+    fact: "Plants use CO2 + sunlight + water to make glucose through photosynthesis!" },
+  { cat: "SCIENCE", q: "What is the hardest natural substance?", a: ["Diamond","Steel","Titanium","Quartz"], c: 0,
+    fact: "Diamond is pure carbon arranged in a crystal structure, scoring 10 on the Mohs scale!" },
+  { cat: "SCIENCE", q: "How many bones are in the adult human body?", a: ["206","186","305","150"], c: 0,
+    fact: "Babies are born with about 270 bones, but many fuse together as they grow!" },
+  { cat: "SCIENCE", q: "What is the speed of light?", a: ["300,000 km/s","150,000 km/s","500,000 km/s","1,000 km/s"], c: 0,
+    fact: "Light travels so fast it could circle Earth 7.5 times in one second!" },
+  { cat: "SCIENCE", q: "What element does 'O' represent?", a: ["Oxygen","Osmium","Oganesson","Gold"], c: 0,
+    fact: "Oxygen makes up about 21% of Earth's atmosphere and is essential for combustion!" },
+  { cat: "SCIENCE", q: "Which organ pumps blood through the body?", a: ["Heart","Liver","Brain","Lungs"], c: 0,
+    fact: "Your heart beats about 100,000 times per day, pumping 2,000 gallons of blood!" },
+  // MATH
+  { cat: "MATH", q: "What is 15 x 15?", a: ["225","215","250","200"], c: 0,
+    fact: "Quick trick: for squaring numbers ending in 5, multiply the tens digit by (tens+1) and append 25!" },
+  { cat: "MATH", q: "What is the square root of 144?", a: ["12","14","11","13"], c: 0,
+    fact: "144 is called a 'gross' - it's 12 dozen! It appears often in geometry." },
+  { cat: "MATH", q: "What is 2 to the power of 10?", a: ["1024","1000","512","2048"], c: 0,
+    fact: "Powers of 2 are fundamental in computing - 1024 bytes = 1 kilobyte!" },
+  { cat: "MATH", q: "How many degrees in a triangle?", a: ["180","360","90","270"], c: 0,
+    fact: "This works for ANY triangle - the interior angles always sum to 180 degrees!" },
+  { cat: "MATH", q: "What is the value of Pi (first 3 digits)?", a: ["3.14","3.41","2.71","3.12"], c: 0,
+    fact: "Pi is irrational - its digits never end or repeat! It's the ratio of circumference to diameter." },
+  // HISTORY
+  { cat: "HISTORY", q: "In what year did World War II end?", a: ["1945","1943","1948","1940"], c: 0,
+    fact: "WWII ended with Japan's surrender on September 2, 1945 (V-J Day)." },
+  { cat: "HISTORY", q: "Who was the first President of the USA?", a: ["George Washington","John Adams","Thomas Jefferson","Benjamin Franklin"], c: 0,
+    fact: "Washington was unanimously elected and set the precedent of serving only two terms!" },
+  { cat: "HISTORY", q: "What ancient wonder was in Egypt?", a: ["Great Pyramid of Giza","Colossus of Rhodes","Hanging Gardens","Lighthouse of Alexandria"], c: 0,
+    fact: "The Great Pyramid is the ONLY ancient wonder still standing today, built around 2560 BC!" },
+  // GEOGRAPHY
+  { cat: "GEOGRAPHY", q: "What is the largest ocean?", a: ["Pacific","Atlantic","Indian","Arctic"], c: 0,
+    fact: "The Pacific Ocean covers more area than all the land on Earth combined!" },
+  { cat: "GEOGRAPHY", q: "What is the longest river in the world?", a: ["Nile","Amazon","Mississippi","Yangtze"], c: 0,
+    fact: "The Nile flows through 11 countries and is approximately 6,650 km long!" },
+  { cat: "GEOGRAPHY", q: "Which continent is the largest?", a: ["Asia","Africa","North America","Europe"], c: 0,
+    fact: "Asia covers about 30% of Earth's total land area and holds 60% of its population!" },
+  // TECHNOLOGY
+  { cat: "TECH", q: "What does CPU stand for?", a: ["Central Processing Unit","Computer Personal Unit","Central Power Unit","Core Processing Unit"], c: 0,
+    fact: "Modern CPUs contain billions of transistors and can perform trillions of calculations per second!" },
+  { cat: "TECH", q: "What language is used to style web pages?", a: ["CSS","HTML","Python","Java"], c: 0,
+    fact: "CSS stands for Cascading Style Sheets - the 'cascading' means styles can inherit and override!" },
+  { cat: "TECH", q: "Who is known as the father of computers?", a: ["Charles Babbage","Alan Turing","Bill Gates","Steve Jobs"], c: 0,
+    fact: "Babbage designed the Analytical Engine in the 1830s - a mechanical general-purpose computer!" },
+  { cat: "TECH", q: "What does HTML stand for?", a: ["HyperText Markup Language","High Tech Modern Language","Hyper Transfer Meta Language","Home Tool Markup Language"], c: 0,
+    fact: "HTML was created by Tim Berners-Lee in 1991 - the foundation of every web page!" },
+  // NATURE
+  { cat: "NATURE", q: "What is the tallest type of tree?", a: ["Redwood","Oak","Pine","Maple"], c: 0,
+    fact: "The tallest known tree is Hyperion, a coast redwood standing 380 feet (116m) tall!" },
+  { cat: "NATURE", q: "How many legs does a spider have?", a: ["8","6","10","12"], c: 0,
+    fact: "Spiders are arachnids, not insects. They also have 8 eyes (most species)!" },
+  { cat: "NATURE", q: "What is the fastest land animal?", a: ["Cheetah","Lion","Horse","Gazelle"], c: 0,
+    fact: "Cheetahs can reach 70 mph (112 km/h) in just 3 seconds - faster than most sports cars!" },
+];
+
+// ==================== THREE.JS SETUP ====================
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 300);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+document.body.appendChild(renderer.domElement);
+
+// Sky
+scene.background = new THREE.Color(0x87ceeb);
+scene.fog = new THREE.Fog(0x87ceeb, 80, 200);
+
+// Lighting
+const ambientLight = new THREE.AmbientLight(0x606080, 0.6);
+scene.add(ambientLight);
+const sunLight = new THREE.DirectionalLight(0xfff5e0, 1.2);
+sunLight.position.set(50, 80, 30);
+sunLight.castShadow = true;
+sunLight.shadow.mapSize.set(2048, 2048);
+sunLight.shadow.camera.near = 0.5;
+sunLight.shadow.camera.far = 200;
+sunLight.shadow.camera.left = -60;
+sunLight.shadow.camera.right = 60;
+sunLight.shadow.camera.top = 60;
+sunLight.shadow.camera.bottom = -60;
+scene.add(sunLight);
+
+const hemiLight = new THREE.HemisphereLight(0x87ceeb, 0x556633, 0.4);
+scene.add(hemiLight);
+
+// ==================== BLOCK SYSTEM ====================
+const blockGeo = new THREE.BoxGeometry(1, 1, 1);
+const blockMaterials = {};
+for (const [name, info] of Object.entries(BLOCK_TYPES)) {
+  blockMaterials[name] = new THREE.MeshLambertMaterial({
+    color: info.color,
+    transparent: !!info.transparent,
+    opacity: info.transparent ? 0.6 : 1,
+  });
+}
+
+function blockKey(x, y, z) { return `${x},${y},${z}`; }
+
+function placeBlock(x, y, z, type = 'grass') {
+  const key = blockKey(x, y, z);
+  if (blocks.has(key)) return;
+  const mesh = new THREE.Mesh(blockGeo, blockMaterials[type].clone());
+  mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData = { type, bx: x, by: y, bz: z };
+  scene.add(mesh);
+  blocks.set(key, mesh);
+}
+
+function removeBlock(x, y, z) {
+  const key = blockKey(x, y, z);
+  const mesh = blocks.get(key);
+  if (mesh) {
+    scene.remove(mesh);
+    blocks.delete(key);
+    spawnParticles(x + 0.5, y + 0.5, z + 0.5, mesh.material.color);
+  }
+}
+
+// ==================== WORLD GENERATION ====================
+function generateWorld() {
+  const SIZE = 40;
+  const HALF = SIZE / 2;
+  // Heightmap with simple noise
+  function height(x, z) {
+    return Math.floor(
+      Math.sin(x * 0.1) * 2 + Math.cos(z * 0.12) * 2 +
+      Math.sin((x + z) * 0.07) * 3 + 5
+    );
+  }
+
+  for (let x = -HALF; x < HALF; x++) {
+    for (let z = -HALF; z < HALF; z++) {
+      const h = height(x, z);
+      // Top layer
+      if (h <= 2) {
+        placeBlock(x, h, z, 'sand');
+      } else {
+        placeBlock(x, h, z, 'grass');
+      }
+      // Underground
+      for (let y = h - 1; y >= h - 3; y--) {
+        if (y < h - 1) placeBlock(x, y, z, 'stone');
+        else placeBlock(x, y, z, 'dirt');
+      }
+      // Ore veins
+      if (Math.random() < 0.02 && h > 3) {
+        placeBlock(x, h - 2, z, 'ore');
+      }
+      // Water in low areas
+      if (h <= 2) {
+        for (let wy = h + 1; wy <= 3; wy++) {
+          placeBlock(x, wy, z, 'water');
+        }
+      }
+    }
+  }
+
+  // Trees
+  for (let i = 0; i < 30; i++) {
+    const tx = Math.floor(Math.random() * SIZE) - HALF;
+    const tz = Math.floor(Math.random() * SIZE) - HALF;
+    const th = height(tx, tz);
+    if (th > 3) {
+      const treeH = 4 + Math.floor(Math.random() * 3);
+      for (let y = 1; y <= treeH; y++) placeBlock(tx, th + y, tz, 'wood');
+      // Leaves
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let lz = -2; lz <= 2; lz++) {
+          for (let ly = treeH - 1; ly <= treeH + 2; ly++) {
+            if (Math.abs(lx) + Math.abs(lz) <= 3 && !(lx === 0 && lz === 0 && ly <= treeH)) {
+              placeBlock(tx + lx, th + ly, tz + lz, 'leaf');
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Educational landmark structures
+  buildPyramid(12, 0, 12);
+  buildLab(-12, 0, -12);
+}
+
+function buildPyramid(cx, baseY, cz) {
+  function h(x, z) {
+    return Math.floor(
+      Math.sin(x * 0.1) * 2 + Math.cos(z * 0.12) * 2 +
+      Math.sin((x + z) * 0.07) * 3 + 5
+    );
+  }
+  const by = h(cx, cz) + 1;
+  for (let layer = 0; layer < 5; layer++) {
+    const size = 5 - layer;
+    for (let x = -size; x <= size; x++) {
+      for (let z = -size; z <= size; z++) {
+        placeBlock(cx + x, by + layer, cz + z, 'sand');
+      }
+    }
+  }
+}
+
+function buildLab(cx, baseY, cz) {
+  function h(x, z) {
+    return Math.floor(
+      Math.sin(x * 0.1) * 2 + Math.cos(z * 0.12) * 2 +
+      Math.sin((x + z) * 0.07) * 3 + 5
+    );
+  }
+  const by = h(cx, cz) + 1;
+  for (let x = -3; x <= 3; x++) {
+    for (let z = -3; z <= 3; z++) {
+      placeBlock(cx + x, by, cz + z, 'stone');
+      placeBlock(cx + x, by + 4, cz + z, 'stone');
+      if (Math.abs(x) === 3 || Math.abs(z) === 3) {
+        for (let y = 1; y <= 3; y++) {
+          if (!(Math.abs(x) <= 1 && z === -3 && y <= 2)) {
+            placeBlock(cx + x, by + y, cz + z, 'stone');
+          }
+        }
+      }
+    }
+  }
+  // Ore display inside
+  placeBlock(cx, by + 1, cz, 'ore');
+  placeBlock(cx + 1, by + 1, cz, 'ore');
+  placeBlock(cx - 1, by + 1, cz, 'ore');
+}
+
+// ==================== ENEMY SYSTEM ====================
+class Enemy {
+  constructor(x, y, z, type = 'normal') {
+    this.type = type;
+    this.hp = type === 'boss' ? 200 : (type === 'strong' ? 40 : 20);
+    this.maxHp = this.hp;
+    this.damage = type === 'boss' ? 20 : (type === 'strong' ? 12 : 8);
+    this.speed = type === 'boss' ? 3 : (type === 'strong' ? 2.5 : 2);
+    this.attackCooldown = 0;
+    this.alive = true;
+    this.questionTriggered = false;
+
+    const size = type === 'boss' ? 2 : (type === 'strong' ? 1.2 : 0.9);
+    const color = type === 'boss' ? 0xff1744 : (type === 'strong' ? 0xff9800 : 0x9c27b0);
+
+    // Body
+    this.group = new THREE.Group();
+    const bodyGeo = new THREE.BoxGeometry(size, size * 1.4, size);
+    const bodyMat = new THREE.MeshLambertMaterial({ color });
+    this.bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
+    this.bodyMesh.castShadow = true;
+    this.bodyMesh.position.y = size * 0.7;
+    this.group.add(this.bodyMesh);
+
+    // Eyes
+    const eyeGeo = new THREE.BoxGeometry(size * 0.2, size * 0.2, size * 0.1);
+    const eyeMat = new THREE.MeshLambertMaterial({ color: 0xff0000, emissive: 0xff0000, emissiveIntensity: 0.5 });
+    const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+    const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+    eye1.position.set(-size * 0.2, size * 0.9, size * 0.5);
+    eye2.position.set(size * 0.2, size * 0.9, size * 0.5);
+    this.group.add(eye1, eye2);
+
+    // Health bar
+    const hbGeo = new THREE.PlaneGeometry(size * 1.5, 0.15);
+    const hbBg = new THREE.Mesh(hbGeo, new THREE.MeshBasicMaterial({ color: 0x333333 }));
+    this.hbFill = new THREE.Mesh(hbGeo, new THREE.MeshBasicMaterial({ color: 0xff0000 }));
+    hbBg.position.y = size * 1.8;
+    this.hbFill.position.y = size * 1.8;
+    this.group.add(hbBg, this.hbFill);
+
+    if (type === 'boss') {
+      // Crown for boss
+      const crownGeo = new THREE.ConeGeometry(size * 0.3, size * 0.5, 4);
+      const crownMat = new THREE.MeshLambertMaterial({ color: 0xffd700, emissive: 0xffd700, emissiveIntensity: 0.3 });
+      for (let i = 0; i < 3; i++) {
+        const spike = new THREE.Mesh(crownGeo, crownMat);
+        spike.position.set((i - 1) * size * 0.4, size * 1.7, 0);
+        this.group.add(spike);
+      }
+    }
+
+    this.group.position.set(x, y, z);
+    this.size = size;
+    scene.add(this.group);
+  }
+
+  update(dt, playerPos) {
+    if (!this.alive) return;
+
+    // Look at player
+    const dx = playerPos.x - this.group.position.x;
+    const dz = playerPos.z - this.group.position.z;
+    const dist = Math.sqrt(dx * dx + dz * dz);
+    this.group.rotation.y = Math.atan2(dx, dz);
+
+    // Move toward player if in range
+    if (dist < 30 && dist > 1.5) {
+      const moveX = (dx / dist) * this.speed * dt;
+      const moveZ = (dz / dist) * this.speed * dt;
+      const newX = this.group.position.x + moveX;
+      const newZ = this.group.position.z + moveZ;
+
+      // Simple ground following
+      let groundY = -10;
+      for (let cy = 20; cy >= 0; cy--) {
+        if (blocks.has(blockKey(Math.floor(newX), cy, Math.floor(newZ)))) {
+          groundY = cy + 1;
+          break;
+        }
+      }
+      if (groundY >= 0) {
+        this.group.position.x = newX;
+        this.group.position.z = newZ;
+        this.group.position.y = groundY;
+      }
+    }
+
+    // Bob animation
+    this.bodyMesh.position.y = this.size * 0.7 + Math.sin(Date.now() * 0.003) * 0.15;
+
+    // Attack player
+    this.attackCooldown -= dt;
+    if (dist < 2.5 && this.attackCooldown <= 0) {
+      this.attackCooldown = 1.5;
+      damagePlayer(this.damage);
+    }
+
+    // Boss shoots projectiles
+    if (this.type === 'boss' && dist < 20 && dist > 3 && Math.random() < dt * 0.5) {
+      shootProjectile(this.group.position.clone(), playerPos.clone());
+    }
+
+    // Update health bar
+    const ratio = this.hp / this.maxHp;
+    this.hbFill.scale.x = Math.max(0.01, ratio);
+  }
+
+  takeDamage(amount) {
+    this.hp -= amount;
+    // Flash white
+    this.bodyMesh.material.emissive.setHex(0xffffff);
+    this.bodyMesh.material.emissiveIntensity = 1;
+    setTimeout(() => {
+      if (this.bodyMesh.material) {
+        this.bodyMesh.material.emissiveIntensity = 0;
+      }
+    }, 100);
+
+    if (this.hp <= 0) {
+      this.alive = false;
+      spawnParticles(this.group.position.x, this.group.position.y + 1, this.group.position.z,
+        new THREE.Color(this.type === 'boss' ? 0xff1744 : 0x9c27b0), 30);
+      scene.remove(this.group);
+      state.kills++;
+      state.score += this.type === 'boss' ? 500 : (this.type === 'strong' ? 100 : 50);
+      updateHUD();
+
+      if (this.type === 'boss') {
+        state.bossDefeated = true;
+        setTimeout(showVictory, 1000);
+      }
+
+      // Trigger quiz on kill
+      if (!this.questionTriggered) {
+        this.questionTriggered = true;
+        setTimeout(() => showQuiz(), 500);
+      }
+    }
+  }
+}
+
+function shootProjectile(from, to) {
+  const dir = to.sub(from).normalize();
+  const geo = new THREE.SphereGeometry(0.2, 8, 8);
+  const mat = new THREE.MeshBasicMaterial({ color: 0xff4444, emissive: 0xff0000 });
+  const mesh = new THREE.Mesh(geo, mat);
+  mesh.position.copy(from);
+  mesh.position.y += 1;
+  scene.add(mesh);
+  projectiles.push({ mesh, dir, speed: 12, life: 3 });
+}
+
+function spawnEnemies() {
+  if (state.mode === 'free') return;
+  const count = state.mode === 'hardcore' ? 8 : 5;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const dist = 15 + Math.random() * 15;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+    let gy = 0;
+    for (let cy = 20; cy >= 0; cy--) {
+      if (blocks.has(blockKey(Math.floor(x), cy, Math.floor(z)))) { gy = cy + 1; break; }
+    }
+    const type = (i < 2 && state.mode === 'hardcore') ? 'strong' : 'normal';
+    enemies.push(new Enemy(x, gy, z, type));
+  }
+}
+
+function spawnBoss() {
+  if (state.bossSpawned) return;
+  state.bossSpawned = true;
+  notify("THE BOSS HAS APPEARED! Defeat it to win!", 4000);
+  const boss = new Enemy(0, 15, 20, 'boss');
+  enemies.push(boss);
+}
+
+// ==================== PARTICLES ====================
+function spawnParticles(x, y, z, color, count = 10) {
+  for (let i = 0; i < count; i++) {
+    const geo = new THREE.BoxGeometry(0.15, 0.15, 0.15);
+    const mat = new THREE.MeshBasicMaterial({ color: color.clone ? color : new THREE.Color(color) });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, y, z);
+    const vel = new THREE.Vector3(
+      (Math.random() - 0.5) * 5,
+      Math.random() * 5 + 2,
+      (Math.random() - 0.5) * 5
+    );
+    scene.add(mesh);
+    particles.push({ mesh, vel, life: 1 + Math.random() });
+  }
+}
+
+// ==================== QUIZ SYSTEM ====================
+let quizResolve = null;
+const usedQuestions = new Set();
+
+function showQuiz() {
+  if (state.paused) return;
+  state.paused = true;
+
+  // Pick unused question
+  let availableQs = questions.filter((_, i) => !usedQuestions.has(i));
+  if (availableQs.length === 0) { usedQuestions.clear(); availableQs = questions; }
+  const idx = questions.indexOf(availableQs[Math.floor(Math.random() * availableQs.length)]);
+  usedQuestions.add(idx);
+  const q = questions[idx];
+
+  document.getElementById('quiz-category').textContent = q.cat;
+  document.getElementById('quiz-question').textContent = q.q;
+  document.getElementById('quiz-result').textContent = '';
+  document.getElementById('quiz-fact').textContent = '';
+
+  const answersDiv = document.getElementById('quiz-answers');
+  answersDiv.innerHTML = '';
+
+  // Shuffle answers
+  const indices = [0, 1, 2, 3];
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+
+  indices.forEach(origIdx => {
+    const btn = document.createElement('button');
+    btn.className = 'quiz-btn';
+    btn.textContent = q.a[origIdx];
+    btn.onclick = () => handleAnswer(origIdx === q.c, q, answersDiv);
+    answersDiv.appendChild(btn);
+  });
+
+  document.getElementById('quiz-modal').style.display = 'flex';
+  mouseLocked = false;
+  hasLastMouse = false;
+  renderer.domElement.style.cursor = 'default';
+  try { document.exitPointerLock(); } catch(err) {}
+}
+
+function handleAnswer(correct, q, container) {
+  state.totalQuestions++;
+  const btns = container.querySelectorAll('.quiz-btn');
+  btns.forEach(btn => {
+    btn.disabled = true;
+    if (btn.textContent === q.a[q.c]) btn.classList.add('correct');
+    else btn.classList.add('wrong');
+  });
+
+  const resultEl = document.getElementById('quiz-result');
+  const factEl = document.getElementById('quiz-fact');
+
+  if (correct) {
+    state.correctAnswers++;
+    state.score += 100;
+    resultEl.textContent = "Correct! +100 points!";
+    resultEl.style.color = '#00ff88';
+    if (state.mode !== 'free') {
+      state.health = Math.min(state.maxHealth, state.health + 15);
+      resultEl.textContent += " +15 HP healed!";
+    }
+  } else {
+    resultEl.textContent = `Wrong! The answer was: ${q.a[q.c]}`;
+    resultEl.style.color = '#ff4444';
+    if (state.mode === 'hardcore') {
+      damagePlayer(10, true);
+      resultEl.textContent += " -10 HP penalty!";
+    }
+  }
+  factEl.textContent = q.fact;
+  updateHUD();
+
+  setTimeout(() => {
+    document.getElementById('quiz-modal').style.display = 'none';
+    state.paused = false;
+    mouseLocked = true;
+    hasLastMouse = false;
+    renderer.domElement.style.cursor = 'none';
+    try { renderer.domElement.requestPointerLock(); } catch(err) {}
+  }, 2500);
+}
+
+// ==================== PLAYER MECHANICS ====================
+function damagePlayer(amount, skipFlash = false) {
+  if (state.mode === 'free') return;
+  state.health -= amount;
+  if (!skipFlash) {
+    const flash = document.getElementById('damage-flash');
+    flash.style.opacity = '1';
+    setTimeout(() => flash.style.opacity = '0', 200);
+  }
+  if (state.health <= 0) {
+    state.health = 0;
+    state.gameActive = false;
+    showGameOver();
+  }
+  updateHUD();
+}
+
+function updateHUD() {
+  document.getElementById('hud-health').textContent = Math.max(0, Math.round(state.health));
+  document.getElementById('health-bar').style.width = Math.max(0, (state.health / state.maxHealth) * 100) + '%';
+  document.getElementById('hud-score').textContent = state.score;
+  document.getElementById('hud-correct').textContent = state.correctAnswers;
+  document.getElementById('hud-kills').textContent = state.kills;
+}
+
+function notify(text, duration = 2000) {
+  const el = document.getElementById('notification');
+  el.textContent = text;
+  el.style.opacity = '1';
+  setTimeout(() => el.style.opacity = '0', duration);
+}
+
+function showGameOver() {
+  mouseLocked = false; hasLastMouse = false;
+  renderer.domElement.style.cursor = 'default';
+  try { document.exitPointerLock(); } catch(err) {}
+  const stats = document.getElementById('go-stats');
+  stats.innerHTML = `Score: ${state.score}<br>Enemies Defeated: ${state.kills}<br>` +
+    `Questions: ${state.correctAnswers}/${state.totalQuestions} correct<br>Mode: ${state.mode.toUpperCase()}`;
+  document.getElementById('game-over').style.display = 'flex';
+}
+
+function showVictory() {
+  mouseLocked = false; hasLastMouse = false;
+  renderer.domElement.style.cursor = 'default';
+  try { document.exitPointerLock(); } catch(err) {}
+  state.gameActive = false;
+  const stats = document.getElementById('victory-stats');
+  stats.innerHTML = `BOSS DEFEATED!<br>Score: ${state.score}<br>Enemies Defeated: ${state.kills}<br>` +
+    `Questions: ${state.correctAnswers}/${state.totalQuestions} correct<br>Mode: ${state.mode.toUpperCase()}`;
+  document.getElementById('victory').style.display = 'flex';
+}
+
+// ==================== RAYCASTING ====================
+const raycaster = new THREE.Raycaster();
+raycaster.far = 8;
+
+function getTargetBlock() {
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const allBlocks = Array.from(blocks.values());
+  const hits = raycaster.intersectObjects(allBlocks);
+  if (hits.length > 0) {
+    return hits[0];
+  }
+  return null;
+}
+
+function attackEnemies() {
+  raycaster.setFromCamera(new THREE.Vector2(0, 0), camera);
+  const enemyMeshes = [];
+  enemies.forEach(e => { if (e.alive) enemyMeshes.push(...e.group.children); });
+  const hits = raycaster.intersectObjects(enemyMeshes);
+
+  if (hits.length > 0) {
+    const hitObj = hits[0].object;
+    for (const enemy of enemies) {
+      if (enemy.alive && enemy.group.children.includes(hitObj)) {
+        const dmg = state.mode === 'hardcore' ? 15 : 10;
+        enemy.takeDamage(dmg);
+        spawnParticles(hits[0].point.x, hits[0].point.y, hits[0].point.z, new THREE.Color(0xff0000), 5);
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+// ==================== COLLISION ====================
+function checkCollision(x, y, z) {
+  const px = Math.floor(x);
+  const pz = Math.floor(z);
+  for (let cy = Math.floor(y); cy < Math.floor(y) + 2; cy++) {
+    for (let ox = -1; ox <= 1; ox++) {
+      for (let oz = -1; oz <= 1; oz++) {
+        const key = blockKey(px + ox, cy, pz + oz);
+        if (blocks.has(key)) {
+          const b = blocks.get(key);
+          if (b.userData.type === 'water') continue;
+          const bx = px + ox + 0.5, bz = pz + oz + 0.5;
+          if (Math.abs(x - bx) < 0.8 && Math.abs(z - bz) < 0.8 && y < cy + 1 && y + PLAYER_HEIGHT > cy) {
+            return true;
+          }
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function getGroundY(x, z) {
+  const px = Math.floor(x);
+  const pz = Math.floor(z);
+  for (let cy = 30; cy >= 0; cy--) {
+    if (blocks.has(blockKey(px, cy, pz))) {
+      const b = blocks.get(blockKey(px, cy, pz));
+      if (b.userData.type !== 'water') return cy + 1;
+    }
+  }
+  return 0;
+}
+
+// ==================== MINIMAP ====================
+const minimapCanvas = document.getElementById('minimap');
+const minimapCtx = minimapCanvas.getContext('2d');
+minimapCanvas.width = 120;
+minimapCanvas.height = 120;
+
+function updateMinimap() {
+  minimapCtx.fillStyle = '#111';
+  minimapCtx.fillRect(0, 0, 120, 120);
+
+  const cx = camera.position.x;
+  const cz = camera.position.z;
+  const scale = 2;
+
+  // Draw blocks
+  for (const [key, mesh] of blocks) {
+    const [bx, by, bz] = key.split(',').map(Number);
+    const sx = 60 + (bx - cx) * scale;
+    const sz = 60 + (bz - cz) * scale;
+    if (sx < 0 || sx > 120 || sz < 0 || sz > 120) continue;
+    const c = mesh.material.color;
+    minimapCtx.fillStyle = `rgb(${c.r*255|0},${c.g*255|0},${c.b*255|0})`;
+    minimapCtx.fillRect(sx, sz, scale, scale);
+  }
+
+  // Draw enemies
+  enemies.forEach(e => {
+    if (!e.alive) return;
+    const sx = 60 + (e.group.position.x - cx) * scale;
+    const sz = 60 + (e.group.position.z - cz) * scale;
+    minimapCtx.fillStyle = e.type === 'boss' ? '#ff0' : '#f00';
+    minimapCtx.fillRect(sx - 2, sz - 2, 4, 4);
+  });
+
+  // Player dot
+  minimapCtx.fillStyle = '#0f0';
+  minimapCtx.beginPath();
+  minimapCtx.arc(60, 60, 3, 0, Math.PI * 2);
+  minimapCtx.fill();
+
+  // Direction indicator
+  const dir = new THREE.Vector3(0, 0, -1);
+  dir.applyQuaternion(camera.quaternion);
+  minimapCtx.strokeStyle = '#0f0';
+  minimapCtx.lineWidth = 2;
+  minimapCtx.beginPath();
+  minimapCtx.moveTo(60, 60);
+  minimapCtx.lineTo(60 + dir.x * 10, 60 + dir.z * 10);
+  minimapCtx.stroke();
+}
+
+// ==================== GAME LOOP ====================
+const euler = new THREE.Euler(0, 0, 0, 'YXZ');
+let lastTime = performance.now();
+let quizTimer = 0;
+let enemySpawnTimer = 0;
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+
+  if (!state.gameActive || state.paused) {
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // Day/night cycle
+  state.dayTime += dt * 0.02;
+  const dayFactor = (Math.sin(state.dayTime) + 1) / 2;
+  const skyColor = new THREE.Color().lerpColors(
+    new THREE.Color(0x0a0a2a), new THREE.Color(0x87ceeb), dayFactor
+  );
+  scene.background = skyColor;
+  scene.fog.color = skyColor;
+  sunLight.intensity = 0.3 + dayFactor * 1.0;
+  ambientLight.intensity = 0.2 + dayFactor * 0.5;
+
+  // Player movement
+  const speed = 6;
+  const moveDir = new THREE.Vector3();
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0; forward.normalize();
+  const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0));
+
+  if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
+  if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
+  if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(right);
+  if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(right);
+  if (moveDir.length() > 0) moveDir.normalize();
+
+  // Apply gravity
+  playerVelY += GRAVITY * dt;
+  if (keys['Space'] && onGround) {
+    playerVelY = JUMP_SPEED;
+    onGround = false;
+  }
+
+  // Horizontal movement with collision
+  const newX = camera.position.x + moveDir.x * speed * dt;
+  const newZ = camera.position.z + moveDir.z * speed * dt;
+  const feetY = camera.position.y - PLAYER_HEIGHT;
+
+  if (!checkCollision(newX, feetY, camera.position.z)) camera.position.x = newX;
+  if (!checkCollision(camera.position.x, feetY, newZ)) camera.position.z = newZ;
+
+  // Vertical movement
+  const newFeetY = feetY + playerVelY * dt;
+  const groundY = getGroundY(camera.position.x, camera.position.z);
+
+  if (newFeetY <= groundY) {
+    camera.position.y = groundY + PLAYER_HEIGHT;
+    playerVelY = 0;
+    onGround = true;
+  } else {
+    camera.position.y = newFeetY + PLAYER_HEIGHT;
+    onGround = false;
+  }
+
+  // Prevent falling into void
+  if (camera.position.y < -10) {
+    camera.position.set(0, 15, 0);
+    playerVelY = 0;
+  }
+
+  // Update enemies
+  const playerPos = camera.position.clone();
+  enemies.forEach(e => e.update(dt, playerPos));
+
+  // Update projectiles
+  for (let i = projectiles.length - 1; i >= 0; i--) {
+    const p = projectiles[i];
+    p.mesh.position.add(p.dir.clone().multiplyScalar(p.speed * dt));
+    p.life -= dt;
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      projectiles.splice(i, 1);
+      continue;
+    }
+    // Hit player
+    if (p.mesh.position.distanceTo(camera.position) < 1.5) {
+      damagePlayer(8);
+      scene.remove(p.mesh);
+      projectiles.splice(i, 1);
+    }
+  }
+
+  // Update particles
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.vel.y -= 10 * dt;
+    p.mesh.position.add(p.vel.clone().multiplyScalar(dt));
+    p.life -= dt;
+    p.mesh.scale.setScalar(Math.max(0.01, p.life));
+    if (p.life <= 0) {
+      scene.remove(p.mesh);
+      particles.splice(i, 1);
+    }
+  }
+
+  // Periodic quiz in free mode
+  if (state.mode === 'free') {
+    quizTimer += dt;
+    if (quizTimer > 45) {
+      quizTimer = 0;
+      showQuiz();
+    }
+  }
+
+  // Spawn more enemies over time
+  if (state.mode !== 'free') {
+    enemySpawnTimer += dt;
+    if (enemySpawnTimer > 30 && enemies.filter(e => e.alive).length < 3) {
+      enemySpawnTimer = 0;
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 20 + Math.random() * 10;
+      const x = camera.position.x + Math.cos(angle) * dist;
+      const z = camera.position.z + Math.sin(angle) * dist;
+      const gy = getGroundY(x, z);
+      enemies.push(new Enemy(x, gy, z, Math.random() < 0.3 ? 'strong' : 'normal'));
+      notify("A new enemy approaches!");
+    }
+
+    // Spawn boss after enough kills
+    if (state.kills >= 5 && !state.bossSpawned) {
+      spawnBoss();
+    }
+  }
+
+  // Update minimap every few frames
+  if (Math.floor(now / 200) % 2 === 0) updateMinimap();
+
+  renderer.render(scene, camera);
+}
+
+// ==================== INPUT ====================
+document.addEventListener('keydown', e => {
+  keys[e.code] = true;
+  // Tool selection
+  if (e.code >= 'Digit1' && e.code <= 'Digit5') {
+    const slot = parseInt(e.code.replace('Digit', '')) - 1;
+    state.selectedSlot = slot;
+    document.querySelectorAll('.tool-slot').forEach((el, i) => {
+      el.classList.toggle('active', i === slot);
+    });
+  }
+  if (e.code === 'Escape' && state.gameActive) {
+    mouseLocked = false;
+    hasLastMouse = false;
+    renderer.domElement.style.cursor = 'default';
+    try { document.exitPointerLock(); } catch(err) {}
+    notify("Mouse unlocked. Click to lock again.", 2000);
+  }
+});
+document.addEventListener('keyup', e => keys[e.code] = false);
+
+// ---- Mouse look system (works with AND without pointer lock) ----
+let mouseLocked = false;    // our own tracking - true after user clicks canvas
+let lastMouseX = 0;
+let lastMouseY = 0;
+let hasLastMouse = false;
+let actionCooldown = 0;
+
+// Try real pointer lock first; if it works, great. If not, we fake it.
+document.addEventListener('pointerlockchange', () => {
+  if (!document.pointerLockElement) {
+    // lost pointer lock - keep our own mouseLocked going
+  }
+});
+
+renderer.domElement.addEventListener('click', e => {
+  if (!state.gameActive || state.paused) return;
+  if (!mouseLocked) {
+    // First click = lock the mouse for looking (like Minecraft)
+    mouseLocked = true;
+    hasLastMouse = false;
+    renderer.domElement.style.cursor = 'none';
+    try { renderer.domElement.requestPointerLock(); } catch(err) {}
+    notify("Mouse locked! Press ESC to unlock.", 2000);
+    return;
+  }
+});
+
+document.addEventListener('mousemove', e => {
+  if (!state.gameActive || state.paused || !mouseLocked) return;
+
+  let mx, my;
+  if (document.pointerLockElement) {
+    // Real pointer lock - use movementX/Y
+    mx = e.movementX;
+    my = e.movementY;
+  } else {
+    // Fallback: compute delta from last position
+    if (!hasLastMouse) {
+      lastMouseX = e.clientX;
+      lastMouseY = e.clientY;
+      hasLastMouse = true;
+      return;
+    }
+    mx = e.clientX - lastMouseX;
+    my = e.clientY - lastMouseY;
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+
+    // Warp detection: if mouse hits edge, reset to center
+    const margin = 5;
+    if (e.clientX <= margin || e.clientX >= window.innerWidth - margin ||
+        e.clientY <= margin || e.clientY >= window.innerHeight - margin) {
+      // Don't apply huge jumps at edges
+      mx = 0; my = 0;
+    }
+  }
+
+  const sensitivity = 0.003;
+  euler.setFromQuaternion(camera.quaternion);
+  euler.y -= mx * sensitivity;
+  euler.x -= my * sensitivity;
+  euler.x = Math.max(-Math.PI / 2 + 0.01, Math.min(Math.PI / 2 - 0.01, euler.x));
+  camera.quaternion.setFromEuler(euler);
+});
+
+document.addEventListener('mousedown', e => {
+  if (!state.gameActive || state.paused || !mouseLocked) return;
+
+  if (e.button === 0) {
+    // Left click - attack or place
+    if (state.selectedSlot === 0) {
+      if (!attackEnemies()) {
+        notify("Swing!", 500);
+      }
+    } else if (state.selectedSlot === 4) {
+      const hit = getTargetBlock();
+      if (hit) {
+        const ud = hit.object.userData;
+        removeBlock(ud.bx, ud.by, ud.bz);
+        state.score += 5;
+        updateHUD();
+      }
+    } else {
+      const hit = getTargetBlock();
+      if (hit) {
+        const normal = hit.face.normal;
+        const ud = hit.object.userData;
+        const nx = ud.bx + Math.round(normal.x);
+        const ny = ud.by + Math.round(normal.y);
+        const nz = ud.bz + Math.round(normal.z);
+        const types = ['', 'grass', 'stone', 'wood'];
+        placeBlock(nx, ny, nz, types[state.selectedSlot]);
+        state.score += 5;
+        updateHUD();
+      }
+    }
+  } else if (e.button === 2) {
+    const hit = getTargetBlock();
+    if (hit) {
+      const ud = hit.object.userData;
+      removeBlock(ud.bx, ud.by, ud.bz);
+      state.score += 5;
+      updateHUD();
+    }
+  }
+});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+// ==================== START GAME ====================
+window.startGame = function(mode) {
+  state.mode = mode;
+  state.health = mode === 'hardcore' ? 50 : 100;
+  state.maxHealth = state.health;
+  state.gameActive = true;
+
+  document.getElementById('menu').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('crosshair').style.display = 'block';
+  document.getElementById('toolbar').style.display = 'block';
+  document.getElementById('minimap').style.display = 'block';
+  document.getElementById('instructions').style.display = 'block';
+  document.getElementById('hud-mode-display').textContent = mode.toUpperCase();
+  document.getElementById('hud-mode-display').style.color =
+    mode === 'free' ? '#00ff88' : mode === 'survival' ? '#ffcc00' : '#ff4444';
+
+  updateHUD();
+  generateWorld();
+
+  // Set player position
+  const spawnY = getGroundY(0, 0);
+  camera.position.set(0, spawnY + PLAYER_HEIGHT + 2, 0);
+
+  spawnEnemies();
+
+  mouseLocked = true;
+  hasLastMouse = false;
+  renderer.domElement.style.cursor = 'none';
+  try { renderer.domElement.requestPointerLock(); } catch(err) {}
+
+  if (mode === 'free') {
+    notify("Welcome! Explore, build, and learn! Quizzes appear periodically.", 4000);
+  } else if (mode === 'survival') {
+    notify("Survive! Kill 5 enemies to summon the Boss. Answer questions to heal!", 4000);
+  } else {
+    notify("HARDCORE: 50 HP, one life, wrong answers hurt! Kill 5 enemies for the Boss!", 4000);
+  }
+
+  // Hide instructions after a while
+  setTimeout(() => {
+    document.getElementById('instructions').style.opacity = '0.3';
+  }, 10000);
+
+  animate();
+};
+
+// Resize handler
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

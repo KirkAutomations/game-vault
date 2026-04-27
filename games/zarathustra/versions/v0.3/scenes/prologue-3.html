@@ -1,0 +1,1076 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prologue §3 — The Marketplace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #eae4d2;
+    --ink-dim: #8a8678;
+    --paper: #0b0a08;
+    --gold: #d4a017;
+    --gold-soft: #f3c84a;
+    --red: #c65245;
+    --red-soft: #e26a5d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+    user-select: none;
+  }
+  canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+  }
+
+  .topbar {
+    position: fixed;
+    top: 1rem; left: 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    z-index: 10;
+  }
+  .topbar a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink-dim);
+    padding: 0.4rem 0.85rem;
+    transition: all 0.3s ease;
+  }
+  .topbar a:hover { color: var(--gold); border-color: var(--gold); }
+  .chapter {
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* ===== Intro overlay ===== */
+  #intro {
+    position: fixed; inset: 0;
+    background: rgba(11,10,8,0.96);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    z-index: 30;
+    padding: 2rem;
+    text-align: center;
+    transition: opacity 0.9s ease;
+  }
+  #intro.hidden { opacity: 0; pointer-events: none; }
+  #intro h2 {
+    font-size: 0.85rem;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 1rem;
+  }
+  #intro h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    margin: 0 0 1.4rem;
+  }
+  #intro .quote {
+    font-size: clamp(1.05rem, 2vw, 1.4rem);
+    font-style: italic;
+    max-width: 36ch;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 0 auto 2rem;
+  }
+  #intro .howto {
+    max-width: 56ch;
+    color: var(--ink-dim);
+    font-size: 0.97rem;
+    line-height: 1.7;
+    margin: 0 auto 1.6rem;
+  }
+  #intro .howto b { color: var(--ink); font-weight: 500; }
+  #intro .legend {
+    display: flex;
+    gap: 1.8rem;
+    margin: 0 auto 2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex; align-items: center;
+    gap: 0.55rem;
+    font-size: 0.88rem;
+    color: var(--ink-dim);
+  }
+  .legend-item .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .legend-item .dot.gold { background: var(--gold-soft); box-shadow: 0 0 10px rgba(212,160,23,0.7); }
+  .legend-item .dot.red  { background: var(--red-soft); box-shadow: 0 0 10px rgba(198,82,69,0.65); }
+  .legend-item .dot.white { background: var(--ink); box-shadow: 0 0 6px rgba(234,228,210,0.4); }
+  #intro button {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.75rem 1.8rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+  #intro button:hover { background: rgba(212,160,23,0.12); }
+
+  /* ===== Meters ===== */
+  #meters {
+    position: fixed;
+    top: 5vh;
+    left: 1.5rem;
+    width: 220px;
+    z-index: 5;
+    opacity: 0;
+    transition: opacity 0.8s ease;
+  }
+  #meters.visible { opacity: 1; }
+  #meters .heading {
+    color: var(--gold);
+    font-size: 0.7rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.9rem;
+  }
+  #meters .meter-label {
+    color: var(--ink);
+    font-size: 0.78rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 0.35rem;
+    display: flex;
+    justify-content: space-between;
+  }
+  #meters .meter-val { font-family: inherit; font-size: 1rem; }
+  .meter-bar {
+    height: 5px;
+    background: rgba(138,134,120,0.18);
+    position: relative;
+    margin-bottom: 1.3rem;
+  }
+  .meter-fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 0%;
+    transition: width 0.45s ease;
+  }
+  .meter-fill.word { background: var(--gold); }
+  .meter-fill.crowd { background: var(--red); }
+
+  /* ===== Movement banner ===== */
+  #movement {
+    position: fixed;
+    top: 5vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.7);
+  }
+  #movement.visible { opacity: 1; }
+
+  /* ===== Speech panel ===== */
+  #speech {
+    position: fixed;
+    bottom: 4vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(880px, 92vw);
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #speech.visible { opacity: 1; }
+  #speech .line {
+    background: rgba(11,10,8,0.92);
+    border: 1px solid rgba(212,160,23,0.5);
+    border-bottom: none;
+    padding: 1.4rem 1.6rem 1.1rem;
+    font-size: clamp(1.15rem, 2vw, 1.5rem);
+    font-style: italic;
+    line-height: 1.5;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,0,0,0.55);
+    min-height: 5.5em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  #speech .line .blank {
+    display: inline-block;
+    min-width: 6em;
+    border-bottom: 1px dashed rgba(212,160,23,0.5);
+    margin: 0 0.2rem;
+    color: var(--ink-dim);
+    text-align: center;
+  }
+  #speech .line .blank.filled {
+    border-bottom-color: transparent;
+    color: var(--ink);
+    font-style: italic;
+  }
+  #speech .line .blank.filled.gold { color: var(--gold-soft); text-shadow: 0 0 12px rgba(212,160,23,0.7); }
+  #speech .line .blank.filled.red { color: var(--red-soft); text-shadow: 0 0 12px rgba(198,82,69,0.65); }
+  #speech .options {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    background: rgba(11,10,8,0.92);
+    border: 1px solid rgba(212,160,23,0.5);
+    border-top: 1px solid rgba(212,160,23,0.18);
+    box-shadow: 0 8px 40px rgba(0,0,0,0.55);
+  }
+  .opt {
+    background: transparent;
+    border: none;
+    border-right: 1px solid rgba(138,134,120,0.18);
+    color: var(--ink);
+    font-family: inherit;
+    font-size: 1.05rem;
+    padding: 1.1rem 0.8rem 1rem;
+    cursor: pointer;
+    text-align: center;
+    position: relative;
+    transition: background 0.25s ease, transform 0.15s ease;
+  }
+  .opt:last-child { border-right: none; }
+  .opt:hover { background: rgba(212,160,23,0.06); transform: translateY(-1px); }
+  .opt .word {
+    display: block;
+    font-style: italic;
+    font-size: 1.15rem;
+    margin-bottom: 0.4rem;
+  }
+  .opt .tone {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.25em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  .opt .dot {
+    display: inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    margin-right: 0.35rem;
+    vertical-align: middle;
+  }
+  .opt.gold .word { color: var(--gold-soft); text-shadow: 0 0 10px rgba(212,160,23,0.55); }
+  .opt.gold .dot { background: var(--gold-soft); box-shadow: 0 0 8px rgba(212,160,23,0.7); }
+  .opt.gold .tone { color: var(--gold); }
+  .opt.red .word { color: var(--red-soft); text-shadow: 0 0 10px rgba(198,82,69,0.5); }
+  .opt.red .dot { background: var(--red-soft); box-shadow: 0 0 8px rgba(198,82,69,0.7); }
+  .opt.red .tone { color: var(--red); }
+  .opt.white .dot { background: var(--ink); }
+  .opt.disabled { opacity: 0.35; pointer-events: none; }
+
+  /* small floor for response feedback */
+  #reaction {
+    position: fixed;
+    left: 50%;
+    bottom: 30vh;
+    transform: translateX(-50%);
+    color: var(--ink);
+    font-size: 1.05rem;
+    font-style: italic;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    z-index: 5;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+    max-width: 60ch;
+    padding: 0 1rem;
+  }
+  #reaction.visible { opacity: 1; }
+  #reaction.gold { color: var(--gold-soft); }
+  #reaction.red  { color: var(--red-soft); }
+
+  /* ===== Ending ===== */
+  #end {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.96);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    z-index: 40;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+  }
+  #end.visible { display: flex; opacity: 1; }
+  #end .verdict {
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.2rem;
+  }
+  #end .quote {
+    font-size: clamp(1.3rem, 2.5vw, 1.95rem);
+    font-style: italic;
+    max-width: 38ch;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+  #end .sub {
+    color: var(--ink-dim);
+    font-size: 1rem;
+    font-style: italic;
+    margin-bottom: 2rem;
+    max-width: 44ch;
+  }
+  #end .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 0.6rem 2.5rem;
+    margin-bottom: 2.2rem;
+  }
+  #end .stats .row {
+    display: flex; justify-content: space-between;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  #end .stats .row .v {
+    color: var(--gold);
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+  #end .stats .row.crowd .v { color: var(--red); }
+  #end .links {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    justify-content: center;
+  }
+  #end a {
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.65rem 1.5rem;
+    text-decoration: none;
+    letter-spacing: 0.18em;
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    transition: background 0.25s ease;
+  }
+  #end a:hover { background: rgba(212,160,23,0.12); }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<canvas id="fg"></canvas>
+
+<div class="topbar">
+  <a href="../index.html">&larr; hub</a>
+  <span class="chapter">Prologue · §3 — The Marketplace</span>
+</div>
+
+<div id="meters">
+  <div class="heading">The Voice</div>
+  <div class="meter-label"><span>The Word</span><span class="meter-val" id="wordVal">0</span></div>
+  <div class="meter-bar"><div class="meter-fill word" id="wordBar"></div></div>
+  <div class="meter-label"><span>The Crowd</span><span class="meter-val" id="crowdVal">0</span></div>
+  <div class="meter-bar"><div class="meter-fill crowd" id="crowdBar"></div></div>
+</div>
+
+<div id="movement"></div>
+<div id="reaction"></div>
+
+<div id="speech">
+  <div class="line" id="speechLine"></div>
+  <div class="options" id="optsRow"></div>
+</div>
+
+<div id="intro">
+  <h2>Prologue · §3</h2>
+  <h1>The Marketplace</h1>
+  <div class="quote">&ldquo;Man is a rope, tied between beast and overman &mdash; a rope over an abyss.&rdquo;</div>
+  <div class="howto">
+    Zarathustra speaks his three speeches: the <b>Overman</b>, the <b>Dancing Star</b>, the <b>Last Man</b>.
+    For each line, choose one word to <b>emphasize</b>. The colors tell you what kind of word it is.
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="dot gold"></span>Lightning &mdash; speaks truly</div>
+    <div class="legend-item"><span class="dot red"></span>Blink &mdash; what they want to hear</div>
+    <div class="legend-item"><span class="dot white"></span>A passing word</div>
+  </div>
+  <div class="howto" style="font-size:0.88rem;font-style:italic;">
+    But beware the third movement &mdash; even the truth, named to the last men, may sound like flattery.
+  </div>
+  <button id="startBtn">Begin speaking</button>
+</div>
+
+<div id="end">
+  <div class="verdict" id="endVerdict"></div>
+  <div class="quote" id="endQuote"></div>
+  <div class="sub" id="endSub"></div>
+  <div class="stats">
+    <div class="row"><span>The Word</span><span class="v" id="endWord">0</span></div>
+    <div class="row crowd"><span>The Crowd</span><span class="v" id="endCrowd">0</span></div>
+    <div class="row"><span>Lightning struck</span><span class="v" id="endGold">0</span></div>
+    <div class="row crowd"><span>Blinks given</span><span class="v" id="endRed">0</span></div>
+  </div>
+  <div class="links">
+    <a href="../index.html">return to hub</a>
+    <a href="prologue-3.html">speak again</a>
+    <a href="prologue-6.html">on to §6 &rarr;</a>
+  </div>
+</div>
+
+<script src="../sdk.js"></script>
+<script>
+(() => {
+  const bg = document.getElementById('bg');
+  const fg = document.getElementById('fg');
+  const bctx = bg.getContext('2d');
+  const fctx = fg.getContext('2d');
+
+  function resize() {
+    for (const c of [bg, fg]) {
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+    }
+    drawSky();
+  }
+  window.addEventListener('resize', resize);
+
+  // ============== SPEECH ==============
+  // Each line: a sentence with one blank ("___") that the player fills by clicking
+  // an option. Options have kind: 'gold' (truth), 'red' (crowd-bait), 'white' (neutral).
+  // Tones tell the player what the word will do.
+  const SPEECHES = [
+    {
+      movement: 'I — The Overman',
+      lines: [
+        {
+          before: "I teach you the ",
+          after: ". Man is something that shall be overcome.",
+          options: [
+            { word: 'overman', kind: 'gold', tone: 'lightning', reaction: "A few step back. Most laugh." },
+            { word: 'higher man', kind: 'white', tone: 'a passing word', reaction: "The phrase passes them by." },
+            { word: 'better servant', kind: 'red', tone: 'what they want', reaction: "They like the sound of that." },
+          ],
+        },
+        {
+          before: "Behold, I teach you the overman: he is this ",
+          after: ", he is this frenzy.",
+          options: [
+            { word: 'lightning', kind: 'gold', tone: 'lightning', reaction: "The word cracks above their heads." },
+            { word: 'lantern', kind: 'red', tone: 'what they want', reaction: "They smile at the small light." },
+            { word: 'hour', kind: 'white', tone: 'a passing word', reaction: "Some glance up. Most do not." },
+          ],
+        },
+        {
+          before: "Man is a rope, tied between beast and overman — a rope over an ",
+          after: ".",
+          options: [
+            { word: 'abyss', kind: 'gold', tone: 'lightning', reaction: "Some look down despite themselves." },
+            { word: 'evening', kind: 'red', tone: 'what they want', reaction: "How pleasant the evening sounds." },
+            { word: 'orchard', kind: 'white', tone: 'a passing word', reaction: "An odd image. They wait." },
+          ],
+        },
+        {
+          before: "What is great in man is that he is a ",
+          after: " and not an end.",
+          options: [
+            { word: 'bridge', kind: 'gold', tone: 'lightning', reaction: "The word builds itself across the rope above them." },
+            { word: 'banquet', kind: 'red', tone: 'what they want', reaction: "Now you are talking sense, they think." },
+            { word: 'tradesman', kind: 'white', tone: 'a passing word', reaction: "A trade is a trade. They wait." },
+          ],
+          quote: { id: 'p3.rope-abyss', text: "Man is a rope, tied between beast and overman — a rope over an abyss.", source: "Prologue §3" },
+        },
+      ],
+    },
+    {
+      movement: 'II — The Dancing Star',
+      lines: [
+        {
+          before: "I say unto you: one must still have ",
+          after: " in oneself to give birth to a dancing star.",
+          options: [
+            { word: 'chaos', kind: 'gold', tone: 'lightning', reaction: "Chaos? The word is unwelcome." },
+            { word: 'good order', kind: 'red', tone: 'what they want', reaction: "Yes, good order. They nod." },
+            { word: 'patience', kind: 'white', tone: 'a passing word', reaction: "Patience is fine. They wait, patiently." },
+          ],
+          quote: { id: 'p3.dancing-star', text: "One must still have chaos in oneself to give birth to a dancing star.", source: "Prologue §3" },
+        },
+        {
+          before: "I say unto you: you have still chaos in you. Alas, the time approaches when man will no longer give birth to a ",
+          after: ".",
+          options: [
+            { word: 'star', kind: 'gold', tone: 'lightning', reaction: "Some squint. Some look up." },
+            { word: 'son', kind: 'red', tone: 'what they want', reaction: "Sons they understand. They warm." },
+            { word: 'doubt', kind: 'white', tone: 'a passing word', reaction: "They have no doubts that need birthing." },
+          ],
+        },
+        {
+          before: "Alas, the time approaches of the most despicable man, who can no longer despise ",
+          after: ".",
+          options: [
+            { word: 'himself', kind: 'gold', tone: 'lightning', reaction: "A man near the front looks at his hands." },
+            { word: 'his neighbor', kind: 'red', tone: 'what they want', reaction: "They like that. Yes, their neighbors." },
+            { word: 'his work', kind: 'white', tone: 'a passing word', reaction: "Work is sacred to them. They nod." },
+          ],
+        },
+        {
+          before: "And lo — the hour of the great contempt, the hour in which your happiness, too, becomes ",
+          after: ".",
+          options: [
+            { word: 'nausea', kind: 'gold', tone: 'lightning', reaction: "Nausea! They draw back from the word." },
+            { word: 'a feast', kind: 'red', tone: 'what they want', reaction: "A feast! Now there's something." },
+            { word: 'a custom', kind: 'white', tone: 'a passing word', reaction: "Custom is fine. They prefer custom." },
+          ],
+        },
+      ],
+    },
+    {
+      movement: 'III — The Last Man',
+      preamble: "But the crowd has grown impatient. They are hungry for a different word.",
+      lines: [
+        {
+          before: "Behold! I show you the ",
+          after: ".",
+          options: [
+            { word: 'last man', kind: 'gold', tone: 'lightning · they will cheer', reaction: "They lean in. They like being seen." },
+            { word: 'overman', kind: 'red', tone: 'they will not hear', reaction: "Again that word. They tune out." },
+            { word: 'wise man', kind: 'white', tone: 'a passing word', reaction: "Wisdom! They approve generally." },
+          ],
+        },
+        {
+          before: "&lsquo;What is love? What is creation? What is longing? What is a star?&rsquo; — thus asks the last man, and ",
+          after: ".",
+          options: [
+            { word: 'blinks', kind: 'gold', tone: 'lightning · they will cheer', reaction: "They blink. They laugh at themselves, cheerfully." },
+            { word: 'sleeps', kind: 'red', tone: 'they will cheer harder', reaction: "Sleep! Yes, they love sleep." },
+            { word: 'sighs', kind: 'white', tone: 'a passing word', reaction: "Some sigh, agreeably." },
+          ],
+          quote: { id: 'p3.blink', text: "'We have invented happiness,' say the last men — and they blink.", source: "Prologue §5" },
+        },
+        {
+          before: "&lsquo;We have invented ",
+          after: ',&rsquo; say the last men — and they blink.',
+          options: [
+            { word: 'happiness', kind: 'gold', tone: 'lightning · they will cheer', reaction: "Happiness! They jubilate. They claim it." },
+            { word: 'heaven', kind: 'red', tone: 'they will cheer harder', reaction: "Heaven! Why not. They want both." },
+            { word: 'comfort', kind: 'white', tone: 'a passing word', reaction: "Comfort. Yes. They have invented that." },
+          ],
+        },
+        {
+          before: "Whoever feels ",
+          after: " goes voluntarily into a madhouse.",
+          options: [
+            { word: 'different', kind: 'gold', tone: 'lightning · they will cheer', reaction: "&lsquo;Yes!&rsquo; they shout. &lsquo;Lock them up!&rsquo;" },
+            { word: 'lonely', kind: 'red', tone: 'they will cheer harder', reaction: "Lonely. They pity loneliness — and lock it away." },
+            { word: 'tired', kind: 'white', tone: 'a passing word', reaction: "They are not tired. Yet." },
+          ],
+        },
+      ],
+    },
+  ];
+
+  // Closing — fixed, no choice
+  const CLOSING = "They do not understand me: I am not the mouth for these ears.";
+
+  // ============== STATE ==============
+  const state = {
+    phase: 'intro',
+    movIdx: 0,
+    lineIdx: 0,
+    word: 0,
+    crowd: 0,
+    goldStruck: 0,
+    redGiven: 0,
+    walkerProgress: 0,
+    walkerWobble: 0,
+    crowdPulse: 0,
+    crowdScreamT: 0,
+    jesterVisible: false,
+    walkerFallen: false,
+    fall: { active: false, t: 0, x: 0, y: 0, vy: 0, vx: 0, rot: 0, landed: false },
+    audioStarted: false,
+    cursorReact: null,
+  };
+
+  // ============== UI refs ==============
+  const introEl = document.getElementById('intro');
+  const startBtn = document.getElementById('startBtn');
+  const speechEl = document.getElementById('speech');
+  const lineEl = document.getElementById('speechLine');
+  const optsEl = document.getElementById('optsRow');
+  const reactionEl = document.getElementById('reaction');
+  const movementEl = document.getElementById('movement');
+  const meters = document.getElementById('meters');
+  const wordBar = document.getElementById('wordBar');
+  const crowdBar = document.getElementById('crowdBar');
+  const wordVal = document.getElementById('wordVal');
+  const crowdVal = document.getElementById('crowdVal');
+  const endEl = document.getElementById('end');
+
+  function setMeter(which, v) {
+    if (which === 'word') {
+      state.word = Math.max(0, Math.min(100, v));
+      wordBar.style.width = state.word + '%';
+      wordVal.textContent = Math.round(state.word);
+    } else {
+      state.crowd = Math.max(0, Math.min(100, v));
+      crowdBar.style.width = state.crowd + '%';
+      crowdVal.textContent = Math.round(state.crowd);
+      Zara.setMurmurIntensity(0.04 + (state.crowd / 100) * 0.22);
+    }
+  }
+
+  function showReaction(text, kind) {
+    reactionEl.textContent = text;
+    reactionEl.className = '';
+    reactionEl.classList.add('visible');
+    if (kind) reactionEl.classList.add(kind);
+    clearTimeout(showReaction._t);
+    showReaction._t = setTimeout(() => reactionEl.classList.remove('visible'), 2600);
+  }
+
+  function flashMovement(name, ms) {
+    movementEl.textContent = name;
+    movementEl.classList.add('visible');
+    clearTimeout(flashMovement._t);
+    flashMovement._t = setTimeout(() => movementEl.classList.remove('visible'), ms || 2400);
+  }
+
+  // ============== ENGINE ==============
+  function startGame() {
+    introEl.classList.add('hidden');
+    setTimeout(() => { introEl.style.display = 'none'; }, 900);
+    state.phase = 'play';
+    state.movIdx = 0;
+    state.lineIdx = 0;
+    setMeter('word', 0);
+    setMeter('crowd', 0);
+    Zara.audio();
+    Zara.playMurmur(0.05);
+    state.audioStarted = true;
+    meters.classList.add('visible');
+    speechEl.classList.add('visible');
+    flashMovement(SPEECHES[0].movement, 2400);
+    setTimeout(() => presentLine(), 600);
+  }
+  startBtn.addEventListener('click', startGame);
+  document.addEventListener('keydown', (e) => {
+    if (state.phase === 'intro' && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault(); startGame();
+    }
+  });
+
+  function currentLine() {
+    return SPEECHES[state.movIdx].lines[state.lineIdx];
+  }
+
+  function presentLine() {
+    const ln = currentLine();
+    // build sentence with blank
+    lineEl.innerHTML = `${ln.before}<span class="blank" id="blankSlot">___</span>${ln.after}`;
+    optsEl.innerHTML = '';
+    ln.options.forEach((opt, i) => {
+      const b = document.createElement('button');
+      b.className = `opt ${opt.kind}`;
+      b.innerHTML = `<span class="word">${opt.word}</span><span class="tone"><span class="dot"></span>${opt.tone}</span>`;
+      b.addEventListener('click', () => chooseOption(opt));
+      optsEl.appendChild(b);
+    });
+  }
+
+  function chooseOption(opt) {
+    const ln = currentLine();
+    // disable all options
+    Array.from(optsEl.children).forEach(c => c.classList.add('disabled'));
+    // fill blank
+    const blank = document.getElementById('blankSlot');
+    if (blank) {
+      blank.textContent = opt.word;
+      blank.classList.add('filled');
+      if (opt.kind === 'gold') blank.classList.add('gold');
+      else if (opt.kind === 'red') blank.classList.add('red');
+    }
+
+    // apply effects
+    let dWord = 0, dCrowd = 0;
+    const inLastMan = state.movIdx === 2;
+    if (opt.kind === 'gold') {
+      dWord += 12;
+      // In M3, even truthful naming flatters the last men — they cheer
+      dCrowd += inLastMan ? 14 : -3;
+      state.goldStruck++;
+      Zara.chime(0.06);
+      state.crowdPulse = inLastMan ? 1.4 : 0.7;
+      state.walkerWobble = Math.max(state.walkerWobble - 0.6, 0);
+    } else if (opt.kind === 'red') {
+      dWord -= 5;
+      dCrowd += 14;
+      state.redGiven++;
+      Zara.laugh(0.12);
+      state.crowdPulse = 1.6;
+      state.walkerWobble += 0.55;
+    } else {
+      dWord += 3;
+      dCrowd += 2;
+      Zara.chime(0.025);
+    }
+    setMeter('word', state.word + dWord);
+    setMeter('crowd', state.crowd + dCrowd);
+
+    // reaction text
+    showReaction(opt.reaction, opt.kind);
+
+    // unlock journal quote on gold pick (or always on certain lines)
+    if (opt.kind === 'gold' && ln.quote) {
+      Zara.addQuote(ln.quote.id, ln.quote.text, ln.quote.source);
+    }
+
+    // Walker wobble decay handled in update loop
+    // advance after a short beat
+    setTimeout(advanceLine, 1900);
+  }
+
+  function advanceLine() {
+    state.lineIdx++;
+    const mov = SPEECHES[state.movIdx];
+    if (state.lineIdx >= mov.lines.length) {
+      // movement transition
+      state.movIdx++;
+      state.lineIdx = 0;
+      if (state.movIdx >= SPEECHES.length) {
+        // walker falls, then closing
+        speechEl.classList.remove('visible');
+        triggerWalkerFall();
+        setTimeout(showClosing, 2600);
+        return;
+      }
+      const next = SPEECHES[state.movIdx];
+      speechEl.classList.remove('visible');
+      flashMovement(next.movement, 2400);
+      if (next.preamble) {
+        setTimeout(() => showReaction(next.preamble, ''), 800);
+      }
+      setTimeout(() => {
+        speechEl.classList.add('visible');
+        presentLine();
+      }, 2400);
+      return;
+    }
+    presentLine();
+  }
+
+  function triggerWalkerFall() {
+    if (state.walkerFallen) return;
+    state.walkerFallen = true;
+    state.fall.active = true;
+    state.jesterVisible = true;
+    Zara.scream(0.22);
+    setTimeout(() => Zara.thud(0.55), 950);
+  }
+
+  function showClosing() {
+    speechEl.classList.add('visible');
+    lineEl.innerHTML = `<span style="color:var(--ink);">${CLOSING}</span>`;
+    optsEl.innerHTML = '';
+    Zara.addQuote('p3.closing', CLOSING, 'Prologue §5');
+    setTimeout(() => {
+      speechEl.classList.remove('visible');
+      reactionEl.classList.remove('visible');
+      endGame();
+    }, 4200);
+  }
+
+  function endGame() {
+    state.phase = 'end';
+    Zara.stopMurmur();
+    Zara.addQuote('p3.anchor',
+      "Man is a rope, tied between beast and overman — a rope over an abyss.",
+      "Prologue §3");
+
+    let verdict, q, sub;
+    const W = state.word, C = state.crowd;
+    if (W >= 65 && C < 40) {
+      verdict = "The word, named.";
+      q = "\u201CYou spoke with lightning. They did not hear you.\u201D";
+      sub = "Their ears were not for that mouth.";
+    } else if (C >= 70 && W < 35) {
+      verdict = "The blink, given.";
+      q = "\u201C\u2018Give us this last man, O Zarathustra! Turn us into these last men!\u2019\u201D";
+      sub = "They loved you. For the wrong reasons.";
+    } else if (W >= 55 && C >= 55) {
+      verdict = "Half-mouth, half-mirror.";
+      q = "\u201CYou half-spoke the truth, and were half-loved for it.\u201D";
+      sub = "Even truth, named to the last men, sounds like flattery.";
+    } else if (W >= 50) {
+      verdict = "The mouth that drifted.";
+      q = "\u201CThey do not understand me: I am not the mouth for these ears.\u201D";
+      sub = "Some words struck. Most fell into the murmur.";
+    } else if (C >= 50) {
+      verdict = "The crowd's poet.";
+      q = "\u201CThey cheered. You gave them the blink, and the small happiness.\u201D";
+      sub = "The last man has his hymn.";
+    } else {
+      verdict = "The market drifted.";
+      q = "\u201CThe walker fell. No one stayed to hear the rest.\u201D";
+      sub = "Words and crowd both went thin.";
+    }
+
+    document.getElementById('endVerdict').textContent = verdict;
+    document.getElementById('endQuote').textContent = q;
+    document.getElementById('endSub').textContent = sub;
+    document.getElementById('endWord').textContent = Math.round(state.word);
+    document.getElementById('endCrowd').textContent = Math.round(state.crowd);
+    document.getElementById('endGold').textContent = state.goldStruck;
+    document.getElementById('endRed').textContent = state.redGiven;
+    setTimeout(() => endEl.classList.add('visible'), 700);
+  }
+
+  // ============== DRAW ==============
+  function drawSky() {
+    const w = bg.width, h = bg.height;
+    const grd = bctx.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, '#30202a');
+    grd.addColorStop(0.35, '#5a3826');
+    grd.addColorStop(0.65, '#9a5a2a');
+    grd.addColorStop(1, '#4a2818');
+    bctx.fillStyle = grd;
+    bctx.fillRect(0, 0, w, h);
+
+    bctx.fillStyle = 'rgba(255, 195, 120, 0.9)';
+    bctx.beginPath();
+    bctx.arc(w * 0.78, h * 0.24, 48, 0, Math.PI * 2);
+    bctx.fill();
+    const glow = bctx.createRadialGradient(w * 0.78, h * 0.24, 0, w * 0.78, h * 0.24, 260);
+    glow.addColorStop(0, 'rgba(255, 180, 100, 0.35)');
+    glow.addColorStop(1, 'rgba(255, 180, 100, 0)');
+    bctx.fillStyle = glow;
+    bctx.fillRect(0, 0, w, h);
+
+    bctx.fillStyle = '#1a0f18';
+    bctx.beginPath();
+    bctx.moveTo(0, h * 0.56);
+    for (let x = 0; x <= w; x += 70) {
+      bctx.lineTo(x, h * 0.56 - Math.sin(x * 0.015) * 22 - Math.sin(x * 0.004 + 1.2) * 38);
+    }
+    bctx.lineTo(w, h);
+    bctx.lineTo(0, h);
+    bctx.closePath();
+    bctx.fill();
+  }
+
+  function drawTowers() {
+    const w = fg.width, h = fg.height;
+    const tower1X = w * 0.13;
+    const tower2X = w * 0.87;
+    const topY = h * 0.10;
+    const botY = h * 0.36;
+
+    fctx.fillStyle = '#0a0808';
+    fctx.fillRect(tower1X - 38, topY, 76, botY - topY);
+    fctx.fillRect(tower2X - 38, topY, 76, botY - topY);
+    fctx.fillStyle = '#1d1814';
+    fctx.fillRect(tower1X - 32, topY, 64, botY - topY);
+    fctx.fillRect(tower1X - 42, topY - 12, 84, 14);
+    fctx.fillRect(tower2X - 32, topY, 64, botY - topY);
+    fctx.fillRect(tower2X - 42, topY - 12, 84, 14);
+    fctx.fillStyle = '#d4a017';
+    fctx.fillRect(tower1X - 4, topY + 32, 8, 12);
+    fctx.fillRect(tower2X - 4, topY + 32, 8, 12);
+
+    fctx.strokeStyle = '#6a5a3a';
+    fctx.lineWidth = 1.5;
+    fctx.beginPath();
+    fctx.moveTo(tower1X, topY - 6);
+    const sag = 6 + state.walkerWobble * 4;
+    fctx.quadraticCurveTo((tower1X + tower2X) / 2, topY + sag, tower2X, topY - 6);
+    fctx.stroke();
+    return { tower1X, tower2X, ropeY: topY - 6 };
+  }
+
+  function drawWalker(rope) {
+    if (state.walkerFallen) return;
+    const { tower1X, tower2X, ropeY } = rope;
+    const wobbleX = Math.sin(performance.now() / 140) * state.walkerWobble * 4;
+    const wobbleY = Math.abs(Math.sin(performance.now() / 140)) * state.walkerWobble * 2;
+    const x = tower1X + (tower2X - tower1X) * state.walkerProgress + wobbleX;
+    const sag = Math.sin(state.walkerProgress * Math.PI) * 5;
+    const y = ropeY + sag + wobbleY;
+    fctx.strokeStyle = '#8a7454';
+    fctx.lineWidth = 2;
+    fctx.beginPath();
+    fctx.moveTo(x - 30, y - 14);
+    fctx.lineTo(x + 30, y - 14);
+    fctx.stroke();
+    drawFigure(x, y, '#e4d8b8');
+  }
+
+  function drawJester(rope) {
+    if (!state.jesterVisible) return;
+    const { tower1X, tower2X, ropeY } = rope;
+    const x = tower1X + (tower2X - tower1X) * (state.walkerProgress - 0.05);
+    const hop = Math.sin(performance.now() / 150) * 6;
+    drawFigure(x, ropeY - hop, '#c65245', true);
+  }
+
+  function drawFall(rope) {
+    if (!state.fall.active) return;
+    const f = state.fall;
+    if (f.t === 0) {
+      const { tower1X, tower2X, ropeY } = rope;
+      f.x = tower1X + (tower2X - tower1X) * 0.5;
+      f.y = ropeY;
+      f.vy = 0;
+      f.vx = (Math.random() - 0.5) * 2;
+    }
+    f.t += 1;
+    if (!f.landed) {
+      f.vy += 0.55;
+      f.x += f.vx;
+      f.y += f.vy;
+      f.rot += 0.25;
+      if (f.y > fg.height * 0.58) {
+        f.landed = true;
+        f.y = fg.height * 0.58;
+      }
+    }
+    fctx.save();
+    fctx.translate(f.x, f.y);
+    fctx.rotate(f.landed ? Math.PI / 2 : f.rot);
+    drawFigure(0, 0, '#e4d8b8');
+    fctx.restore();
+  }
+
+  function drawFigure(x, y, color, jester) {
+    fctx.fillStyle = color;
+    fctx.fillRect(x - 4, y - 22, 8, 18);
+    fctx.beginPath();
+    fctx.arc(x, y - 26, 4, 0, Math.PI * 2);
+    fctx.fill();
+    fctx.fillRect(x - 3, y - 4, 2, 5);
+    fctx.fillRect(x + 1, y - 4, 2, 5);
+    if (jester) {
+      fctx.beginPath();
+      fctx.moveTo(x - 4, y - 28);
+      fctx.lineTo(x - 2, y - 34);
+      fctx.lineTo(x, y - 28);
+      fctx.moveTo(x, y - 28);
+      fctx.lineTo(x + 2, y - 34);
+      fctx.lineTo(x + 4, y - 28);
+      fctx.fill();
+    }
+  }
+
+  function drawMarketplace() {
+    const w = fg.width, h = fg.height;
+    const grd = fctx.createLinearGradient(0, h * 0.58, 0, h);
+    grd.addColorStop(0, '#1a1410');
+    grd.addColorStop(1, '#0a0806');
+    fctx.fillStyle = grd;
+    fctx.fillRect(0, h * 0.58, w, h * 0.42);
+    drawZarathustra(w * 0.08, h * 0.58);
+    drawCrowd(w, h);
+  }
+
+  function drawZarathustra(x, y) {
+    fctx.fillStyle = '#efe4c8';
+    fctx.beginPath();
+    fctx.moveTo(x - 18, y);
+    fctx.lineTo(x - 11, y - 78);
+    fctx.lineTo(x + 11, y - 78);
+    fctx.lineTo(x + 18, y);
+    fctx.closePath();
+    fctx.fill();
+    fctx.beginPath();
+    fctx.arc(x, y - 90, 11, 0, Math.PI * 2);
+    fctx.fill();
+    fctx.fillStyle = '#b5a98a';
+    fctx.fillRect(x - 8, y - 86, 16, 7);
+    fctx.strokeStyle = '#efe4c8';
+    fctx.lineWidth = 2.5;
+    fctx.beginPath();
+    fctx.moveTo(x + 18, y);
+    fctx.lineTo(x + 24, y - 96);
+    fctx.stroke();
+  }
+
+  function drawCrowd(w, h) {
+    const baseY = h * 0.58;
+    const startX = w * 0.18;
+    const endX = w * 0.98;
+    const rows = 4;
+    const excitement = Math.min(1, state.crowd / 60);
+    const pulse = state.crowdPulse;
+    for (let r = 0; r < rows; r++) {
+      const y = baseY + r * 12;
+      const count = 22 + r * 3;
+      for (let i = 0; i < count; i++) {
+        const x = startX + (endX - startX) * ((i + (r % 2) * 0.5) / count);
+        const bob = Math.sin(performance.now() / 380 + i * 0.7 + r * 0.3) * (1 + excitement * 2.5 + pulse * 3);
+        const shade = 35 + r * 8 + ((i * 13) % 3) * 5;
+        const red = pulse > 0.3 ? Math.min(120, shade + pulse * 45) : shade;
+        fctx.fillStyle = `rgb(${red}, ${shade - 5}, ${shade - 10})`;
+        fctx.fillRect(x - 4, y - 18 + bob, 8, 18);
+        fctx.beginPath();
+        fctx.arc(x, y - 22 + bob, 4, 0, Math.PI * 2);
+        fctx.fill();
+      }
+    }
+  }
+
+  // ============== LOOP ==============
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(40, now - last); last = now;
+
+    // walker progress drives slowly through speech
+    if (state.phase === 'play' && !state.walkerFallen) {
+      const totalLines = SPEECHES.reduce((s, m) => s + m.lines.length, 0);
+      const lineNum = SPEECHES.slice(0, state.movIdx).reduce((s, m) => s + m.lines.length, 0) + state.lineIdx;
+      const target = (lineNum / totalLines) * 0.55;
+      state.walkerProgress += (target - state.walkerProgress) * Math.min(1, dt / 1000);
+    }
+    if (state.walkerWobble > 0) state.walkerWobble = Math.max(0, state.walkerWobble - dt / 700);
+    if (state.crowdPulse > 0) state.crowdPulse = Math.max(0, state.crowdPulse - dt / 700);
+
+    // jester appears toward end of M2 and through M3
+    state.jesterVisible = (state.movIdx >= 2) || state.walkerFallen;
+
+    fctx.clearRect(0, 0, fg.width, fg.height);
+    drawMarketplace();
+    const rope = drawTowers();
+    drawWalker(rope);
+    drawJester(rope);
+    drawFall(rope);
+
+    requestAnimationFrame(frame);
+  }
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

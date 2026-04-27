@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Clone Factory Idle</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: #0a0a1a;
+  color: #e0e0e0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+#game {
+  display: grid;
+  grid-template-columns: 280px 1fr 300px;
+  min-height: 100vh;
+}
+
+/* Left Panel - Stats */
+#stats-panel {
+  background: #111128;
+  padding: 20px;
+  border-right: 2px solid #2a2a5a;
+}
+#stats-panel h2 { color: #7b7bff; margin-bottom: 15px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+.stat-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 0; border-bottom: 1px solid #1a1a3a;
+  font-size: 14px;
+}
+.stat-label { color: #8888aa; }
+.stat-value { color: #fff; font-weight: bold; font-variant-numeric: tabular-nums; }
+
+/* Center - Main Area */
+#main-area {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 30px 20px;
+  background: radial-gradient(ellipse at center, #12122a 0%, #0a0a1a 70%);
+}
+#clone-count {
+  font-size: 52px; font-weight: 900; color: #fff;
+  text-shadow: 0 0 30px rgba(100,100,255,0.5);
+  margin-bottom: 5px;
+}
+#clone-label { color: #7b7bff; font-size: 16px; margin-bottom: 5px; }
+#per-sec { color: #55aa55; font-size: 14px; margin-bottom: 30px; }
+
+#clone-btn {
+  width: 180px; height: 180px; border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, #4a4aff, #2a2a8a);
+  border: 4px solid #6a6aff;
+  color: white; font-size: 18px; font-weight: bold;
+  cursor: pointer; position: relative;
+  box-shadow: 0 0 40px rgba(80,80,255,0.3), inset 0 -4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.1s, box-shadow 0.1s;
+  user-select: none;
+}
+#clone-btn:hover {
+  box-shadow: 0 0 60px rgba(80,80,255,0.5), inset 0 -4px 10px rgba(0,0,0,0.3);
+}
+#clone-btn:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 20px rgba(80,80,255,0.4), inset 0 4px 10px rgba(0,0,0,0.4);
+}
+#clone-btn .emoji { font-size: 40px; display: block; margin-bottom: 5px; }
+
+/* Clone display area */
+#clone-display {
+  width: 100%; flex: 1; margin-top: 20px;
+  position: relative; overflow: hidden;
+  border-radius: 10px;
+  background: rgba(20,20,50,0.5);
+  border: 1px solid #2a2a5a;
+}
+.mini-clone {
+  position: absolute; font-size: 20px;
+  animation: float 6s ease-in-out infinite;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+
+/* Floating number */
+.float-num {
+  position: fixed; pointer-events: none;
+  font-size: 22px; font-weight: bold; color: #5f5;
+  text-shadow: 0 0 8px rgba(80,255,80,0.5);
+  animation: floatUp 1s ease-out forwards;
+  z-index: 100;
+}
+@keyframes floatUp {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-60px); }
+}
+
+/* Right Panel - Upgrades */
+#upgrades-panel {
+  background: #111128;
+  padding: 20px;
+  border-left: 2px solid #2a2a5a;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+#upgrades-panel h2 { color: #7b7bff; margin-bottom: 15px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; }
+
+.upgrade-section { margin-bottom: 20px; }
+.upgrade-section h3 { color: #aaaacc; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; padding-bottom: 5px; border-bottom: 1px solid #2a2a5a; }
+
+.upgrade-btn {
+  width: 100%; padding: 12px; margin-bottom: 8px;
+  background: #1a1a3a; border: 1px solid #2a2a5a;
+  border-radius: 8px; cursor: pointer;
+  text-align: left; color: #e0e0e0;
+  transition: all 0.2s;
+}
+.upgrade-btn:hover:not(:disabled) {
+  background: #222250; border-color: #4a4a8a;
+  transform: translateX(-3px);
+}
+.upgrade-btn:disabled {
+  opacity: 0.4; cursor: not-allowed;
+}
+.upgrade-btn .up-name { font-weight: bold; font-size: 14px; display: flex; justify-content: space-between; }
+.upgrade-btn .up-desc { font-size: 11px; color: #8888aa; margin-top: 4px; }
+.upgrade-btn .up-cost { color: #ffaa44; font-size: 12px; margin-top: 4px; }
+.upgrade-btn .up-owned { color: #55aa55; font-size: 11px; }
+
+/* Milestones */
+#milestones { margin-top: 20px; }
+.milestone {
+  padding: 8px 12px; margin-bottom: 6px;
+  background: rgba(80,180,80,0.1); border: 1px solid rgba(80,180,80,0.2);
+  border-radius: 6px; font-size: 12px; color: #7bc97b;
+  animation: milestoneIn 0.5s ease-out;
+}
+.milestone.locked {
+  background: rgba(100,100,100,0.1); border-color: rgba(100,100,100,0.2);
+  color: #666;
+}
+@keyframes milestoneIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+/* Prestige bar */
+#prestige-bar {
+  margin-top: 15px; padding: 15px;
+  background: linear-gradient(135deg, #2a1a3a, #1a1a3a);
+  border: 1px solid #5a3a7a; border-radius: 8px;
+}
+#prestige-bar h3 { color: #bb77ff; font-size: 13px; margin-bottom: 8px; }
+#prestige-bar p { font-size: 11px; color: #9977bb; margin-bottom: 8px; }
+#prestige-btn {
+  width: 100%; padding: 10px; background: #4a2a6a; border: 1px solid #7a4aaa;
+  border-radius: 6px; color: #ddb0ff; font-weight: bold; cursor: pointer;
+  transition: all 0.2s;
+}
+#prestige-btn:hover:not(:disabled) { background: #5a3a7a; }
+#prestige-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Tabs */
+.tab-row { display: flex; gap: 4px; margin-bottom: 15px; }
+.tab-btn {
+  flex: 1; padding: 8px 4px; background: #1a1a3a; border: 1px solid #2a2a5a;
+  border-radius: 6px 6px 0 0; color: #8888aa; font-size: 11px; cursor: pointer;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.tab-btn.active { background: #2a2a5a; color: #fff; border-bottom-color: #2a2a5a; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+</style>
+</head>
+<body>
+<div id="game">
+  <!-- Left: Stats -->
+  <div id="stats-panel">
+    <a href="../index.html" style="display:inline-block;padding:8px 16px;font-size:14px;background:#555;color:#fff;border:none;border-radius:6px;text-decoration:none;cursor:pointer;font-family:'Segoe UI',sans-serif;margin-bottom:12px;">Go Back</a>
+    <h2>Clone Factory</h2>
+    <div class="stat-row"><span class="stat-label">Total Cloned</span><span class="stat-value" id="total-cloned">0</span></div>
+    <div class="stat-row"><span class="stat-label">Per Click</span><span class="stat-value" id="per-click">1</span></div>
+    <div class="stat-row"><span class="stat-label">Per Second</span><span class="stat-value" id="cps-display">0</span></div>
+    <div class="stat-row"><span class="stat-label">Click Power x</span><span class="stat-value" id="click-multi">1.0</span></div>
+    <div class="stat-row"><span class="stat-label">Production x</span><span class="stat-value" id="prod-multi">1.0</span></div>
+    <div class="stat-row"><span class="stat-label">DNA Points</span><span class="stat-value" id="dna-display">0</span></div>
+    <div id="milestones"><h2 style="margin-top:20px">Milestones</h2><div id="milestone-list"></div></div>
+  </div>
+
+  <!-- Center: Clone button -->
+  <div id="main-area">
+    <div id="clone-count">0</div>
+    <div id="clone-label">CLONES</div>
+    <div id="per-sec">0 clones/sec</div>
+    <button id="clone-btn"><span class="emoji">🧬</span>CLONE</button>
+    <div id="clone-display"></div>
+  </div>
+
+  <!-- Right: Upgrades -->
+  <div id="upgrades-panel">
+    <h2>Upgrades</h2>
+    <div class="tab-row">
+      <button class="tab-btn active" onclick="switchTab('buildings')">Builders</button>
+      <button class="tab-btn" onclick="switchTab('research')">Research</button>
+    </div>
+
+    <div id="tab-buildings" class="tab-content active"></div>
+    <div id="tab-research" class="tab-content"></div>
+
+    <div id="prestige-bar">
+      <h3>DNA Prestige</h3>
+      <p>Reset your clones for powerful DNA points that boost everything permanently.</p>
+      <p>You'll earn: <strong id="prestige-gain">0</strong> DNA points</p>
+      <button id="prestige-btn" disabled onclick="prestige()">Prestige (need 1000 clones)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- Game State ----
+let state = {
+  clones: 0,
+  totalClones: 0,
+  clickPower: 1,
+  clickMulti: 1,
+  prodMulti: 1,
+  dna: 0,
+  buildings: {},
+  research: {},
+  milestones: [],
+};
+
+// ---- Buildings ----
+const BUILDINGS = [
+  { id: 'intern', name: 'Lab Intern', desc: 'A nervous intern pipetting samples.', baseCost: 10, baseCps: 0.1, emoji: '🧑‍🔬' },
+  { id: 'machine', name: 'Clone Machine', desc: 'Basic cloning apparatus. Beeps a lot.', baseCost: 50, baseCps: 0.5, emoji: '🏭' },
+  { id: 'lab', name: 'Bio Lab', desc: 'Proper lab with funding and coffee.', baseCost: 250, baseCps: 2, emoji: '🔬' },
+  { id: 'facility', name: 'Clone Facility', desc: 'Industrial-scale clone production.', baseCost: 1200, baseCps: 8, emoji: '🏗️' },
+  { id: 'campus', name: 'Research Campus', desc: 'Multi-building research complex.', baseCost: 5000, baseCps: 30, emoji: '🏢' },
+  { id: 'ai', name: 'AI Cloner', desc: 'Self-improving AI designs optimal clones.', baseCost: 25000, baseCps: 120, emoji: '🤖' },
+  { id: 'portal', name: 'Clone Portal', desc: 'Opens rifts to parallel clone dimensions.', baseCost: 100000, baseCps: 500, emoji: '🌀' },
+  { id: 'dyson', name: 'Dyson Cloner', desc: 'Harnesses a star to power clone creation.', baseCost: 500000, baseCps: 2000, emoji: '☀️' },
+];
+
+// ---- Research ----
+const RESEARCH = [
+  { id: 'sharp_scalpels', name: 'Sharp Scalpels', desc: 'Double click power.', cost: 100, effect: () => { state.clickMulti *= 2; }, req: () => state.totalClones >= 50 },
+  { id: 'caffeine', name: 'Caffeine IV', desc: 'Interns produce 2x.', cost: 500, effect: () => { BUILDINGS[0].cpsMulti = (BUILDINGS[0].cpsMulti||1)*2; }, req: () => state.totalClones >= 200 },
+  { id: 'overclock', name: 'Overclock Machines', desc: 'Clone Machines produce 2x.', cost: 2000, effect: () => { BUILDINGS[1].cpsMulti = (BUILDINGS[1].cpsMulti||1)*2; }, req: () => (state.buildings.machine||0) >= 5 },
+  { id: 'genetics101', name: 'Genetics 101', desc: '+3 clones per click.', cost: 300, effect: () => { state.clickPower += 3; }, req: () => state.totalClones >= 100 },
+  { id: 'gene_splice', name: 'Gene Splicing', desc: 'All production x2.', cost: 5000, effect: () => { state.prodMulti *= 2; }, req: () => state.totalClones >= 1000 },
+  { id: 'quantum_click', name: 'Quantum Clicking', desc: '+10 click power, x2 click multi.', cost: 15000, effect: () => { state.clickPower += 10; state.clickMulti *= 2; }, req: () => state.totalClones >= 5000 },
+  { id: 'neural_net', name: 'Clone Neural Net', desc: 'All production x3.', cost: 50000, effect: () => { state.prodMulti *= 3; }, req: () => (state.buildings.ai||0) >= 3 },
+  { id: 'multiverse', name: 'Multiverse Tapping', desc: 'Portals produce x5.', cost: 200000, effect: () => { BUILDINGS[6].cpsMulti = (BUILDINGS[6].cpsMulti||1)*5; }, req: () => (state.buildings.portal||0) >= 1 },
+  { id: 'big_click', name: 'Titan Fingers', desc: '+50 click power.', cost: 80000, effect: () => { state.clickPower += 50; }, req: () => state.totalClones >= 20000 },
+  { id: 'hyper_prod', name: 'Hyper Production', desc: 'All production x5.', cost: 500000, effect: () => { state.prodMulti *= 5; }, req: () => state.totalClones >= 100000 },
+];
+
+// ---- Milestones ----
+const MILESTONES = [
+  { at: 10, text: 'First Batch - 10 clones!' },
+  { at: 100, text: 'Century Club - 100 clones!' },
+  { at: 1000, text: 'Clone Army - 1,000 clones!' },
+  { at: 10000, text: 'Clone Nation - 10,000 clones!' },
+  { at: 100000, text: 'Clone Planet - 100,000!' },
+  { at: 1000000, text: 'Clone Galaxy - 1,000,000!' },
+  { at: 10000000, text: 'Clone Universe - 10M!' },
+];
+
+// ---- Init buildings state ----
+BUILDINGS.forEach(b => {
+  if (!state.buildings[b.id]) state.buildings[b.id] = 0;
+  if (!b.cpsMulti) b.cpsMulti = 1;
+});
+
+// ---- Helper Functions ----
+function fmt(n) {
+  if (n < 10) return n % 1 === 0 ? n.toLocaleString() : n.toFixed(1);
+  if (n < 1000) return Math.floor(n).toLocaleString();
+  if (n < 1e6) return (n/1e3).toFixed(1) + 'K';
+  if (n < 1e9) return (n/1e6).toFixed(2) + 'M';
+  if (n < 1e12) return (n/1e9).toFixed(2) + 'B';
+  return (n/1e12).toFixed(2) + 'T';
+}
+
+function getBuildingCost(b) {
+  return Math.floor(b.baseCost * Math.pow(1.15, state.buildings[b.id] || 0));
+}
+
+function getCps() {
+  let total = 0;
+  BUILDINGS.forEach(b => {
+    total += (state.buildings[b.id] || 0) * b.baseCps * (b.cpsMulti || 1);
+  });
+  return total * state.prodMulti * (1 + state.dna * 0.1);
+}
+
+function getClickValue() {
+  return state.clickPower * state.clickMulti * (1 + state.dna * 0.05);
+}
+
+function getPrestigeGain() {
+  return Math.floor(Math.sqrt(state.totalClones / 1000));
+}
+
+// ---- Clone Visuals ----
+const CLONE_EMOJIS = ['👤','👥','🧑','👨','👩','🧑‍🦰','👨‍🦱','👩‍🦳','🧔','👶'];
+let cloneVisualCount = 0;
+
+function addCloneVisual() {
+  const display = document.getElementById('clone-display');
+  if (cloneVisualCount > 80) return;
+  const el = document.createElement('div');
+  el.className = 'mini-clone';
+  el.textContent = CLONE_EMOJIS[Math.floor(Math.random() * CLONE_EMOJIS.length)];
+  el.style.left = Math.random() * 90 + '%';
+  el.style.top = Math.random() * 85 + '%';
+  el.style.animationDelay = Math.random() * 4 + 's';
+  el.style.fontSize = (16 + Math.random() * 12) + 'px';
+  display.appendChild(el);
+  cloneVisualCount++;
+}
+
+function showFloatNumber(x, y, amount) {
+  const el = document.createElement('div');
+  el.className = 'float-num';
+  el.textContent = '+' + fmt(amount);
+  el.style.left = (x - 20) + 'px';
+  el.style.top = (y - 10) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 1000);
+}
+
+// ---- Click Handler ----
+document.getElementById('clone-btn').addEventListener('click', (e) => {
+  const amount = getClickValue();
+  state.clones += amount;
+  state.totalClones += amount;
+  showFloatNumber(e.clientX, e.clientY, amount);
+  if (Math.random() < 0.3) addCloneVisual();
+  updateUI();
+});
+
+// ---- Tab Switching ----
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', (i === 0 && tab === 'buildings') || (i === 1 && tab === 'research'));
+  });
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ---- Buy Building ----
+function buyBuilding(id) {
+  const b = BUILDINGS.find(x => x.id === id);
+  const cost = getBuildingCost(b);
+  if (state.clones >= cost) {
+    state.clones -= cost;
+    state.buildings[id] = (state.buildings[id] || 0) + 1;
+    addCloneVisual();
+    updateUI();
+  }
+}
+
+// ---- Buy Research ----
+function buyResearch(id) {
+  const r = RESEARCH.find(x => x.id === id);
+  if (state.clones >= r.cost && !state.research[id]) {
+    state.clones -= r.cost;
+    state.research[id] = true;
+    r.effect();
+    updateUI();
+  }
+}
+
+// ---- Prestige ----
+function prestige() {
+  const gain = getPrestigeGain();
+  if (gain <= 0) return;
+  state.dna += gain;
+  state.clones = 0;
+  state.totalClones = 0;
+  state.clickPower = 1;
+  state.clickMulti = 1;
+  state.prodMulti = 1;
+  state.buildings = {};
+  state.research = {};
+  state.milestones = [];
+  BUILDINGS.forEach(b => { state.buildings[b.id] = 0; b.cpsMulti = 1; });
+  cloneVisualCount = 0;
+  document.getElementById('clone-display').innerHTML = '';
+  updateUI();
+}
+
+// ---- Render UI ----
+function renderBuildings() {
+  const container = document.getElementById('tab-buildings');
+  container.innerHTML = '';
+  BUILDINGS.forEach(b => {
+    const cost = getBuildingCost(b);
+    const owned = state.buildings[b.id] || 0;
+    const cps = b.baseCps * (b.cpsMulti || 1) * state.prodMulti * (1 + state.dna * 0.1);
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled = state.clones < cost;
+    btn.onclick = () => buyBuilding(b.id);
+    btn.innerHTML = `
+      <div class="up-name"><span>${b.emoji} ${b.name}</span><span class="up-owned">x${owned}</span></div>
+      <div class="up-desc">${b.desc}</div>
+      <div class="up-cost">Cost: ${fmt(cost)} clones | +${cps.toFixed(1)}/s each</div>
+    `;
+    container.appendChild(btn);
+  });
+}
+
+function renderResearch() {
+  const container = document.getElementById('tab-research');
+  container.innerHTML = '';
+  RESEARCH.forEach(r => {
+    if (!r.req()) return;
+    if (state.research[r.id]) {
+      const div = document.createElement('div');
+      div.className = 'upgrade-btn';
+      div.style.borderColor = '#2a5a2a';
+      div.innerHTML = `<div class="up-name"><span>✅ ${r.name}</span></div><div class="up-desc">${r.desc}</div>`;
+      container.appendChild(div);
+      return;
+    }
+    const btn = document.createElement('button');
+    btn.className = 'upgrade-btn';
+    btn.disabled = state.clones < r.cost;
+    btn.onclick = () => buyResearch(r.id);
+    btn.innerHTML = `
+      <div class="up-name">${r.name}</div>
+      <div class="up-desc">${r.desc}</div>
+      <div class="up-cost">Cost: ${fmt(r.cost)} clones</div>
+    `;
+    container.appendChild(btn);
+  });
+  if (!container.children.length) {
+    container.innerHTML = '<p style="color:#666;font-size:12px;padding:10px">Keep cloning to unlock research...</p>';
+  }
+}
+
+function renderMilestones() {
+  const list = document.getElementById('milestone-list');
+  list.innerHTML = '';
+  MILESTONES.forEach(m => {
+    if (state.totalClones >= m.at && !state.milestones.includes(m.at)) {
+      state.milestones.push(m.at);
+    }
+    if (state.milestones.includes(m.at)) {
+      const div = document.createElement('div');
+      div.className = 'milestone';
+      div.textContent = m.text;
+      list.appendChild(div);
+    }
+  });
+}
+
+function updateUI() {
+  const cps = getCps();
+  document.getElementById('clone-count').textContent = fmt(state.clones);
+  document.getElementById('per-sec').textContent = fmt(cps) + ' clones/sec';
+  document.getElementById('total-cloned').textContent = fmt(state.totalClones);
+  document.getElementById('per-click').textContent = fmt(getClickValue());
+  document.getElementById('cps-display').textContent = fmt(cps);
+  document.getElementById('click-multi').textContent = (state.clickMulti * (1 + state.dna * 0.05)).toFixed(1);
+  document.getElementById('prod-multi').textContent = (state.prodMulti * (1 + state.dna * 0.1)).toFixed(1);
+  document.getElementById('dna-display').textContent = state.dna;
+
+  const pg = getPrestigeGain();
+  document.getElementById('prestige-gain').textContent = pg;
+  const pbtn = document.getElementById('prestige-btn');
+  pbtn.disabled = pg <= 0;
+  pbtn.textContent = pg > 0 ? `Prestige for ${pg} DNA` : 'Prestige (need 1000 clones)';
+
+  renderBuildings();
+  renderResearch();
+  renderMilestones();
+}
+
+// ---- Game Loop ----
+let lastTick = Date.now();
+function tick() {
+  const now = Date.now();
+  const dt = (now - lastTick) / 1000;
+  lastTick = now;
+
+  const gain = getCps() * dt;
+  if (gain > 0) {
+    state.clones += gain;
+    state.totalClones += gain;
+  }
+
+  updateUI();
+  requestAnimationFrame(tick);
+}
+
+// ---- Auto-add visuals ----
+setInterval(() => {
+  if (getCps() > 0) addCloneVisual();
+}, 2000);
+
+// ---- Save/Load ----
+function saveGame() {
+  const save = {
+    ...state,
+    buildingMultis: {}
+  };
+  BUILDINGS.forEach(b => save.buildingMultis[b.id] = b.cpsMulti || 1);
+  localStorage.setItem('cloneIdleSave', JSON.stringify(save));
+}
+
+function loadGame() {
+  const raw = localStorage.getItem('cloneIdleSave');
+  if (raw) {
+    try {
+      const save = JSON.parse(raw);
+      Object.assign(state, save);
+      if (save.buildingMultis) {
+        BUILDINGS.forEach(b => { b.cpsMulti = save.buildingMultis[b.id] || 1; });
+      }
+      // Re-apply research effects aren't needed since multipliers are saved in state
+    } catch(e) {}
+  }
+}
+
+setInterval(saveGame, 15000);
+
+// ---- Start ----
+loadGame();
+updateUI();
+tick();
+</script>
+</body>
+</html>

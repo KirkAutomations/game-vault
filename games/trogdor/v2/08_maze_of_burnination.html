@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TROGDOR: MAZE OF BURNINATION</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#000;display:flex;justify-content:center;align-items:center;height:100vh;overflow:hidden;font-family:'Courier New',monospace}
+canvas{display:block;image-rendering:pixelated}
+#ui{position:absolute;top:10px;left:50%;transform:translateX(-50%);color:#fa0;font-size:16px;text-align:center;text-shadow:0 0 8px #f60}
+#hud{display:flex;gap:30px;justify-content:center}
+#title{font-size:28px;font-weight:bold;margin-bottom:4px;letter-spacing:3px}
+#msg{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#ff0;font-size:24px;text-align:center;text-shadow:0 0 12px #f80;pointer-events:none;opacity:0;transition:opacity 0.5s}
+#startScreen{position:absolute;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fa0;z-index:10}
+#startScreen h1{font-size:42px;letter-spacing:5px;text-shadow:0 0 20px #f60,0 0 40px #a30;margin-bottom:10px}
+#startScreen h2{font-size:18px;color:#c80;margin-bottom:30px}
+#startScreen .controls{color:#888;font-size:14px;line-height:2}
+#startScreen .controls span{color:#fa0}
+#startScreen button{margin-top:20px;padding:12px 40px;font-size:20px;font-family:'Courier New',monospace;background:#a30;color:#ff0;border:2px solid #f60;cursor:pointer;letter-spacing:2px}
+#startScreen button:hover{background:#c50;box-shadow:0 0 20px #f60}
+</style>
+</head>
+<body>
+<div id="startScreen">
+<h1>TROGDOR</h1>
+<h2>MAZE OF BURNINATION</h2>
+<div class="controls">
+<span>Arrow Keys</span> - Move<br>
+<span>Spacebar</span> - Burninate wooden walls<br>
+<span>Collect treasure</span> - Score points<br>
+<span>Find &amp; burn the cottage</span> - Complete level<br>
+<span>Avoid knights</span> - Or burn them!<br>
+</div>
+<button id="startBtn">ENTER THE MAZE</button>
+</div>
+<div id="ui">
+<div id="title">MAZE OF BURNINATION</div>
+<div id="hud">
+<span>Level: <span id="levelDisp">1</span></span>
+<span>Score: <span id="scoreDisp">0</span></span>
+<span>Time: <span id="timeDisp">0</span></span>
+<span>Lives: <span id="livesDisp">3</span></span>
+</div>
+</div>
+<div id="msg"></div>
+<canvas id="C"></canvas>
+<script>
+const canvas=document.getElementById('C');
+const ctx=canvas.getContext('2d');
+const W=960,H=700;
+canvas.width=W;canvas.height=H;
+
+// Game state
+let gameState='start'; // start, playing, levelComplete, gameOver
+let level=1, score=0, lives=3, timer=0, timerStart=0;
+let maze=[], mazeW=0, mazeH=0, cellSize=32;
+let player={x:1,y:1,dir:0,frame:0,burnCooldown:0};
+let knights=[], treasures=[], fires=[];
+let explored=[];
+let exitPos={x:0,y:0};
+let viewRadius=5;
+let msgTimer=0, msgText='';
+let lastTime=0, moveDelay=0;
+let keysDown={};
+let audioCtx=null, musicNodes=[], sfxEnabled=true;
+let musicStarted=false;
+
+// Cell types
+const WALL=0, PATH=1, WOOD=2, TREASURE_CELL=3, EXIT_CELL=4;
+
+// Level configs
+const levelConfigs=[
+  {w:15,h:11,knights:2,treasures:5,timeBonus:120,palette:{wall:'#445',moss:'#353',wood:'#853',floor:'#222',fog:'#111'}},
+  {w:19,h:13,knights:3,treasures:7,timeBonus:150,palette:{wall:'#434',moss:'#243',wood:'#863',floor:'#1a1a22',fog:'#0a0a12'}},
+  {w:23,h:15,knights:4,treasures:9,timeBonus:180,palette:{wall:'#454',moss:'#253',wood:'#874',floor:'#1a221a',fog:'#0a120a'}},
+  {w:27,h:17,knights:5,treasures:11,timeBonus:210,palette:{wall:'#544',moss:'#433',wood:'#884',floor:'#221a1a',fog:'#120a0a'}},
+  {w:31,h:19,knights:6,treasures:14,timeBonus:240,palette:{wall:'#455',moss:'#344',wood:'#855',floor:'#1a1a22',fog:'#0a0a15'}},
+  {w:35,h:21,knights:7,treasures:16,timeBonus:270,palette:{wall:'#535',moss:'#424',wood:'#864',floor:'#1e1a22',fog:'#100a12'}},
+];
+
+function getConfig(){return levelConfigs[Math.min(level-1,levelConfigs.length-1)];}
+
+// Maze generation - recursive backtracker
+function generateMaze(){
+  const cfg=getConfig();
+  mazeW=cfg.w; mazeH=cfg.h;
+  // Ensure odd dimensions
+  if(mazeW%2===0) mazeW++;
+  if(mazeH%2===0) mazeH++;
+
+  maze=[];
+  explored=[];
+  for(let y=0;y<mazeH;y++){
+    maze[y]=[];
+    explored[y]=[];
+    for(let x=0;x<mazeW;x++){
+      maze[y][x]=WALL;
+      explored[y][x]=false;
+    }
+  }
+
+  // Carve maze
+  const stack=[];
+  const startX=1, startY=1;
+  maze[startY][startX]=PATH;
+  stack.push({x:startX,y:startY});
+
+  while(stack.length>0){
+    const cur=stack[stack.length-1];
+    const neighbors=[];
+    const dirs=[[0,-2],[0,2],[-2,0],[2,0]];
+    for(const[dx,dy] of dirs){
+      const nx=cur.x+dx, ny=cur.y+dy;
+      if(nx>0&&nx<mazeW-1&&ny>0&&ny<mazeH-1&&maze[ny][nx]===WALL){
+        neighbors.push({x:nx,y:ny,mx:cur.x+dx/2,my:cur.y+dy/2});
+      }
+    }
+    if(neighbors.length>0){
+      const next=neighbors[Math.floor(Math.random()*neighbors.length)];
+      maze[next.my][next.mx]=PATH;
+      maze[next.y][next.x]=PATH;
+      stack.push({x:next.x,y:next.y});
+    } else {
+      stack.pop();
+    }
+  }
+
+  // Add wooden walls (replace some stone walls adjacent to paths)
+  let woodCount=0;
+  const maxWood=Math.floor(mazeW*mazeH*0.06);
+  for(let attempt=0;attempt<maxWood*10&&woodCount<maxWood;attempt++){
+    const x=1+Math.floor(Math.random()*(mazeW-2));
+    const y=1+Math.floor(Math.random()*(mazeH-2));
+    if(maze[y][x]===WALL){
+      let adjPath=0;
+      if(y>0&&maze[y-1][x]===PATH) adjPath++;
+      if(y<mazeH-1&&maze[y+1][x]===PATH) adjPath++;
+      if(x>0&&maze[y][x-1]===PATH) adjPath++;
+      if(x<mazeW-1&&maze[y][x+1]===PATH) adjPath++;
+      if(adjPath>=2){
+        maze[y][x]=WOOD;
+        woodCount++;
+      }
+    }
+  }
+
+  // Place player
+  player.x=1; player.y=1;
+
+  // Place exit (far corner area)
+  exitPos.x=mazeW-2; exitPos.y=mazeH-2;
+  // Find nearest path cell to target exit
+  for(let r=0;r<5;r++){
+    for(let dy=-r;dy<=r;dy++){
+      for(let dx=-r;dx<=r;dx++){
+        const ex=exitPos.x+dx, ey=exitPos.y+dy;
+        if(ex>0&&ex<mazeW-1&&ey>0&&ey<mazeH-1&&maze[ey][ex]===PATH){
+          exitPos.x=ex; exitPos.y=ey;
+          maze[ey][ex]=EXIT_CELL;
+          r=99; dy=99; break;
+        }
+      }
+    }
+  }
+
+  // Place treasures
+  treasures=[];
+  const pathCells=[];
+  for(let y=1;y<mazeH-1;y++)
+    for(let x=1;x<mazeW-1;x++)
+      if(maze[y][x]===PATH&&!(x===1&&y===1)&&!(x===exitPos.x&&y===exitPos.y))
+        pathCells.push({x,y});
+
+  shuffle(pathCells);
+  for(let i=0;i<Math.min(cfg.treasures,pathCells.length);i++){
+    const p=pathCells[i];
+    treasures.push({x:p.x,y:p.y,type:Math.random()<0.4?'gem':'gold',collected:false,sparkle:Math.random()*Math.PI*2});
+  }
+
+  // Place knights
+  knights=[];
+  const knightCells=pathCells.slice(cfg.treasures);
+  shuffle(knightCells);
+  for(let i=0;i<Math.min(cfg.knights,knightCells.length);i++){
+    const p=knightCells[i];
+    if(Math.abs(p.x-1)+Math.abs(p.y-1)>4){
+      knights.push({x:p.x,y:p.y,dir:Math.floor(Math.random()*4),speed:0.02+Math.random()*0.01,moveTimer:0,frame:0,alive:true});
+    }
+  }
+
+  fires=[];
+  viewRadius=5+Math.floor(level*0.3);
+  timerStart=Date.now();
+}
+
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}}
+
+// Drawing
+function drawCell(sx,sy,x,y,palette){
+  const px=sx, py=sy;
+  const s=cellSize;
+  const cell=maze[y][x];
+
+  if(cell===WALL){
+    // Stone wall with details
+    ctx.fillStyle=palette.wall;
+    ctx.fillRect(px,py,s,s);
+    // Brick lines
+    ctx.strokeStyle='rgba(0,0,0,0.3)';
+    ctx.lineWidth=1;
+    ctx.strokeRect(px+1,py+1,s-2,s/2-1);
+    ctx.strokeRect(px+s/4,py+s/2,s*3/4-1,s/2-1);
+    // Moss
+    if((x*7+y*13)%11<3){
+      ctx.fillStyle=palette.moss;
+      ctx.fillRect(px+(x%3)*4,py+s-4,6,4);
+    }
+    // Cracks
+    if((x*11+y*7)%17<2){
+      ctx.strokeStyle='rgba(0,0,0,0.5)';
+      ctx.beginPath();
+      ctx.moveTo(px+s*0.3,py+s*0.2);
+      ctx.lineTo(px+s*0.5,py+s*0.5);
+      ctx.lineTo(px+s*0.4,py+s*0.8);
+      ctx.stroke();
+    }
+  } else if(cell===WOOD){
+    // Wooden wall
+    ctx.fillStyle=palette.wood;
+    ctx.fillRect(px,py,s,s);
+    // Planks
+    ctx.strokeStyle='rgba(0,0,0,0.4)';
+    ctx.lineWidth=1;
+    for(let i=0;i<4;i++){
+      ctx.beginPath();
+      ctx.moveTo(px,py+i*s/4+s/8);
+      ctx.lineTo(px+s,py+i*s/4+s/8);
+      ctx.stroke();
+    }
+    // Wood grain
+    ctx.strokeStyle='rgba(100,60,20,0.3)';
+    ctx.beginPath();
+    ctx.moveTo(px+s*0.2,py);
+    ctx.quadraticCurveTo(px+s*0.4,py+s*0.5,px+s*0.3,py+s);
+    ctx.stroke();
+  } else if(cell===EXIT_CELL){
+    // Floor
+    ctx.fillStyle=palette.floor;
+    ctx.fillRect(px,py,s,s);
+    // Cottage
+    drawCottage(px,py,s);
+  } else {
+    // Floor
+    ctx.fillStyle=palette.floor;
+    ctx.fillRect(px,py,s,s);
+    // Floor texture
+    if((x+y)%3===0){
+      ctx.fillStyle='rgba(255,255,255,0.03)';
+      ctx.fillRect(px+2,py+2,2,2);
+    }
+  }
+}
+
+function drawCottage(px,py,s){
+  const t=Date.now()*0.003;
+  // Base
+  ctx.fillStyle='#a65';
+  ctx.fillRect(px+4,py+s*0.4,s-8,s*0.55);
+  // Roof
+  ctx.fillStyle='#864';
+  ctx.beginPath();
+  ctx.moveTo(px+2,py+s*0.4);
+  ctx.lineTo(px+s/2,py+2);
+  ctx.lineTo(px+s-2,py+s*0.4);
+  ctx.fill();
+  // Door
+  ctx.fillStyle='#543';
+  ctx.fillRect(px+s*0.35,py+s*0.6,s*0.3,s*0.35);
+  // Glow
+  ctx.fillStyle=`rgba(255,${150+Math.sin(t)*50},0,${0.3+Math.sin(t*1.5)*0.1})`;
+  ctx.fillRect(px+2,py+2,s-4,s-4);
+}
+
+function drawTrogdor(px,py,s){
+  const t=Date.now()*0.005;
+  const bob=Math.sin(t*3)*2;
+  // Body
+  ctx.fillStyle='#2a2';
+  ctx.fillRect(px+s*0.2,py+s*0.3+bob,s*0.6,s*0.5);
+  // Head
+  ctx.fillStyle='#3b3';
+  ctx.fillRect(px+s*0.55,py+s*0.15+bob,s*0.35,s*0.35);
+  // Eye
+  ctx.fillStyle='#f00';
+  ctx.fillRect(px+s*0.75,py+s*0.22+bob,s*0.1,s*0.08);
+  // Beefy arm
+  ctx.fillStyle='#2a2';
+  ctx.fillRect(px+s*0.35,py+s*0.55+bob,s*0.15,s*0.3);
+  ctx.fillRect(px+s*0.15,py+s*0.75+bob,s*0.2,s*0.1);
+  // Legs
+  ctx.fillStyle='#280';
+  ctx.fillRect(px+s*0.25,py+s*0.75+bob,s*0.12,s*0.15);
+  ctx.fillRect(px+s*0.6,py+s*0.75+bob,s*0.12,s*0.15);
+  // Flame mouth
+  if(player.burnCooldown>0){
+    ctx.fillStyle='#fa0';
+    ctx.fillRect(px+s*0.85,py+s*0.25+bob,s*0.15,s*0.12);
+    ctx.fillStyle='#f60';
+    ctx.fillRect(px+s*0.95,py+s*0.22+bob,s*0.1,s*0.08);
+  }
+}
+
+function drawKnight(k,px,py,s){
+  const t=Date.now()*0.004;
+  const bob=Math.sin(t*2+k.x*3)*1.5;
+  if(!k.alive)return;
+  // Armor
+  ctx.fillStyle='#889';
+  ctx.fillRect(px+s*0.2,py+s*0.25+bob,s*0.6,s*0.55);
+  // Helmet
+  ctx.fillStyle='#99a';
+  ctx.fillRect(px+s*0.25,py+s*0.1+bob,s*0.5,s*0.25);
+  // Visor
+  ctx.fillStyle='#223';
+  ctx.fillRect(px+s*0.35,py+s*0.2+bob,s*0.3,s*0.08);
+  // Shield
+  ctx.fillStyle='#66a';
+  ctx.fillRect(px+s*0.1,py+s*0.35+bob,s*0.18,s*0.3);
+  // Sword
+  ctx.fillStyle='#ccd';
+  ctx.fillRect(px+s*0.72,py+s*0.2+bob,s*0.06,s*0.5);
+  ctx.fillStyle='#a85';
+  ctx.fillRect(px+s*0.67,py+s*0.4+bob,s*0.16,s*0.06);
+  // Legs
+  ctx.fillStyle='#778';
+  ctx.fillRect(px+s*0.3,py+s*0.75+bob,s*0.12,s*0.15);
+  ctx.fillRect(px+s*0.55,py+s*0.75+bob,s*0.12,s*0.15);
+}
+
+function drawTreasure(tr,px,py,s){
+  if(tr.collected)return;
+  const t=Date.now()*0.003;
+  tr.sparkle+=0.05;
+  if(tr.type==='gold'){
+    ctx.fillStyle='#da0';
+    ctx.fillRect(px+s*0.25,py+s*0.4,s*0.5,s*0.35);
+    ctx.fillStyle='#fc0';
+    ctx.fillRect(px+s*0.3,py+s*0.45,s*0.4,s*0.25);
+    // Lid
+    ctx.fillStyle='#b80';
+    ctx.fillRect(px+s*0.2,py+s*0.35,s*0.6,s*0.1);
+  } else {
+    // Gem
+    ctx.fillStyle='#f0f';
+    ctx.beginPath();
+    ctx.moveTo(px+s*0.5,py+s*0.25);
+    ctx.lineTo(px+s*0.7,py+s*0.5);
+    ctx.lineTo(px+s*0.6,py+s*0.75);
+    ctx.lineTo(px+s*0.4,py+s*0.75);
+    ctx.lineTo(px+s*0.3,py+s*0.5);
+    ctx.fill();
+    ctx.fillStyle='#f8f';
+    ctx.fillRect(px+s*0.42,py+s*0.4,s*0.08,s*0.15);
+  }
+  // Sparkles
+  const sparkleAlpha=0.5+Math.sin(tr.sparkle)*0.5;
+  ctx.fillStyle=`rgba(255,255,200,${sparkleAlpha})`;
+  ctx.fillRect(px+s*0.5+Math.cos(tr.sparkle)*s*0.3,py+s*0.3+Math.sin(tr.sparkle*1.3)*s*0.2,3,3);
+  ctx.fillRect(px+s*0.4+Math.cos(tr.sparkle*0.7+2)*s*0.3,py+s*0.5+Math.sin(tr.sparkle*1.1+1)*s*0.2,2,2);
+}
+
+function drawFire(f,px,py,s){
+  const t=Date.now()*0.01;
+  const life=1-f.age/f.maxAge;
+  for(let i=0;i<5;i++){
+    const fx=px+s*0.2+Math.sin(t+i*1.5)*s*0.2;
+    const fy=py+s*(0.7-i*0.12)*life;
+    const fs=s*(0.15+Math.random()*0.15)*life;
+    ctx.fillStyle=i<2?`rgba(255,100,0,${life*0.8})`:`rgba(255,200,0,${life*0.6})`;
+    ctx.fillRect(fx,fy,fs,fs);
+  }
+}
+
+// FOW + Lighting
+function drawLighting(camX,camY){
+  // Create fog
+  const grd=ctx.createRadialGradient(
+    W/2, H/2, viewRadius*cellSize*0.3,
+    W/2, H/2, viewRadius*cellSize
+  );
+  grd.addColorStop(0,'rgba(0,0,0,0)');
+  grd.addColorStop(0.6,'rgba(0,0,0,0.6)');
+  grd.addColorStop(1,'rgba(0,0,0,0.95)');
+  ctx.fillStyle=grd;
+  ctx.fillRect(0,0,W,H);
+
+  // Torch flicker
+  const flicker=Math.random()*0.1;
+  const tGrd=ctx.createRadialGradient(
+    W/2, H/2, 0,
+    W/2, H/2, viewRadius*cellSize*0.5
+  );
+  tGrd.addColorStop(0,`rgba(255,150,50,${0.08+flicker})`);
+  tGrd.addColorStop(1,'rgba(255,100,20,0)');
+  ctx.fillStyle=tGrd;
+  ctx.fillRect(0,0,W,H);
+}
+
+// Minimap
+function drawMinimap(){
+  const mmScale=3;
+  const mmX=W-mazeW*mmScale-10;
+  const mmY=50;
+  ctx.fillStyle='rgba(0,0,0,0.7)';
+  ctx.fillRect(mmX-2,mmY-2,mazeW*mmScale+4,mazeH*mmScale+4);
+
+  for(let y=0;y<mazeH;y++){
+    for(let x=0;x<mazeW;x++){
+      if(!explored[y][x])continue;
+      const c=maze[y][x];
+      if(c===WALL) ctx.fillStyle='#445';
+      else if(c===WOOD) ctx.fillStyle='#853';
+      else if(c===EXIT_CELL) ctx.fillStyle='#f80';
+      else ctx.fillStyle='#333';
+      ctx.fillRect(mmX+x*mmScale,mmY+y*mmScale,mmScale,mmScale);
+    }
+  }
+  // Player on minimap
+  ctx.fillStyle='#0f0';
+  ctx.fillRect(mmX+player.x*mmScale,mmY+player.y*mmScale,mmScale,mmScale);
+  // Knights
+  for(const k of knights){
+    if(!k.alive)continue;
+    if(explored[Math.floor(k.y)][Math.floor(k.x)]){
+      ctx.fillStyle='#f00';
+      ctx.fillRect(mmX+Math.floor(k.x)*mmScale,mmY+Math.floor(k.y)*mmScale,mmScale,mmScale);
+    }
+  }
+}
+
+// Update explored cells
+function updateExplored(){
+  for(let dy=-viewRadius;dy<=viewRadius;dy++){
+    for(let dx=-viewRadius;dx<=viewRadius;dx++){
+      const ex=player.x+dx, ey=player.y+dy;
+      if(ex>=0&&ex<mazeW&&ey>=0&&ey<mazeH){
+        if(dx*dx+dy*dy<=viewRadius*viewRadius){
+          explored[ey][ex]=true;
+        }
+      }
+    }
+  }
+}
+
+// Knight AI
+function updateKnights(dt){
+  for(const k of knights){
+    if(!k.alive)continue;
+    k.moveTimer+=dt;
+    if(k.moveTimer>600){
+      k.moveTimer=0;
+      // Try to move in current direction, else pick random
+      const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+      const possibleDirs=[];
+      for(let d=0;d<4;d++){
+        const nx=Math.floor(k.x)+dirs[d][0];
+        const ny=Math.floor(k.y)+dirs[d][1];
+        if(nx>=0&&nx<mazeW&&ny>=0&&ny<mazeH&&maze[ny][nx]!==WALL&&maze[ny][nx]!==WOOD){
+          possibleDirs.push(d);
+        }
+      }
+      if(possibleDirs.length>0){
+        // Prefer current direction
+        if(possibleDirs.includes(k.dir)&&Math.random()<0.6){
+          // keep dir
+        } else {
+          k.dir=possibleDirs[Math.floor(Math.random()*possibleDirs.length)];
+        }
+        const nx=Math.floor(k.x)+dirs[k.dir][0];
+        const ny=Math.floor(k.y)+dirs[k.dir][1];
+        k.x=nx; k.y=ny;
+      }
+    }
+
+    // Check collision with player
+    if(Math.floor(k.x)===player.x&&Math.floor(k.y)===player.y){
+      hitByKnight(k);
+    }
+  }
+}
+
+function hitByKnight(k){
+  lives--;
+  document.getElementById('livesDisp').textContent=lives;
+  showMsg('A KNIGHT GOT YOU!');
+  playSFX('hit');
+  if(lives<=0){
+    gameState='gameOver';
+    showMsg('GAME OVER - Click to restart');
+    stopMusic();
+  } else {
+    // Respawn at start
+    player.x=1; player.y=1;
+  }
+}
+
+// Fire updates
+function updateFires(dt){
+  for(let i=fires.length-1;i>=0;i--){
+    fires[i].age+=dt;
+    if(fires[i].age>=fires[i].maxAge){
+      fires.splice(i,1);
+    }
+  }
+}
+
+// Player actions
+function tryMove(dx,dy){
+  if(gameState!=='playing')return;
+  const nx=player.x+dx, ny=player.y+dy;
+  if(nx<0||nx>=mazeW||ny<0||ny>=mazeH)return;
+  const cell=maze[ny][nx];
+  if(cell===WALL)return;
+  if(cell===WOOD)return;
+
+  player.x=nx; player.y=ny;
+  player.dir=dx>0?0:dx<0?2:dy>0?1:3;
+  playSFX('step');
+
+  // Check treasure
+  for(const tr of treasures){
+    if(!tr.collected&&tr.x===nx&&tr.y===ny){
+      tr.collected=true;
+      score+=tr.type==='gold'?100:250;
+      document.getElementById('scoreDisp').textContent=score;
+      playSFX('treasure');
+      showMsg(tr.type==='gold'?'+100 GOLD!':'+250 GEM!');
+    }
+  }
+
+  // Check exit
+  if(cell===EXIT_CELL){
+    levelComplete();
+  }
+
+  // Check knights
+  for(const k of knights){
+    if(k.alive&&Math.floor(k.x)===nx&&Math.floor(k.y)===ny){
+      hitByKnight(k);
+    }
+  }
+
+  updateExplored();
+}
+
+function burninate(){
+  if(gameState!=='playing')return;
+  if(player.burnCooldown>0)return;
+  player.burnCooldown=500;
+  playSFX('burn');
+
+  // Burn adjacent cells
+  const dirs=[[0,-1],[0,1],[-1,0],[1,0]];
+  for(const[dx,dy] of dirs){
+    const bx=player.x+dx, by=player.y+dy;
+    if(bx<0||bx>=mazeW||by<0||by>=mazeH)continue;
+    if(maze[by][bx]===WOOD){
+      maze[by][bx]=PATH;
+      fires.push({x:bx,y:by,age:0,maxAge:1500});
+      showMsg('BURNINATED!');
+    }
+  }
+
+  // Burn adjacent knights
+  for(const k of knights){
+    if(!k.alive)continue;
+    const kx=Math.floor(k.x), ky=Math.floor(k.y);
+    for(const[dx,dy] of dirs){
+      if(player.x+dx===kx&&player.y+dy===ky){
+        k.alive=false;
+        fires.push({x:kx,y:ky,age:0,maxAge:1200});
+        score+=200;
+        document.getElementById('scoreDisp').textContent=score;
+        showMsg('KNIGHT BURNINATED! +200');
+        playSFX('treasure');
+      }
+    }
+  }
+}
+
+function levelComplete(){
+  gameState='levelComplete';
+  const elapsed=Math.floor((Date.now()-timerStart)/1000);
+  const cfg=getConfig();
+  const timeBonus=Math.max(0,(cfg.timeBonus-elapsed)*10);
+  score+=timeBonus+500;
+  document.getElementById('scoreDisp').textContent=score;
+  playSFX('fanfare');
+  showMsg(`LEVEL ${level} COMPLETE! Time bonus: ${timeBonus}`);
+  stopMusic();
+
+  setTimeout(()=>{
+    if(level>=6){
+      showMsg('YOU CONQUERED ALL MAZES! TOTAL SCORE: '+score);
+      gameState='gameOver';
+    } else {
+      level++;
+      startLevel();
+    }
+  },3000);
+}
+
+function startLevel(){
+  gameState='playing';
+  generateMaze();
+  updateExplored();
+  document.getElementById('levelDisp').textContent=level;
+  timerStart=Date.now();
+  startMusic();
+}
+
+function showMsg(text){
+  msgText=text;
+  msgTimer=2500;
+  const el=document.getElementById('msg');
+  el.textContent=text;
+  el.style.opacity='1';
+  setTimeout(()=>{el.style.opacity='0';},2200);
+}
+
+// Main render
+function render(){
+  ctx.fillStyle='#000';
+  ctx.fillRect(0,0,W,H);
+
+  if(gameState==='start')return;
+  if(gameState==='gameOver'){
+    ctx.fillStyle='#f00';
+    ctx.font='36px Courier New';
+    ctx.textAlign='center';
+    ctx.fillText('GAME OVER',W/2,H/2-30);
+    ctx.fillStyle='#fa0';
+    ctx.font='20px Courier New';
+    ctx.fillText('Final Score: '+score,W/2,H/2+10);
+    ctx.fillText('Click to restart',W/2,H/2+40);
+    return;
+  }
+
+  const palette=getConfig().palette;
+
+  // Camera centered on player
+  const camX=player.x*cellSize-W/2+cellSize/2;
+  const camY=player.y*cellSize-H/2+cellSize/2;
+
+  // Draw visible cells
+  const startCellX=Math.max(0,Math.floor(camX/cellSize)-1);
+  const startCellY=Math.max(0,Math.floor(camY/cellSize)-1);
+  const endCellX=Math.min(mazeW-1,Math.ceil((camX+W)/cellSize)+1);
+  const endCellY=Math.min(mazeH-1,Math.ceil((camY+H)/cellSize)+1);
+
+  for(let y=startCellY;y<=endCellY;y++){
+    for(let x=startCellX;x<=endCellX;x++){
+      const sx=x*cellSize-camX;
+      const sy=y*cellSize-camY;
+      drawCell(sx,sy,x,y,palette);
+    }
+  }
+
+  // Draw treasures
+  for(const tr of treasures){
+    if(tr.collected)continue;
+    const sx=tr.x*cellSize-camX;
+    const sy=tr.y*cellSize-camY;
+    if(sx>-cellSize&&sx<W+cellSize&&sy>-cellSize&&sy<H+cellSize){
+      drawTreasure(tr,sx,sy,cellSize);
+    }
+  }
+
+  // Draw fires
+  for(const f of fires){
+    const sx=f.x*cellSize-camX;
+    const sy=f.y*cellSize-camY;
+    drawFire(f,sx,sy,cellSize);
+  }
+
+  // Draw knights
+  for(const k of knights){
+    if(!k.alive)continue;
+    const sx=Math.floor(k.x)*cellSize-camX;
+    const sy=Math.floor(k.y)*cellSize-camY;
+    if(sx>-cellSize&&sx<W+cellSize&&sy>-cellSize&&sy<H+cellSize){
+      drawKnight(k,sx,sy,cellSize);
+    }
+  }
+
+  // Draw player
+  const px=player.x*cellSize-camX;
+  const py=player.y*cellSize-camY;
+  drawTrogdor(px,py,cellSize);
+
+  // Fog of war
+  drawLighting(camX,camY);
+
+  // Minimap
+  drawMinimap();
+
+  // Timer
+  if(gameState==='playing'){
+    timer=Math.floor((Date.now()-timerStart)/1000);
+    document.getElementById('timeDisp').textContent=timer;
+  }
+}
+
+// Game loop
+function gameLoop(ts){
+  const dt=ts-lastTime;
+  lastTime=ts;
+
+  if(gameState==='playing'){
+    if(player.burnCooldown>0) player.burnCooldown-=dt;
+    updateKnights(dt);
+    updateFires(dt);
+
+    // Handle held movement keys
+    moveDelay-=dt;
+    if(moveDelay<=0){
+      if(keysDown['ArrowUp']||keysDown['w']){tryMove(0,-1);moveDelay=140;}
+      else if(keysDown['ArrowDown']||keysDown['s']){tryMove(0,1);moveDelay=140;}
+      else if(keysDown['ArrowLeft']||keysDown['a']){tryMove(-1,0);moveDelay=140;}
+      else if(keysDown['ArrowRight']||keysDown['d']){tryMove(1,0);moveDelay=140;}
+    }
+
+    // Update music tension based on timer
+    updateMusicTension();
+  }
+
+  render();
+  requestAnimationFrame(gameLoop);
+}
+
+// Input
+document.addEventListener('keydown',e=>{
+  if(e.key===' '&&gameState==='playing'){
+    e.preventDefault();
+    burninate();
+  }
+  keysDown[e.key]=true;
+  e.preventDefault();
+});
+document.addEventListener('keyup',e=>{
+  keysDown[e.key]=false;
+  if(!keysDown['ArrowUp']&&!keysDown['ArrowDown']&&!keysDown['ArrowLeft']&&!keysDown['ArrowRight']
+    &&!keysDown['w']&&!keysDown['s']&&!keysDown['a']&&!keysDown['d']){
+    moveDelay=0;
+  }
+});
+
+canvas.addEventListener('click',()=>{
+  if(gameState==='gameOver'){
+    level=1; score=0; lives=3;
+    document.getElementById('scoreDisp').textContent=0;
+    document.getElementById('livesDisp').textContent=3;
+    startLevel();
+  }
+});
+
+document.getElementById('startBtn').addEventListener('click',()=>{
+  document.getElementById('startScreen').style.display='none';
+  initAudio();
+  startLevel();
+  requestAnimationFrame(gameLoop);
+});
+
+// ======== AUDIO ENGINE ========
+function initAudio(){
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+}
+
+let masterGain, droneGain, percGain, melodyGain;
+let tensionLevel=0;
+let musicIntervals=[];
+
+// Trogdor song data - frequencies relative to root
+// D minor: D=1, Eb=16/15, F=6/5, G=4/3, Ab=8/5, Bb=9/5, C=2
+// Root notes per level: D, C, Bb, A, G, F
+const levelRoots=[146.83, 130.81, 116.54, 110.00, 98.00, 87.31]; // D3, C3, Bb2, A2, G2, F2
+
+// Intervals from root for the Trogdor riff (Dm-Bb-G-F->G)
+// Main riff: D5-D5-D5-Bb5---D5-D5-D5-G5---D5-D5-D5-Bb5-G5-F5->G5
+const MAIN_RIFF_INTERVALS=[1, 1, 1, 9/5, 1, 1, 1, 4/3, 1, 1, 1, 9/5, 4/3, 6/5, 4/3];
+// Chorus melody: D4-D4-D4-D4-F4-G4-G4-Bb4 / Bb4-C5-D5-Bb4-G4-F4-G4 / G4-Bb4-D5
+const CHORUS_MELODY=[1, 1, 1, 1, 6/5, 4/3, 4/3, 9/5, 9/5, 2, 2*1, 9/5, 4/3, 6/5, 4/3, 4/3, 9/5, 2*1];
+// Bridge hammer-on pattern: D-F->G repeated
+const BRIDGE_PATTERN=[1, 6/5, 4/3];
+// Verse: D-D-Bb-D-D-C-D-D-Bb-D-D-C
+const VERSE_INTERVALS=[1, 1, 9/5, 1, 1, 2, 1, 1, 9/5, 1, 1, 2];
+// Bass line: D-D-D-Bb---D-D-D-G---D-D-D-Bb-G-F->G
+const BASS_LINE=[1, 1, 1, 9/5, 1, 1, 1, 4/3, 1, 1, 1, 9/5, 4/3, 6/5, 4/3];
+
+function startMusic(){
+  if(!audioCtx)return;
+  stopMusic();
+  musicStarted=true;
+  musicIntervals=[];
+
+  const root=levelRoots[Math.min(level-1,5)];
+
+  masterGain=audioCtx.createGain();
+  masterGain.gain.value=0.3;
+  masterGain.connect(audioCtx.destination);
+
+  // === DEEP DRONE on root D (sine + slow LFO) ===
+  droneGain=audioCtx.createGain();
+  droneGain.gain.value=0.18;
+  droneGain.connect(masterGain);
+
+  const droneOsc=audioCtx.createOscillator();
+  droneOsc.type='sine';
+  droneOsc.frequency.value=root/2; // Sub-octave drone
+  droneOsc.connect(droneGain);
+  droneOsc.start();
+  musicNodes.push(droneOsc);
+
+  // LFO wobble on drone
+  const lfo=audioCtx.createOscillator();
+  const lfoGain=audioCtx.createGain();
+  lfo.frequency.value=0.15; // Very slow wobble
+  lfoGain.gain.value=2.5;
+  lfo.connect(lfoGain);
+  lfoGain.connect(droneOsc.frequency);
+  lfo.start();
+  musicNodes.push(lfo);
+
+  // Second drone: root at octave (very quiet)
+  const drone2=audioCtx.createOscillator();
+  const drone2Gain=audioCtx.createGain();
+  drone2.type='triangle';
+  drone2.frequency.value=root;
+  drone2Gain.gain.value=0.05;
+  drone2.connect(drone2Gain);
+  drone2Gain.connect(masterGain);
+  drone2.start();
+  musicNodes.push(drone2);
+
+  // Third drone: minor third (F) - gives it the Dm character
+  const drone3=audioCtx.createOscillator();
+  const drone3Gain=audioCtx.createGain();
+  drone3.type='sine';
+  drone3.frequency.value=root/2 * 6/5; // F below root
+  drone3Gain.gain.value=0.03;
+  drone3.connect(drone3Gain);
+  drone3Gain.connect(masterGain);
+  drone3.start();
+  musicNodes.push(drone3);
+
+  // === MELODY LAYER: Fragmented Trogdor theme ===
+  melodyGain=audioCtx.createGain();
+  melodyGain.gain.value=0.07;
+  melodyGain.connect(masterGain);
+
+  // Create a convolver for reverb-like effect
+  function createDelay(delayTime, feedback, wetLevel){
+    const delay=audioCtx.createDelay(5.0);
+    delay.delayTime.value=delayTime;
+    const fb=audioCtx.createGain();
+    fb.gain.value=feedback;
+    const wet=audioCtx.createGain();
+    wet.gain.value=wetLevel;
+    delay.connect(fb);
+    fb.connect(delay);
+    delay.connect(wet);
+    return {input:delay, output:wet};
+  }
+
+  const melodyDelay=createDelay(0.6, 0.35, 0.5);
+  melodyDelay.output.connect(melodyGain);
+  const melodyDelay2=createDelay(1.1, 0.25, 0.3);
+  melodyDelay2.output.connect(melodyGain);
+
+  // Play fragmented chorus melody notes slowly, spaced out
+  let chorusIndex=0;
+  let riffIndex=0;
+  let verseIndex=0;
+  let bridgeIndex=0;
+  let melodyPhase=0; // 0=riff fragments, 1=chorus fragments, 2=verse, 3=bridge
+
+  // Main melody sequencer - plays ghost notes from the Trogdor theme
+  const baseMelodyInterval=2800; // ~60 BPM feel, one note every ~2.8s
+  let melodyTimerId=setInterval(()=>{
+    if(!musicStarted)return;
+    const now=audioCtx.currentTime;
+    const tempoMult=1-tensionLevel*0.4; // Speed up as tension rises (2.8s -> 1.68s)
+    let freq, octave, duration, vol;
+
+    if(melodyPhase===0){
+      // Main riff fragments: D...D...Bb...G...F->G
+      const interval=MAIN_RIFF_INTERVALS[riffIndex];
+      octave=1; // Play at root octave (ghostly low)
+      freq=root*interval*octave;
+      duration=2.0+Math.random()*0.5;
+      vol=0.10+tensionLevel*0.06;
+      riffIndex=(riffIndex+1)%MAIN_RIFF_INTERVALS.length;
+      // Skip repeated D notes sometimes for sparseness at low tension
+      if(interval===1 && Math.random()<0.6-tensionLevel*0.4){
+        return; // Skip this note - creates ghostly gaps
+      }
+      if(riffIndex===0) melodyPhase=1;
+    } else if(melodyPhase===1){
+      // Chorus melody fragments: D...F...G...Bb (burninating)
+      const interval=CHORUS_MELODY[chorusIndex];
+      octave=2; // Higher octave for chorus
+      freq=root*interval;
+      duration=1.8+Math.random()*0.4;
+      vol=0.08+tensionLevel*0.08;
+      chorusIndex=(chorusIndex+1)%CHORUS_MELODY.length;
+      // At low tension, only play every other note
+      if(tensionLevel<0.3 && chorusIndex%3!==0){
+        return;
+      }
+      if(chorusIndex===0) melodyPhase=2;
+    } else if(melodyPhase===2){
+      // Verse fragments
+      const interval=VERSE_INTERVALS[verseIndex];
+      octave=1;
+      freq=root*interval;
+      duration=1.5+Math.random()*0.5;
+      vol=0.07+tensionLevel*0.05;
+      verseIndex=(verseIndex+1)%VERSE_INTERVALS.length;
+      if(interval===1 && Math.random()<0.5-tensionLevel*0.3) return;
+      if(verseIndex===0) melodyPhase=3;
+    } else {
+      // Bridge: D-F->G hammer-on motif
+      const interval=BRIDGE_PATTERN[bridgeIndex];
+      octave=1;
+      freq=root*interval;
+      duration=0.8+bridgeIndex*0.4; // Short-short-long
+      vol=0.09+tensionLevel*0.06;
+      bridgeIndex=(bridgeIndex+1)%BRIDGE_PATTERN.length;
+      if(bridgeIndex===0) melodyPhase=0;
+    }
+
+    // Create the ghostly note
+    const osc=audioCtx.createOscillator();
+    const env=audioCtx.createGain();
+    osc.type=melodyPhase===1?'sine':'triangle'; // Sine for chorus, triangle for riff
+    osc.frequency.value=freq;
+
+    // Slow attack for ethereal feel
+    env.gain.setValueAtTime(0,now);
+    env.gain.linearRampToValueAtTime(vol,now+0.15);
+    env.gain.setValueAtTime(vol,now+0.15);
+    env.gain.exponentialRampToValueAtTime(0.001,now+duration);
+
+    osc.connect(env);
+    env.connect(melodyGain);
+    env.connect(melodyDelay.input);
+    env.connect(melodyDelay2.input);
+    osc.start(now);
+    osc.stop(now+duration+0.1);
+  },baseMelodyInterval);
+  musicIntervals.push(melodyTimerId);
+
+  // === BASS LINE: Slow Trogdor bass riff ===
+  let bassIndex=0;
+  const bassBeatInterval=3200; // Even slower than melody
+  const bassGain=audioCtx.createGain();
+  bassGain.gain.value=0.06;
+  bassGain.connect(masterGain);
+
+  const bassDelay=createDelay(0.8, 0.2, 0.25);
+  bassDelay.output.connect(bassGain);
+
+  const bassTimer=setInterval(()=>{
+    if(!musicStarted)return;
+    const now=audioCtx.currentTime;
+    const interval=BASS_LINE[bassIndex];
+    const freq=root/2*interval; // Sub-bass octave
+    bassIndex=(bassIndex+1)%BASS_LINE.length;
+
+    // Skip some root notes for sparseness
+    if(interval===1 && Math.random()<0.4-tensionLevel*0.3) return;
+
+    const osc=audioCtx.createOscillator();
+    const env=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.value=freq;
+    const vol=0.12+tensionLevel*0.06;
+    env.gain.setValueAtTime(0,now);
+    env.gain.linearRampToValueAtTime(vol,now+0.1);
+    env.gain.exponentialRampToValueAtTime(0.001,now+2.5);
+    osc.connect(env);
+    env.connect(bassGain);
+    env.connect(bassDelay.input);
+    osc.start(now);
+    osc.stop(now+2.6);
+  },bassBeatInterval);
+  musicIntervals.push(bassTimer);
+
+  // === PERCUSSION: Soft dungeon beats ===
+  percGain=audioCtx.createGain();
+  percGain.gain.value=0.04;
+  percGain.connect(masterGain);
+
+  // Kick pattern follows the riff rhythm loosely
+  let percBeat=0;
+  const percTimer=setInterval(()=>{
+    if(!musicStarted)return;
+    const now=audioCtx.currentTime;
+    percBeat=(percBeat+1)%16;
+
+    // Soft kick on beats 0,4,8,12 (quarter notes) with probability
+    if(percBeat%4===0 && Math.random()<0.35+tensionLevel*0.4){
+      const kick=audioCtx.createOscillator();
+      const kickEnv=audioCtx.createGain();
+      kick.frequency.setValueAtTime(root*0.5,now);
+      kick.frequency.exponentialRampToValueAtTime(25,now+0.15);
+      const kVol=0.25+tensionLevel*0.25;
+      kickEnv.gain.setValueAtTime(kVol,now);
+      kickEnv.gain.exponentialRampToValueAtTime(0.001,now+0.25);
+      kick.connect(kickEnv);
+      kickEnv.connect(percGain);
+      kick.start(now);
+      kick.stop(now+0.25);
+    }
+
+    // Subtle shaker on off-beats at higher tension
+    if(percBeat%2===1 && Math.random()<0.15+tensionLevel*0.4){
+      const bufSize=audioCtx.sampleRate*0.04;
+      const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);
+      const data=buf.getChannelData(0);
+      for(let i=0;i<bufSize;i++) data[i]=(Math.random()*2-1)*0.2;
+      const noise=audioCtx.createBufferSource();
+      noise.buffer=buf;
+      const noiseEnv=audioCtx.createGain();
+      noiseEnv.gain.setValueAtTime(0.1+tensionLevel*0.1,now);
+      noiseEnv.gain.exponentialRampToValueAtTime(0.001,now+0.05);
+      const hipass=audioCtx.createBiquadFilter();
+      hipass.type='highpass';
+      hipass.frequency.value=6000;
+      noise.connect(hipass);
+      hipass.connect(noiseEnv);
+      noiseEnv.connect(percGain);
+      noise.start(now);
+    }
+
+    // Ghostly rim click on beat 12 occasionally
+    if(percBeat===12 && Math.random()<0.2+tensionLevel*0.3){
+      const click=audioCtx.createOscillator();
+      const clickEnv=audioCtx.createGain();
+      click.type='sine';
+      click.frequency.value=1200;
+      clickEnv.gain.setValueAtTime(0.08,now);
+      clickEnv.gain.exponentialRampToValueAtTime(0.001,now+0.03);
+      click.connect(clickEnv);
+      clickEnv.connect(percGain);
+      click.start(now);
+      click.stop(now+0.04);
+    }
+  },500); // 16th notes at ~60 BPM = 250ms, but we use 500ms for half-time feel
+  musicIntervals.push(percTimer);
+
+  // === EERIE HARMONICS: High chord tones (D5, F5, Bb5) ===
+  const eerieNotes=[4, 4*6/5, 4*9/5, 4*4/3]; // D5, F5, Bb5, G5 as multiples of root
+  const eerieTimer=setInterval(()=>{
+    if(!musicStarted)return;
+    const now=audioCtx.currentTime;
+    const noteIdx=Math.floor(Math.random()*eerieNotes.length);
+    const freq=root*eerieNotes[noteIdx];
+
+    const osc=audioCtx.createOscillator();
+    const env=audioCtx.createGain();
+    osc.type='sine';
+    osc.frequency.value=freq;
+
+    // Very slow swell in and out
+    const vol=0.025+tensionLevel*0.02;
+    env.gain.setValueAtTime(0,now);
+    env.gain.linearRampToValueAtTime(vol,now+1.5);
+    env.gain.linearRampToValueAtTime(0,now+4);
+    osc.connect(env);
+    env.connect(masterGain);
+    osc.start(now);
+    osc.stop(now+4.1);
+  },6000+Math.random()*4000);
+  musicIntervals.push(eerieTimer);
+
+  // === BRIDGE MOTIF: D-F->G as subtle repeating figure ===
+  let bridgeMotifIdx=0;
+  const bridgeTimer=setInterval(()=>{
+    if(!musicStarted)return;
+    if(Math.random()>0.3+tensionLevel*0.3) return; // Sparse
+    const now=audioCtx.currentTime;
+
+    // Play the 3-note D-F-G motif quickly
+    BRIDGE_PATTERN.forEach((interval,i)=>{
+      const osc=audioCtx.createOscillator();
+      const env=audioCtx.createGain();
+      osc.type='triangle';
+      osc.frequency.value=root*2*interval; // Octave above root
+      const vol=0.04+tensionLevel*0.04;
+      const t=now+i*0.18; // Quick succession like hammer-ons
+      env.gain.setValueAtTime(0,t);
+      env.gain.linearRampToValueAtTime(vol,t+0.03);
+      env.gain.exponentialRampToValueAtTime(0.001,t+0.8);
+      osc.connect(env);
+      env.connect(melodyGain);
+      env.connect(melodyDelay.input);
+      osc.start(t);
+      osc.stop(t+0.9);
+    });
+  },8000);
+  musicIntervals.push(bridgeTimer);
+}
+
+function updateMusicTension(){
+  if(!audioCtx||!musicStarted)return;
+  const cfg=getConfig();
+  const elapsed=Math.floor((Date.now()-timerStart)/1000);
+  tensionLevel=Math.min(1,elapsed/cfg.timeBonus);
+
+  // As tension rises: drone gets louder, perc more present, melody less sparse
+  if(droneGain) droneGain.gain.value=0.18+tensionLevel*0.10;
+  if(percGain) percGain.gain.value=0.04+tensionLevel*0.12;
+  if(melodyGain) melodyGain.gain.value=0.07+tensionLevel*0.10;
+  if(masterGain) masterGain.gain.value=0.3+tensionLevel*0.1;
+}
+
+function stopMusic(){
+  musicStarted=false;
+  for(const n of musicNodes){try{n.stop();}catch(e){}}
+  musicNodes=[];
+  for(const id of musicIntervals){clearInterval(id);}
+  musicIntervals=[];
+}
+
+// SFX
+function playSFX(type){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime;
+
+  if(type==='step'){
+    const bufSize=audioCtx.sampleRate*0.04;
+    const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) d[i]=(Math.random()*2-1)*0.1*Math.exp(-i/bufSize*5);
+    const src=audioCtx.createBufferSource();
+    src.buffer=buf;
+    const g=audioCtx.createGain();
+    g.gain.value=0.15;
+    const lp=audioCtx.createBiquadFilter();
+    lp.type='lowpass';
+    lp.frequency.value=800;
+    src.connect(lp);
+    lp.connect(g);
+    g.connect(audioCtx.destination);
+    src.start(now);
+  }
+
+  if(type==='burn'){
+    // Crackling fire
+    const bufSize=audioCtx.sampleRate*0.5;
+    const buf=audioCtx.createBuffer(1,bufSize,audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++){
+      d[i]=(Math.random()*2-1)*0.3*Math.exp(-i/bufSize*3);
+      if(Math.random()<0.05) d[i]*=3;
+    }
+    const src=audioCtx.createBufferSource();
+    src.buffer=buf;
+    const g=audioCtx.createGain();
+    g.gain.value=0.3;
+    const bp=audioCtx.createBiquadFilter();
+    bp.type='bandpass';
+    bp.frequency.value=2000;
+    bp.Q.value=0.5;
+    src.connect(bp);
+    bp.connect(g);
+    g.connect(audioCtx.destination);
+    src.start(now);
+  }
+
+  if(type==='treasure'){
+    // Sparkle arpeggio
+    const notes=[523,659,784,1047];
+    notes.forEach((f,i)=>{
+      const osc=audioCtx.createOscillator();
+      const env=audioCtx.createGain();
+      osc.type='triangle';
+      osc.frequency.value=f;
+      env.gain.setValueAtTime(0.15,now+i*0.08);
+      env.gain.exponentialRampToValueAtTime(0.001,now+i*0.08+0.4);
+      osc.connect(env);
+      env.connect(audioCtx.destination);
+      osc.start(now+i*0.08);
+      osc.stop(now+i*0.08+0.4);
+    });
+  }
+
+  if(type==='hit'){
+    const osc=audioCtx.createOscillator();
+    const env=audioCtx.createGain();
+    osc.type='sawtooth';
+    osc.frequency.setValueAtTime(200,now);
+    osc.frequency.exponentialRampToValueAtTime(50,now+0.3);
+    env.gain.setValueAtTime(0.3,now);
+    env.gain.exponentialRampToValueAtTime(0.001,now+0.3);
+    osc.connect(env);
+    env.connect(audioCtx.destination);
+    osc.start(now);
+    osc.stop(now+0.3);
+  }
+
+  if(type==='fanfare'){
+    const notes=[262,330,392,523,659,784];
+    notes.forEach((f,i)=>{
+      const osc=audioCtx.createOscillator();
+      const env=audioCtx.createGain();
+      osc.type='square';
+      osc.frequency.value=f;
+      env.gain.setValueAtTime(0,now+i*0.15);
+      env.gain.linearRampToValueAtTime(0.1,now+i*0.15+0.05);
+      env.gain.exponentialRampToValueAtTime(0.001,now+i*0.15+0.6);
+      osc.connect(env);
+      env.connect(audioCtx.destination);
+      osc.start(now+i*0.15);
+      osc.stop(now+i*0.15+0.6);
+    });
+  }
+}
+</script>
+</body>
+</html>

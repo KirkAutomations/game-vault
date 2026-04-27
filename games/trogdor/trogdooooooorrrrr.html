@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head><title>TROGDOR: The Final Mix</title></head>
+<body>
+    <h2>Check your downloads folder for trogdor_final.mid!</h2>
+    <a id="dl" href="#">Click here if the download didn't start automatically</a>
+    
+    <script>
+        // Standard MIDI Header: Format 0, 1 Track, 96 Ticks per quarter note
+        const header = [
+            0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x60, 
+            0x4D, 0x54, 0x72, 0x6B, 
+            0x00, 0x00, 0x00, 0x00 
+        ];
+        
+        // Track setup: Tempo 135, Overdriven Guitar
+        const track = [
+            0x00, 0xFF, 0x51, 0x03, 0x06, 0xCB, 0x56, 
+            0x00, 0xC0, 0x1E 
+        ];
+
+        const notes = [];
+
+        // THE VOCALIZED RIFF TIMING
+        // Pitch -1 acts as pure silence (a rest) to give the riff breathing room
+        const addRiff = () => {
+            notes.push(
+                // Dun nuh nuh nuh nuhhhhhh... (Rest)
+                [50, 24], [50, 24], [50, 24], [50, 24], [58, 192], [-1, 96],
+                
+                // Dun nuh nuh nuh nuhhhhhh... (Rest)
+                [50, 24], [50, 24], [50, 24], [50, 24], [55, 192], [-1, 96],
+                
+                // Dun nuh nuh nuh nuhhhhhh na na na nahhh nahhhh (Rest)
+                [50, 24], [50, 24], [50, 24], [50, 24], [58, 96], // Dun nuh nuh nuh nuhhhhhh
+                [50, 48], [55, 48], [50, 48],                     // na na na
+                [53, 96], [55, 96],                               // nahhh nahhhh
+                [-1, 240]                                         // Padding rest to loop perfectly
+            );
+        };
+
+        // --- SONG ARRANGEMENT ---
+
+        // 1. Intro & Verses (Play the main riff 4 times)
+        for(let i=0; i<4; i++) addRiff();
+
+        // 2. Chorus: "Burninating the countryside!" 
+        notes.push([53, 384], [55, 384], [50, 768]); 
+        notes.push([53, 384], [55, 384], [50, 768]); 
+        notes.push([53, 384], [55, 384], [57, 768]); 
+        notes.push([58, 384], [60, 384], [62, 768]); 
+
+        // 3. THATCHED ROOF COTTAGES!
+        addRiff();
+
+        // 4. Guitar Solo (Squeedly-vers!) 
+        const soloScale = [62, 65, 67, 69, 72, 74, 72, 69, 67, 65, 62, 65, 67, 69, 72, 74];
+        for(let i=0; i<4; i++) { 
+            for(let n of soloScale) notes.push([n, 24]);
+        }
+
+        // 5. Outro 
+        addRiff(); 
+        notes.push([55, 96], [53, 96], [50, 768]);
+
+        // --- MIDI COMPILATION ENGINE ---
+
+        function pushVLQ(arr, value) {
+            let bytes = [value & 0x7F];
+            while ((value >>= 7) > 0) {
+                bytes.unshift((value & 0x7F) | 0x80);
+            }
+            arr.push(...bytes);
+        }
+
+        let isFirstNote = true;
+        let prevRestTime = 0;
+
+        for (let [pitch, duration] of notes) {
+            // Handle explicit rests
+            if (pitch === -1) {
+                prevRestTime += duration;
+                continue;
+            }
+
+            // Tight palm muting for chugs, open ring for big chords
+            let gateRatio = duration <= 48 ? 0.60 : 0.95; 
+            let playTime = Math.floor(duration * gateRatio); 
+            let restTime = duration - playTime;
+            
+            // Apply the accumulated rest time before striking this note
+            let onsetDelta = isFirstNote ? 96 : prevRestTime; 
+            isFirstNote = false;
+
+            // Note On
+            pushVLQ(track, onsetDelta);
+            track.push(0x90, pitch, 0x7F);
+            
+            // Note Off
+            pushVLQ(track, playTime);
+            track.push(0x80, pitch, 0x00);
+
+            // Carry over any natural dead space to the next note
+            prevRestTime = restTime;
+        }
+        
+        track.push(0x00, 0xFF, 0x2F, 0x00); 
+        
+        // Inject final track length
+        header[18] = (track.length >> 24) & 0xFF;
+        header[19] = (track.length >> 16) & 0xFF;
+        header[20] = (track.length >> 8) & 0xFF;
+        header[21] = track.length & 0xFF;
+        
+        // Force the download
+        const binaryData = new Uint8Array(header.concat(track));
+        const blob = new Blob([binaryData], { type: "audio/midi" });
+        const link = document.getElementById("dl");
+        
+        link.href = URL.createObjectURL(blob);
+        link.download = "trogdor_final.mid";
+        link.click(); 
+    </script>
+</body>
+</html>

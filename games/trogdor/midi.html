@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head><title>TROGDOR: The Complete Epic</title></head>
+<body>
+    <h2>Check your downloads folder for trogdor_full.mid!</h2>
+    <a id="dl" href="#">Click here if the download didn't start automatically</a>
+    
+    <script>
+        // Standard MIDI Header: Format 0, 1 Track, 96 Ticks per beat
+        const header = [
+            0x4D, 0x54, 0x68, 0x64, 0x00, 0x00, 0x00, 0x06, 
+            0x00, 0x00, 0x00, 0x01, 0x00, 0x60, 
+            0x4D, 0x54, 0x72, 0x6B, 
+            0x00, 0x00, 0x00, 0x00 // Length placeholder
+        ];
+        
+        // Track setup: Tempo 130, Overdriven Guitar (Program 30 / 0x1E)
+        const track = [
+            0x00, 0xFF, 0x51, 0x03, 0x07, 0x0B, 0x02, 
+            0x00, 0xC0, 0x1E 
+        ];
+
+        const notes = [];
+
+        // Helper function to add the main riff
+        const addRiff = () => {
+            notes.push(
+                [50, 24], [50, 24], [50, 24], [50, 24], [58, 96], // D D D D Bb
+                [50, 24], [50, 24], [50, 24], [50, 24], [55, 96], // D D D D G
+                [50, 24], [50, 24], [50, 24], [50, 24], [58, 48], // D D D D Bb
+                [50, 48], [55, 48], [50, 48], [53, 24], [55, 24]  // D G D F G
+            );
+        };
+
+        // --- SONG ARRANGEMENT ---
+
+        // 1. Intro & Verses (Play the main riff 8 times)
+        // "Trogdor was a man... I mean he was a dragon man..."
+        for(let i=0; i<8; i++) addRiff();
+
+        // 2. Chorus: "Burninating the countryside!"
+        // F, G, D
+        notes.push([41, 96], [43, 96], [38, 192]); 
+        // F, G, D (Burninating the peasants!)
+        notes.push([41, 96], [43, 96], [38, 192]); 
+        // F, G, A (Burninating all the peoples!)
+        notes.push([41, 96], [43, 96], [45, 192]); 
+        // Bb, C, D (And their thatched-roof COTTAGES!)
+        notes.push([46, 192], [48, 192], [50, 384]);
+
+        // 3. THATCHED ROOF COTTAGES! (Main Riff x2)
+        addRiff(); addRiff();
+
+        // 4. Guitar Solo (Squeedly-vers!) 
+        // Fast 16th note arpeggios/scales in D minor
+        const soloScale = [62, 65, 67, 69, 72, 74, 72, 69, 67, 65, 62, 65, 67, 69, 72, 74];
+        for(let i=0; i<4; i++) { // 4 bars of shredding
+            for(let n of soloScale) notes.push([n, 24]);
+        }
+
+        // 5. Outro Build-up (Main Riff x2)
+        addRiff(); addRiff();
+
+        // 6. Outro: "And the Trogdor comes in the NIIIIIGHT!"
+        notes.push([43, 96], [41, 96], [38, 384]); // G, F, D ringing out
+
+        // --- MIDI COMPILATION ---
+
+        // Helper to encode Variable Length Quantities (required for MIDI timing)
+        function pushVLQ(arr, value) {
+            let bytes = [value & 0x7F];
+            while ((value >>= 7) > 0) {
+                bytes.unshift((value & 0x7F) | 0x80);
+            }
+            arr.push(...bytes);
+        }
+
+        let isFirstNote = true;
+
+        for (let [pitch, duration] of notes) {
+            let playTime = duration - 4; // Palm-muting gap
+            let restTime = 4;
+            let onsetDelta = isFirstNote ? 96 : restTime; 
+            isFirstNote = false;
+
+            // Note On Event
+            pushVLQ(track, onsetDelta);
+            track.push(0x90, pitch, 0x7F);
+            
+            // Note Off Event
+            pushVLQ(track, playTime);
+            track.push(0x80, pitch, 0x00);
+        }
+        
+        track.push(0x00, 0xFF, 0x2F, 0x00); // End of track
+        
+        // Inject final track length
+        header[18] = (track.length >> 24) & 0xFF;
+        header[19] = (track.length >> 16) & 0xFF;
+        header[20] = (track.length >> 8) & 0xFF;
+        header[21] = track.length & 0xFF;
+        
+        // Force the download
+        const binaryData = new Uint8Array(header.concat(track));
+        const blob = new Blob([binaryData], { type: "audio/midi" });
+        const link = document.getElementById("dl");
+        
+        link.href = URL.createObjectURL(blob);
+        link.download = "trogdor_full.mid";
+        link.click(); 
+    </script>
+</body>
+</html>

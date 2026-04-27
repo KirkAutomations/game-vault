@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Escape Academy - Train. Learn. Escape!</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0a1a; color:#e0e0e0; font-family:'Segoe UI',system-ui,sans-serif; overflow:hidden; height:100vh; width:100vw; }
+canvas { display:none; }
+
+/* UI Layers */
+.screen { position:absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; align-items:center; justify-content:center; z-index:10; }
+.screen.active { display:flex; }
+
+/* Title Screen */
+#titleScreen { background: linear-gradient(135deg, #0a0a2e 0%, #1a0a3e 50%, #0a1a2e 100%); }
+#titleScreen h1 { font-size: clamp(2rem,8vw,5rem); background: linear-gradient(90deg,#00f0ff,#ff00e0,#ffcc00); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-align:center; margin-bottom:10px; font-weight:900; letter-spacing:2px; }
+#titleScreen .subtitle { font-size:clamp(0.9rem,3vw,1.4rem); color:#8888cc; margin-bottom:40px; text-align:center; }
+.btn { padding:16px 40px; font-size:clamp(1rem,3vw,1.3rem); border:2px solid #00f0ff; background:rgba(0,240,255,0.1); color:#00f0ff; border-radius:12px; cursor:pointer; transition:all 0.3s; margin:8px; font-weight:600; touch-action:manipulation; }
+.btn:hover, .btn:active { background:rgba(0,240,255,0.3); transform:scale(1.05); box-shadow:0 0 20px rgba(0,240,255,0.3); }
+.btn.gold { border-color:#ffcc00; color:#ffcc00; background:rgba(255,204,0,0.1); }
+.btn.gold:hover { background:rgba(255,204,0,0.3); box-shadow:0 0 20px rgba(255,204,0,0.3); }
+.btn.pink { border-color:#ff00e0; color:#ff00e0; background:rgba(255,0,224,0.1); }
+.btn.pink:hover { background:rgba(255,0,224,0.3); }
+
+/* Stats Bar */
+#statsBar { position:fixed; top:0; left:0; width:100%; padding:8px 16px; background:rgba(10,10,30,0.9); border-bottom:1px solid #333; display:none; z-index:100; font-size:clamp(0.7rem,2vw,0.9rem); }
+#statsBar .row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:4px; }
+#statsBar .stat { color:#aaa; }
+#statsBar .stat span { color:#00f0ff; font-weight:700; }
+#statsBar .stat.time span { color:#ffcc00; }
+
+/* Room */
+#gameScreen { background:#111122; overflow:hidden; }
+#roomContainer { width:100%; height:100%; position:relative; }
+.room { position:absolute; top:0; left:0; width:100%; height:100%; display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; padding-top:60px; }
+.room.active { display:flex; }
+.room-title { font-size:clamp(1.2rem,4vw,2rem); font-weight:700; margin-bottom:6px; text-align:center; }
+.room-desc { font-size:clamp(0.8rem,2.5vw,1rem); color:#aaa; text-align:center; margin-bottom:16px; max-width:600px; line-height:1.5; }
+.room-visual { width:clamp(200px,60vw,400px); height:clamp(150px,40vw,300px); border:2px solid #333; border-radius:16px; margin-bottom:16px; display:flex; align-items:center; justify-content:center; font-size:4rem; position:relative; overflow:hidden; }
+.puzzle-area { width:100%; max-width:600px; text-align:center; }
+.puzzle-question { font-size:clamp(1rem,3vw,1.4rem); margin-bottom:16px; line-height:1.6; color:#ddd; }
+.puzzle-input { padding:12px 20px; font-size:clamp(1rem,3vw,1.2rem); background:rgba(255,255,255,0.05); border:2px solid #444; border-radius:10px; color:#fff; width:80%; max-width:400px; text-align:center; outline:none; }
+.puzzle-input:focus { border-color:#00f0ff; box-shadow:0 0 10px rgba(0,240,255,0.2); }
+.choices { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:500px; margin:0 auto; }
+.choice-btn { padding:14px 10px; font-size:clamp(0.85rem,2.5vw,1.1rem); background:rgba(255,255,255,0.05); border:2px solid #444; border-radius:10px; color:#ddd; cursor:pointer; transition:all 0.2s; touch-action:manipulation; }
+.choice-btn:hover { border-color:#00f0ff; background:rgba(0,240,255,0.1); }
+.choice-btn.correct { border-color:#00ff88; background:rgba(0,255,136,0.2); color:#00ff88; }
+.choice-btn.wrong { border-color:#ff4444; background:rgba(255,68,68,0.2); color:#ff4444; }
+.hint-text { color:#ffcc00; font-size:clamp(0.75rem,2vw,0.9rem); margin-top:10px; min-height:20px; }
+.fact-box { background:rgba(0,240,255,0.05); border:1px solid rgba(0,240,255,0.2); border-radius:10px; padding:12px 16px; margin-top:12px; font-size:clamp(0.75rem,2vw,0.9rem); color:#88ccdd; max-width:500px; line-height:1.5; }
+
+/* Characters Select */
+#charScreen { background:linear-gradient(180deg,#0a0a2e,#1a1a3e); }
+.char-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(100px,1fr)); gap:16px; max-width:600px; width:90%; margin:20px auto; max-height:50vh; overflow-y:auto; padding:10px; }
+.char-card { border:2px solid #333; border-radius:12px; padding:16px 8px; text-align:center; cursor:pointer; transition:all 0.3s; background:rgba(255,255,255,0.02); }
+.char-card.unlocked { border-color:#00f0ff; }
+.char-card.unlocked:hover { background:rgba(0,240,255,0.1); transform:scale(1.05); }
+.char-card.locked { opacity:0.4; cursor:default; }
+.char-card.selected { border-color:#ffcc00; background:rgba(255,204,0,0.1); box-shadow:0 0 15px rgba(255,204,0,0.2); }
+.char-emoji { font-size:2.5rem; }
+.char-name { font-size:0.75rem; margin-top:6px; color:#aaa; }
+.char-card.unlocked .char-name { color:#ddd; }
+.char-speed { font-size:0.65rem; color:#00ff88; margin-top:2px; }
+
+/* Win / Summary */
+#winScreen { background:linear-gradient(135deg,#0a1a0a,#0a2a1a,#0a1a2a); }
+#winScreen h1 { font-size:clamp(2rem,8vw,4rem); color:#00ff88; margin-bottom:10px; }
+.win-stats { background:rgba(255,255,255,0.05); border-radius:16px; padding:24px; margin:20px 0; max-width:400px; width:90%; }
+.win-stat-row { display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.05); font-size:clamp(0.9rem,2.5vw,1.1rem); }
+.win-stat-row:last-child { border:none; }
+.win-stat-row .label { color:#aaa; }
+.win-stat-row .value { color:#00f0ff; font-weight:700; }
+.new-unlock { color:#ffcc00; font-size:clamp(1rem,3vw,1.3rem); margin:10px 0; animation:pulse 1s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+/* Progress bar */
+.progress-bar { width:90%; max-width:500px; height:8px; background:#222; border-radius:4px; margin:10px 0; overflow:hidden; }
+.progress-fill { height:100%; background:linear-gradient(90deg,#00f0ff,#00ff88); border-radius:4px; transition:width 0.5s; }
+
+/* Timer effect */
+.timer-warning { animation: timerPulse 0.5s infinite; }
+@keyframes timerPulse { 0%,100%{color:#ffcc00} 50%{color:#ff4444} }
+
+/* Door animation */
+.door-transition { position:fixed; top:0; left:0; width:100%; height:100%; z-index:200; display:none; pointer-events:none; }
+.door-left, .door-right { position:absolute; top:0; width:50%; height:100%; background:#111; }
+.door-left { left:-50%; }
+.door-right { right:-50%; }
+.door-transition.closing .door-left { animation: doorCloseL 0.4s forwards; }
+.door-transition.closing .door-right { animation: doorCloseR 0.4s forwards; }
+.door-transition.opening .door-left { animation: doorOpenL 0.4s forwards; }
+.door-transition.opening .door-right { animation: doorOpenR 0.4s forwards; }
+@keyframes doorCloseL { to { left:0; } }
+@keyframes doorCloseR { to { right:0; } }
+@keyframes doorOpenL { from{left:0} to{left:-50%} }
+@keyframes doorOpenR { from{right:0} to{right:-50%} }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:#111; }
+::-webkit-scrollbar-thumb { background:#444; border-radius:3px; }
+
+/* Leaderboard */
+.lb-table { width:90%; max-width:500px; margin:10px auto; }
+.lb-row { display:flex; justify-content:space-between; padding:8px 12px; border-bottom:1px solid #222; font-size:clamp(0.8rem,2.5vw,1rem); }
+.lb-row.header { color:#00f0ff; font-weight:700; }
+</style>
+</head>
+<body>
+
+<!-- Door Transition -->
+<div class="door-transition" id="doorTransition">
+  <div class="door-left"></div>
+  <div class="door-right"></div>
+</div>
+
+<!-- Stats Bar -->
+<div id="statsBar">
+  <div class="row">
+    <div class="stat">Room <span id="roomNum">1</span>/<span id="totalRooms">15</span></div>
+    <div class="stat time">⏱ <span id="timer">0:00</span></div>
+    <div class="stat">⭐ <span id="scoreDisp">0</span></div>
+    <div class="stat" id="charDisp">🏃</div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<!-- Title Screen -->
+<div class="screen active" id="titleScreen">
+  <h1>ESCAPE ACADEMY</h1>
+  <p class="subtitle">Train Your Mind. Beat the Clock. Unlock Heroes.</p>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;margin-top:10px;">
+    <button class="btn" onclick="startGame()">🚀 Start Escape</button>
+    <button class="btn gold" onclick="showCharacters()">👥 Characters</button>
+    <button class="btn pink" onclick="showLeaderboard()">🏆 Best Times</button>
+  </div>
+  <div style="margin-top:30px;text-align:center;max-width:500px;padding:0 20px;">
+    <p style="color:#666;font-size:clamp(0.75rem,2vw,0.9rem);">Solve 15 rooms of puzzles across Math, Science, History, Geography, Language, and Logic. The faster you escape, the better your rank. Win runs to unlock new characters with speed bonuses!</p>
+  </div>
+  <div style="margin-top:15px;color:#555;font-size:0.75rem;" id="totalWinsDisp"></div>
+</div>
+
+<!-- Character Select -->
+<div class="screen" id="charScreen">
+  <h2 style="color:#00f0ff;margin-bottom:5px;font-size:clamp(1.3rem,4vw,2rem);">Choose Your Escapist</h2>
+  <p style="color:#888;font-size:clamp(0.8rem,2vw,0.95rem);margin-bottom:10px;">Win runs to unlock more characters!</p>
+  <div class="char-grid" id="charGrid"></div>
+  <button class="btn" onclick="showTitle()">← Back</button>
+</div>
+
+<!-- Game Screen -->
+<div class="screen" id="gameScreen">
+  <div id="roomContainer"></div>
+</div>
+
+<!-- Win Screen -->
+<div class="screen" id="winScreen">
+  <h1>🎉 ESCAPED!</h1>
+  <div id="newUnlock" class="new-unlock" style="display:none;"></div>
+  <div class="win-stats" id="winStats"></div>
+  <div style="display:flex;flex-wrap:wrap;justify-content:center;">
+    <button class="btn" onclick="startGame()">🔁 Escape Again</button>
+    <button class="btn gold" onclick="showCharacters()">👥 Characters</button>
+    <button class="btn pink" onclick="showTitle()">🏠 Menu</button>
+  </div>
+</div>
+
+<!-- Leaderboard Screen -->
+<div class="screen" id="lbScreen">
+  <h2 style="color:#ffcc00;margin-bottom:20px;font-size:clamp(1.3rem,4vw,2rem);">🏆 Best Escape Times</h2>
+  <div id="lbContent" class="lb-table"></div>
+  <button class="btn" onclick="showTitle()" style="margin-top:20px;">← Back</button>
+</div>
+
+<script>
+// ============== GAME DATA ==============
+
+const CHARACTERS = [
+  { id:'runner', emoji:'🏃', name:'Runner', speed:0, unlock:0, desc:'Default escapist' },
+  { id:'ninja', emoji:'🥷', name:'Ninja', speed:5, unlock:1, desc:'5% time bonus' },
+  { id:'wizard', emoji:'🧙', name:'Wizard', speed:8, unlock:2, desc:'8% time bonus' },
+  { id:'robot', emoji:'🤖', name:'Robot', speed:10, unlock:3, desc:'10% time bonus' },
+  { id:'astronaut', emoji:'🧑‍🚀', name:'Astronaut', speed:12, unlock:5, desc:'12% time bonus' },
+  { id:'detective', emoji:'🕵️', name:'Detective', speed:15, unlock:7, desc:'15% time bonus' },
+  { id:'pirate', emoji:'🏴‍☠️', name:'Pirate', speed:18, unlock:10, desc:'18% time bonus' },
+  { id:'dragon', emoji:'🐉', name:'Dragon', speed:20, unlock:13, desc:'20% time bonus' },
+  { id:'alien', emoji:'👽', name:'Alien', speed:22, unlock:16, desc:'22% time bonus' },
+  { id:'phoenix', emoji:'🔥', name:'Phoenix', speed:25, unlock:20, desc:'25% time bonus' },
+  { id:'ghost', emoji:'👻', name:'Ghost', speed:28, unlock:25, desc:'28% time bonus' },
+  { id:'crown', emoji:'👑', name:'Monarch', speed:30, unlock:30, desc:'30% time bonus' },
+];
+
+// Room templates — 15 rooms per run, randomly assembled from pools
+const ROOM_POOLS = {
+  math: [
+    { title:'The Calculator Vault', visual:'🔢', desc:'A room filled with floating numbers. Solve the equation to unlock the door.',
+      gen: () => {
+        const a=rr(5,25), b=rr(5,25);
+        return { q:`What is ${a} × ${b}?`, answer:String(a*b), type:'input',
+          fact:`Multiplication tip: Break ${a}×${b} into (${Math.floor(a/10)*10}×${b}) + (${a%10}×${b}) = ${Math.floor(a/10)*10*b} + ${a%10*b} = ${a*b}. This is the distributive property!` };
+      }},
+    { title:'The Fraction Chamber', visual:'🍕', desc:'Pizza slices float in the air. Figure out the fractions.',
+      gen: () => {
+        const n=rr(1,5), d=rr(n+1,10);
+        const n2=rr(1,5), d2=d;
+        const ansN=n+n2, ansD=d;
+        const g=gcd(ansN,ansD);
+        return { q:`What is ${n}/${d} + ${n2}/${d2}? (write as a simplified fraction like 3/4)`, answer:`${ansN/g}/${ansD/g}`, type:'input',
+          fact:`When fractions share a denominator, just add the numerators! ${n}/${d} + ${n2}/${d2} = ${ansN}/${ansD}${g>1?` = ${ansN/g}/${ansD/g} (divided both by ${g})`:''}.` };
+      }},
+    { title:'The Percentage Prison', visual:'💯', desc:'Percentage signs glow on the walls.',
+      gen: () => {
+        const pct = [10,20,25,50,75][rr(0,4)];
+        const num = rr(2,20) * (100/pct);
+        return { q:`What is ${pct}% of ${num}?`, answer:String(num*pct/100), type:'input',
+          fact:`To find ${pct}% of a number: ${pct===50?'divide by 2':pct===25?'divide by 4':pct===10?'divide by 10':pct===75?'find 50% + 25%':'multiply by '+pct+'/100'}. So ${pct}% of ${num} = ${num*pct/100}.` };
+      }},
+    { title:'The Geometry Gate', visual:'📐', desc:'Shapes rotate on the locked door.',
+      gen: () => {
+        const shapes = [
+          {name:'triangle',sides:3,formula:'180°'},{name:'quadrilateral',sides:4,formula:'360°'},
+          {name:'pentagon',sides:5,formula:'540°'},{name:'hexagon',sides:6,formula:'720°'}
+        ];
+        const s=shapes[rr(0,3)];
+        const choices=[`${(s.sides-2)*180}°`,`${s.sides*90}°`,`${s.sides*60}°`,`${(s.sides+1)*180}°`];
+        return { q:`What is the sum of interior angles in a ${s.name}?`, answer:s.formula, type:'choice', choices:shuffle(choices),
+          fact:`Formula: (n-2)×180° where n=number of sides. A ${s.name} has ${s.sides} sides, so (${s.sides}-2)×180° = ${(s.sides-2)*180}°. This works because any polygon can be divided into (n-2) triangles!` };
+      }},
+    { title:'The Prime Number Lock', visual:'🔐', desc:'A lock with a number pad. Only prime knowledge opens it.',
+      gen: () => {
+        const primes=[2,3,5,7,11,13,17,19,23,29,31,37,41,43,47];
+        const notPrimes=[4,6,8,9,10,12,14,15,16,18,20,21,22,24,25];
+        const opts=shuffle([...shuffle(primes).slice(0,3), notPrimes[rr(0,14)]]);
+        const np=opts.find(x=>notPrimes.includes(x));
+        return { q:'Which of these is NOT a prime number?', answer:String(np), type:'choice', choices:opts.map(String),
+          fact:`${np} is not prime because it can be divided by ${smallestFactor(np)}. A prime number has exactly 2 factors: 1 and itself. The first few primes are: 2, 3, 5, 7, 11, 13, 17, 19, 23, 29...` };
+      }},
+    { title:'The Order of Operations Maze', visual:'🧮', desc:'Mathematical symbols swirl around you.',
+      gen: () => {
+        const a=rr(2,10),b=rr(2,10),c=rr(1,10);
+        const expr=`${a} + ${b} × ${c}`;
+        const correct=a+b*c;
+        const wrong=(a+b)*c;
+        const choices=shuffle([String(correct),String(wrong),String(correct+1),String(wrong-1)]);
+        return { q:`What is ${expr}?`, answer:String(correct), type:'choice', choices,
+          fact:`PEMDAS/BODMAS! Multiplication before Addition: ${b}×${c}=${b*c} first, then ${a}+${b*c}=${correct}. A common mistake is adding ${a}+${b}=${a+b} first, getting ${wrong}.` };
+      }},
+  ],
+  science: [
+    { title:'The Periodic Lab', visual:'⚗️', desc:'Bubbling beakers line the shelves. Name the element!',
+      gen: () => {
+        const elems=[{sym:'H',name:'Hydrogen',num:1},{sym:'He',name:'Helium',num:2},{sym:'O',name:'Oxygen',num:8},{sym:'C',name:'Carbon',num:6},{sym:'N',name:'Nitrogen',num:7},{sym:'Fe',name:'Iron',num:26},{sym:'Au',name:'Gold',num:79},{sym:'Ag',name:'Silver',num:47}];
+        const e=elems[rr(0,elems.length-1)];
+        const wrong=shuffle(elems.filter(x=>x.sym!==e.sym)).slice(0,3).map(x=>x.name);
+        return { q:`What element has the symbol "${e.sym}"?`, answer:e.name, type:'choice', choices:shuffle([e.name,...wrong]),
+          fact:`${e.name} (${e.sym}) is element #${e.num} on the periodic table. ${e.sym==='Fe'?'Fe comes from the Latin "ferrum".':e.sym==='Au'?'Au comes from the Latin "aurum" meaning shining dawn.':e.sym==='Ag'?'Ag comes from the Latin "argentum".':'The symbol comes from the first letter(s) of its name.'}` };
+      }},
+    { title:'The Solar System Airlock', visual:'🪐', desc:'Stars shine through a porthole. Prove your space knowledge.',
+      gen: () => {
+        const planets=['Mercury','Venus','Earth','Mars','Jupiter','Saturn','Uranus','Neptune'];
+        const idx=rr(0,7);
+        const facts=['closest to the Sun & smallest','hottest planet (runaway greenhouse effect)','only known planet with life','the Red Planet, has the tallest volcano (Olympus Mons)','largest planet, has 95+ moons','famous for its beautiful ring system','rotates on its side','farthest from the Sun, has supersonic winds'];
+        return { q:`Which planet is #${idx+1} from the Sun?`, answer:planets[idx], type:'choice', choices:shuffle(planets.slice().sort(()=>Math.random()-0.5).slice(0,3).concat(planets[idx]).filter((v,i,a)=>a.indexOf(v)===i)).slice(0,4),
+          fact:`${planets[idx]} is the ${ordinal(idx+1)} planet from the Sun. Fun fact: ${planets[idx]} is ${facts[idx]}!` };
+      }},
+    { title:'The Biology Greenhouse', visual:'🌱', desc:'Plants grow at incredible speed. Answer to escape!',
+      gen: () => {
+        const qs=[
+          {q:'What process do plants use to convert sunlight into energy?',a:'Photosynthesis',w:['Respiration','Fermentation','Osmosis'],f:'Photosynthesis converts CO₂ + H₂O + sunlight → glucose + O₂. It happens in chloroplasts, which contain the green pigment chlorophyll.'},
+          {q:'What is the powerhouse of the cell?',a:'Mitochondria',w:['Nucleus','Ribosome','Golgi Body'],f:'Mitochondria generate ATP (adenosine triphosphate), the energy currency of cells. They have their own DNA, suggesting they were once independent organisms!'},
+          {q:'What gas do humans exhale that plants need?',a:'Carbon Dioxide',w:['Oxygen','Nitrogen','Hydrogen'],f:'We breathe out CO₂, plants absorb it for photosynthesis and release O₂. This is the beautiful carbon cycle that keeps our atmosphere balanced!'},
+          {q:'What is the largest organ in the human body?',a:'Skin',w:['Liver','Brain','Lungs'],f:'The skin covers about 2 square meters and weighs around 3.6 kg. It protects against pathogens, regulates temperature, and contains nerve endings for sensation.'},
+          {q:'DNA stands for...',a:'Deoxyribonucleic Acid',w:['Dinitrogen Acid','Dynamic Nucleus Array','Dual Nitrogen Acid'],f:'DNA is a double helix molecule that carries genetic instructions for life. It was first described by Watson and Crick in 1953, building on Rosalind Franklin\'s X-ray images.'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Physics Engine Room', visual:'⚡', desc:'Gears and lightning bolts everywhere!',
+      gen: () => {
+        const qs=[
+          {q:'What is the speed of light approximately?',a:'300,000 km/s',w:['30,000 km/s','3,000,000 km/s','300 km/s'],f:'Light travels at ~299,792 km/s in a vacuum. At this speed, light from the Sun takes about 8 minutes and 20 seconds to reach Earth!'},
+          {q:'What force keeps planets orbiting the Sun?',a:'Gravity',w:['Magnetism','Friction','Nuclear Force'],f:'Gravity is the attractive force between all masses. Newton\'s law: F = G(m₁m₂)/r². The larger the masses and the closer they are, the stronger the pull.'},
+          {q:'What unit measures electric current?',a:'Ampere',w:['Volt','Watt','Ohm'],f:'The ampere (amp) measures current — the flow of electric charge. Volts measure potential difference, watts measure power, and ohms measure resistance. Ohm\'s Law: V = I × R.'},
+          {q:'What state of matter has no fixed shape or volume?',a:'Gas',w:['Solid','Liquid','Plasma'],f:'Gases expand to fill their container because their molecules move freely and rapidly. Solids have fixed shape and volume, liquids have fixed volume but no fixed shape.'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+  ],
+  history: [
+    { title:'The Ancient Archive', visual:'📜', desc:'Dusty scrolls and ancient artifacts fill the room.',
+      gen: () => {
+        const qs=[
+          {q:'In what year did World War II end?',a:'1945',w:['1943','1944','1946'],f:'WWII ended in 1945 — Germany surrendered in May (V-E Day) and Japan in August (V-J Day) after the atomic bombings of Hiroshima and Nagasaki.'},
+          {q:'Who was the first President of the United States?',a:'George Washington',w:['Thomas Jefferson','Abraham Lincoln','John Adams'],f:'George Washington served as president from 1789-1797. He\'s called the "Father of His Country" and was unanimously elected by the Electoral College — the only president to achieve this.'},
+          {q:'Which ancient civilization built the pyramids at Giza?',a:'Ancient Egypt',w:['Ancient Rome','Ancient Greece','Mesopotamia'],f:'The Great Pyramid of Giza was built around 2560 BCE for Pharaoh Khufu. It was the tallest man-made structure for over 3,800 years and is the only surviving Ancient Wonder of the World!'},
+          {q:'The Renaissance began in which country?',a:'Italy',w:['France','England','Spain'],f:'The Renaissance ("rebirth") began in 14th-century Italy, especially Florence. It was a cultural movement that revived interest in classical Greek and Roman art, philosophy, and science.'},
+          {q:'Who wrote the Declaration of Independence?',a:'Thomas Jefferson',w:['Benjamin Franklin','John Adams','James Madison'],f:'Thomas Jefferson drafted it in June 1776 at age 33. Benjamin Franklin and John Adams helped revise it. It was adopted on July 4, 1776 by the Continental Congress.'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Timeline Corridor', visual:'⏳', desc:'Events from history appear on the walls. Put them in order.',
+      gen: () => {
+        const qs=[
+          {q:'Which came first: the invention of the printing press or the discovery of America by Columbus?',a:'Printing Press (~1440)',w:['Columbus (~1492)','They were the same year','Neither happened before 1500'],f:'Gutenberg\'s printing press (~1440) came about 50 years before Columbus reached the Americas (1492). The printing press revolutionized knowledge sharing and helped fuel the Age of Exploration!'},
+          {q:'Which came first: the Moon landing or the invention of the internet?',a:'Moon Landing (1969)',w:['Internet (1969)','They happened together','Internet (1950s)'],f:'Apollo 11 landed on the Moon on July 20, 1969. ARPANET (the internet\'s precursor) also began in 1969, but the Moon landing came first by a few months! The World Wide Web wasn\'t invented until 1989.'},
+          {q:'Which empire fell first: the Roman Empire or the Ottoman Empire?',a:'Roman Empire (476 CE)',w:['Ottoman Empire (1453)','Ottoman Empire (1922)','They fell together'],f:'The Western Roman Empire fell in 476 CE. The Ottoman Empire lasted until 1922! That\'s a gap of about 1,446 years. The Eastern Roman (Byzantine) Empire survived until 1453.'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+  ],
+  geography: [
+    { title:'The World Map Room', visual:'🗺️', desc:'A giant map covers the floor. Step on the right answer!',
+      gen: () => {
+        const qs=[
+          {q:'What is the longest river in the world?',a:'Nile',w:['Amazon','Mississippi','Yangtze'],f:'The Nile is approximately 6,650 km long, flowing through 11 countries in northeastern Africa. However, some recent measurements suggest the Amazon might be longer — it\'s a close race!'},
+          {q:'What is the largest continent by area?',a:'Asia',w:['Africa','North America','Europe'],f:'Asia covers about 44.6 million km² — roughly 30% of Earth\'s total land area. It\'s home to about 60% of the world\'s population, including the two most populous countries: China and India.'},
+          {q:'Which country has the most time zones?',a:'France',w:['Russia','USA','China'],f:'France has 12 time zones (thanks to its overseas territories like French Polynesia, New Caledonia, etc.). Russia has 11 contiguous time zones. China, despite its size, uses just 1!'},
+          {q:'What is the smallest country in the world?',a:'Vatican City',w:['Monaco','San Marino','Liechtenstein'],f:'Vatican City is only 0.44 km² (about 110 acres) — smaller than many city parks! It has about 800 residents and is an independent city-state within Rome, Italy.'},
+          {q:'On which continent is the Sahara Desert?',a:'Africa',w:['Asia','South America','Australia'],f:'The Sahara covers about 9.2 million km² of northern Africa — roughly the size of the entire United States! Despite its heat, temperatures can drop below freezing at night.'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Capital City Vault', visual:'🏛️', desc:'Flags from around the world hang from the ceiling.',
+      gen: () => {
+        const caps=[
+          {country:'Japan',capital:'Tokyo',f:'Tokyo is the world\'s most populous metropolitan area with ~37 million people. Its name means "Eastern Capital" — it became the capital in 1868 when the Emperor moved from Kyoto.'},
+          {country:'Australia',capital:'Canberra',f:'Many people guess Sydney, but Canberra was purpose-built as the capital in 1913 as a compromise between rival cities Sydney and Melbourne!'},
+          {country:'Brazil',capital:'Brasília',f:'Not Rio or São Paulo! Brasília was built from scratch in the 1950s in just 41 months. From above, its layout resembles an airplane or bird.'},
+          {country:'Canada',capital:'Ottawa',f:'Not Toronto or Vancouver! Ottawa was chosen by Queen Victoria in 1857, partly because it was on the border between English and French-speaking Canada.'},
+          {country:'Turkey',capital:'Ankara',f:'Not Istanbul! Ankara became the capital in 1923 when the Republic of Turkey was founded. Istanbul (formerly Constantinople) was the capital of the Ottoman Empire.'},
+        ];
+        const pick=caps[rr(0,caps.length-1)];
+        const wrong=caps.filter(c=>c.capital!==pick.capital).map(c=>c.capital).slice(0,3);
+        return { q:`What is the capital of ${pick.country}?`, answer:pick.capital, type:'choice', choices:shuffle([pick.capital,...wrong]), fact:pick.f };
+      }},
+  ],
+  language: [
+    { title:'The Word Root Library', visual:'📖', desc:'Books fly off shelves! Decode the word roots.',
+      gen: () => {
+        const roots=[
+          {root:'aqua',meaning:'water',example:'aquarium, aquatic',wrong:['fire','earth','air'],f:'"Aqua" is Latin for water. It appears in aquarium (water container), aquatic (water-related), aqueduct (water channel), and even aquamarine (sea-colored gem).'},
+          {root:'bio',meaning:'life',example:'biology, biography',wrong:['death','rock','light'],f:'"Bio" is Greek for life. Biology = study of life. Biography = writing about a life. Biodiversity = variety of life. Biopsy = viewing living tissue.'},
+          {root:'geo',meaning:'earth',example:'geography, geology',wrong:['sky','water','time'],f:'"Geo" is Greek for earth. Geography = earth description. Geology = earth study. Geometry originally meant "earth measurement" — used by ancient Egyptians to measure land!'},
+          {root:'photo',meaning:'light',example:'photograph, photosynthesis',wrong:['dark','sound','heat'],f:'"Photo" is Greek for light. Photograph = light drawing. Photosynthesis = light combining. Photon = particle of light. Photography was invented in the 1820s.'},
+          {root:'chrono',meaning:'time',example:'chronology, chronicle',wrong:['space','color','sound'],f:'"Chrono" is Greek for time. Chronology = time order. Chronic = lasting a long time. Synchronize = same time. A chronometer is a precise timekeeper.'},
+        ];
+        const pick=roots[rr(0,roots.length-1)];
+        return { q:`The root "${pick.root}" (as in ${pick.example}) means:`, answer:pick.meaning, type:'choice', choices:shuffle([pick.meaning,...pick.wrong]), fact:pick.f };
+      }},
+    { title:'The Synonym Maze', visual:'🔤', desc:'Words echo from every direction. Find the match!',
+      gen: () => {
+        const pairs=[
+          {word:'happy',syn:'joyful',wrong:['angry','sad','tired'],f:'"Joyful" and "happy" are synonyms — they both describe a positive emotional state. English has many synonyms because it borrowed words from Latin, French, and Germanic languages!'},
+          {word:'fast',syn:'rapid',wrong:['slow','heavy','quiet'],f:'"Rapid" comes from Latin "rapidus." English often has Germanic and Latin synonyms for the same concept: fast/rapid, begin/commence, buy/purchase.'},
+          {word:'brave',syn:'courageous',wrong:['fearful','lazy','quiet'],f:'"Courageous" comes from French "courage" (from Latin "cor" = heart). Being brave literally meant having heart! Both words mean facing fear with determination.'},
+          {word:'big',syn:'enormous',wrong:['tiny','narrow','short'],f:'"Enormous" literally means "out of the norm" (Latin: e-normis). Fun fact: English has a huge range of words for "big": large, huge, enormous, gigantic, colossal, massive, immense!'},
+        ];
+        const pick=pairs[rr(0,pairs.length-1)];
+        return { q:`Which word is a synonym for "${pick.word}"?`, answer:pick.syn, type:'choice', choices:shuffle([pick.syn,...pick.wrong]), fact:pick.f };
+      }},
+  ],
+  logic: [
+    { title:'The Pattern Lock', visual:'🧩', desc:'Complete the pattern to open the door.',
+      gen: () => {
+        const patterns=[
+          {seq:'2, 4, 8, 16, __',a:'32',w:['24','28','64'],f:'This is a geometric sequence — each number is multiplied by 2. Pattern: ×2, ×2, ×2, ×2. Geometric sequences appear everywhere: bacterial growth, compound interest, computer memory sizes!'},
+          {seq:'1, 1, 2, 3, 5, 8, __',a:'13',w:['10','11','21'],f:'This is the Fibonacci sequence! Each number is the sum of the two before it: 5+8=13. It appears in nature: flower petals, pinecone spirals, and the golden ratio (≈1.618).'},
+          {seq:'3, 6, 9, 12, 15, __',a:'18',w:['16','17','21'],f:'Multiples of 3! This is an arithmetic sequence with a common difference of 3. Arithmetic sequences add the same number each time, while geometric sequences multiply.'},
+          {seq:'1, 4, 9, 16, 25, __',a:'36',w:['30','35','49'],f:'These are perfect squares! 1², 2², 3², 4², 5², 6²=36. Square numbers form an interesting pattern: the difference between consecutive squares increases by 2 each time (3, 5, 7, 9, 11...).'},
+        ];
+        const pick=patterns[rr(0,patterns.length-1)];
+        return { q:`What comes next: ${pick.seq}`, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Riddle Door', visual:'🚪', desc:'A sphinx guards the door. Answer its riddle!',
+      gen: () => {
+        const riddles=[
+          {q:'I have cities but no houses, forests but no trees, and water but no fish. What am I?',a:'A Map',w:['A Dream','A Book','A Painting'],f:'Maps represent real places symbolically — they have the names and shapes of cities, forests, and bodies of water, but none of the actual things! Cartography (map-making) is one of humanity\'s oldest sciences.'},
+          {q:'The more you take, the more you leave behind. What am I?',a:'Footsteps',w:['Memories','Time','Breaths'],f:'Every step you take leaves a footprint behind. This riddle plays on the double meaning of "take" (take a step) and "leave behind" (leave a print). Logic puzzles like this improve lateral thinking!'},
+          {q:'I speak without a mouth and hear without ears. I have no body, but I come alive with the wind. What am I?',a:'An Echo',w:['A Ghost','A Shadow','A Whisper'],f:'An echo is sound reflecting off surfaces back to you. Sound travels at ~343 m/s in air. For you to hear a distinct echo, the reflecting surface must be at least 17 meters away!'},
+          {q:'What has a head and a tail but no body?',a:'A Coin',w:['A Snake','A Pin','A Nail'],f:'Coins have a "heads" side (obverse, usually showing a person) and a "tails" side (reverse). The study of coins is called numismatics, and the oldest known coins date to about 600 BCE!'},
+        ];
+        const pick=riddles[rr(0,riddles.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Code Breaker', visual:'🔓', desc:'Crack the code by finding the odd one out.',
+      gen: () => {
+        const qs=[
+          {q:'Which does NOT belong: Apple, Banana, Carrot, Grape?',a:'Carrot',w:['Apple','Banana','Grape'],f:'Carrot is a vegetable (root); the others are fruits. Botanically, a fruit develops from a flower and contains seeds. Carrots are roots that store energy for the plant!'},
+          {q:'Which does NOT belong: Mars, Venus, Pluto, Jupiter?',a:'Pluto',w:['Mars','Venus','Jupiter'],f:'Pluto was reclassified as a "dwarf planet" in 2006 by the International Astronomical Union. It\'s smaller than Earth\'s Moon! The others are all full planets in our solar system.'},
+          {q:'Which does NOT belong: Triangle, Square, Circle, Rectangle?',a:'Circle',w:['Triangle','Square','Rectangle'],f:'A circle has no straight sides or angles — it\'s a curved shape. The others are all polygons (shapes with straight sides). A circle has infinite lines of symmetry!'},
+        ];
+        const pick=qs[rr(0,qs.length-1)];
+        return { q:pick.q, answer:pick.a, type:'choice', choices:shuffle([pick.a,...pick.w]), fact:pick.f };
+      }},
+    { title:'The Estimation Chamber', visual:'🎯', desc:'No calculator allowed! Use your estimation skills.',
+      gen: () => {
+        const a=rr(10,50), b=rr(10,50);
+        const real=a*b;
+        const choices=shuffle([real, real+rr(50,200), real-rr(50,200), real+rr(200,500)].map(String));
+        return { q:`Without calculating exactly, which is closest to ${a} × ${b}?`, answer:String(real), type:'choice', choices,
+          fact:`${a}×${b} = ${real}. Estimation tip: round to nearby easy numbers. ${Math.round(a/10)*10}×${Math.round(b/10)*10} = ${Math.round(a/10)*10*Math.round(b/10)*10} gives a quick estimate!` };
+      }},
+  ]
+};
+
+// ============== STATE ==============
+let state = loadState();
+let currentRooms = [];
+let currentRoomIdx = 0;
+let currentPuzzle = null;
+let timerInterval = null;
+let startTime = 0;
+let elapsedMs = 0;
+let score = 0;
+let hintUsed = false;
+let selectedChar = state.selectedChar || 'runner';
+
+function loadState() {
+  try { return JSON.parse(localStorage.getItem('escapeAcademy') || '{}'); }
+  catch { return {}; }
+}
+function saveState() { localStorage.setItem('escapeAcademy', JSON.stringify(state)); }
+
+function initState() {
+  if (!state.wins) state.wins = 0;
+  if (!state.bestTimes) state.bestTimes = [];
+  if (!state.selectedChar) state.selectedChar = 'runner';
+  if (!state.totalPuzzlesSolved) state.totalPuzzlesSolved = 0;
+  selectedChar = state.selectedChar;
+  saveState();
+}
+initState();
+
+// ============== HELPERS ==============
+function rr(min, max) { return Math.floor(Math.random()*(max-min+1))+min; }
+function shuffle(arr) { const a=[...arr]; for(let i=a.length-1;i>0;i--){const j=rr(0,i);[a[i],a[j]]=[a[j],a[i]];} return a; }
+function gcd(a,b) { return b?gcd(b,a%b):a; }
+function ordinal(n) { const s=['th','st','nd','rd']; const v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+function smallestFactor(n) { for(let i=2;i<=Math.sqrt(n);i++) if(n%i===0) return i; return n; }
+function formatTime(ms) { const s=Math.floor(ms/1000); const m=Math.floor(s/60); return `${m}:${String(s%60).padStart(2,'0')}`; }
+
+function switchScreen(id) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.getElementById('statsBar').style.display = id==='gameScreen' ? 'block' : 'none';
+}
+
+function doorTransition(callback) {
+  const d=document.getElementById('doorTransition');
+  d.style.display='block';
+  d.className='door-transition closing';
+  setTimeout(()=>{
+    callback();
+    d.className='door-transition opening';
+    setTimeout(()=>{ d.style.display='none'; }, 400);
+  }, 400);
+}
+
+// ============== SCREENS ==============
+function showTitle() {
+  switchScreen('titleScreen');
+  document.getElementById('totalWinsDisp').textContent = state.wins > 0 ? `Total Escapes: ${state.wins} | Puzzles Solved: ${state.totalPuzzlesSolved||0}` : '';
+}
+
+function showLeaderboard() {
+  switchScreen('lbScreen');
+  const lb = document.getElementById('lbContent');
+  if (!state.bestTimes || state.bestTimes.length === 0) {
+    lb.innerHTML = '<p style="color:#888;text-align:center;padding:40px;">No escapes yet! Complete a run to see your times here.</p>';
+    return;
+  }
+  const sorted = [...state.bestTimes].sort((a,b)=>a.time-b.time).slice(0,10);
+  lb.innerHTML = '<div class="lb-row header"><span>#</span><span>Character</span><span>Time</span><span>Score</span></div>' +
+    sorted.map((t,i)=>{
+      const ch=CHARACTERS.find(c=>c.id===t.char)||CHARACTERS[0];
+      return `<div class="lb-row"><span>${i+1}</span><span>${ch.emoji} ${ch.name}</span><span>${formatTime(t.time)}</span><span>⭐${t.score}</span></div>`;
+    }).join('');
+}
+
+function showCharacters() {
+  switchScreen('charScreen');
+  const grid = document.getElementById('charGrid');
+  grid.innerHTML = CHARACTERS.map(c => {
+    const unlocked = state.wins >= c.unlock;
+    const sel = selectedChar === c.id;
+    return `<div class="char-card ${unlocked?'unlocked':'locked'} ${sel?'selected':''}" onclick="${unlocked?`selectChar('${c.id}')`:''}">
+      <div class="char-emoji">${c.emoji}</div>
+      <div class="char-name">${c.name}</div>
+      ${unlocked ? `<div class="char-speed">${c.speed>0?'+'+c.speed+'% speed':'Default'}</div>` : `<div class="char-speed" style="color:#ff4444;">🔒 ${c.unlock} wins</div>`}
+    </div>`;
+  }).join('');
+}
+
+function selectChar(id) {
+  selectedChar = id;
+  state.selectedChar = id;
+  saveState();
+  showCharacters();
+}
+
+// ============== GAME ==============
+function generateRooms() {
+  const categories = Object.keys(ROOM_POOLS);
+  const rooms = [];
+  // 15 rooms — cycle through categories, pick random room templates
+  for (let i = 0; i < 15; i++) {
+    const cat = categories[i % categories.length];
+    const pool = ROOM_POOLS[cat];
+    const template = pool[rr(0, pool.length-1)];
+    const puzzle = template.gen();
+    rooms.push({ ...template, puzzle, category: cat, roomNum: i+1 });
+  }
+  return shuffle(rooms);
+}
+
+function startGame() {
+  currentRooms = generateRooms();
+  currentRoomIdx = 0;
+  score = 0;
+  elapsedMs = 0;
+  startTime = Date.now();
+
+  const ch = CHARACTERS.find(c=>c.id===selectedChar) || CHARACTERS[0];
+  document.getElementById('charDisp').textContent = ch.emoji;
+  document.getElementById('totalRooms').textContent = '15';
+  document.getElementById('scoreDisp').textContent = '0';
+
+  buildAllRooms();
+  switchScreen('gameScreen');
+  showRoom(0);
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    elapsedMs = Date.now() - startTime;
+    const el = document.getElementById('timer');
+    el.textContent = formatTime(elapsedMs);
+    if (elapsedMs > 300000) el.classList.add('timer-warning');
+    else el.classList.remove('timer-warning');
+  }, 200);
+}
+
+function buildAllRooms() {
+  const container = document.getElementById('roomContainer');
+  container.innerHTML = currentRooms.map((room, i) => {
+    const p = room.puzzle;
+    const catColors = {math:'#00f0ff',science:'#00ff88',history:'#ffcc00',geography:'#ff8800',language:'#ff00e0',logic:'#aa88ff'};
+    const color = catColors[room.category] || '#00f0ff';
+    let inputHTML = '';
+    if (p.type === 'input') {
+      inputHTML = `<input class="puzzle-input" id="input_${i}" type="text" placeholder="Type your answer..." autocomplete="off" onkeydown="if(event.key==='Enter')submitInput(${i})">
+        <br><button class="btn" style="margin-top:12px;padding:10px 30px;" onclick="submitInput(${i})">Submit</button>`;
+    } else {
+      inputHTML = `<div class="choices">${p.choices.map((c,ci) =>
+        `<button class="choice-btn" id="choice_${i}_${ci}" onclick="submitChoice(${i},${ci},'${c.replace(/'/g,"\\'")}')">${c}</button>`
+      ).join('')}</div>`;
+    }
+    return `<div class="room" id="room_${i}">
+      <div class="room-title" style="color:${color};">${room.roomNum}. ${room.title}</div>
+      <div style="font-size:0.7rem;color:#666;text-transform:uppercase;margin-bottom:8px;">${room.category}</div>
+      <div class="room-desc">${room.desc}</div>
+      <div class="room-visual" style="border-color:${color}30;background:${color}08;">${room.visual}</div>
+      <div class="puzzle-area">
+        <div class="puzzle-question">${p.q}</div>
+        ${inputHTML}
+        <div class="hint-text" id="hint_${i}"></div>
+        <div class="fact-box" id="fact_${i}" style="display:none;"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function showRoom(idx) {
+  document.querySelectorAll('.room').forEach(r=>r.classList.remove('active'));
+  document.getElementById(`room_${idx}`).classList.add('active');
+  document.getElementById('roomNum').textContent = currentRooms[idx].roomNum;
+  document.getElementById('progressFill').style.width = `${(idx/15)*100}%`;
+  hintUsed = false;
+  // Focus input if it's an input type
+  const inp = document.getElementById(`input_${idx}`);
+  if (inp) setTimeout(()=>inp.focus(), 500);
+}
+
+function submitInput(idx) {
+  const inp = document.getElementById(`input_${idx}`);
+  const answer = inp.value.trim();
+  const puzzle = currentRooms[idx].puzzle;
+  if (answer.toLowerCase() === puzzle.answer.toLowerCase()) {
+    correctAnswer(idx);
+  } else {
+    wrongAnswer(idx);
+    inp.value = '';
+    inp.focus();
+  }
+}
+
+function submitChoice(idx, ci, chosen) {
+  const puzzle = currentRooms[idx].puzzle;
+  const btn = document.getElementById(`choice_${idx}_${ci}`);
+  // Disable all choices
+  const allBtns = document.querySelectorAll(`#room_${idx} .choice-btn`);
+
+  if (chosen === puzzle.answer) {
+    btn.classList.add('correct');
+    allBtns.forEach(b => b.style.pointerEvents='none');
+    correctAnswer(idx);
+  } else {
+    btn.classList.add('wrong');
+    btn.style.pointerEvents = 'none';
+    wrongAnswer(idx);
+  }
+}
+
+function correctAnswer(idx) {
+  const puzzle = currentRooms[idx].puzzle;
+  const points = hintUsed ? 50 : 100;
+  score += points;
+  state.totalPuzzlesSolved = (state.totalPuzzlesSolved || 0) + 1;
+  document.getElementById('scoreDisp').textContent = score;
+
+  // Show fact
+  const factEl = document.getElementById(`fact_${idx}`);
+  factEl.style.display = 'block';
+  factEl.innerHTML = `✅ Correct! +${points} points<br><br>📚 ${puzzle.fact}`;
+
+  // Next room after delay
+  setTimeout(() => {
+    if (idx < currentRooms.length - 1) {
+      doorTransition(() => {
+        currentRoomIdx = idx + 1;
+        showRoom(currentRoomIdx);
+      });
+    } else {
+      winGame();
+    }
+  }, 2500);
+}
+
+function wrongAnswer(idx) {
+  hintUsed = true;
+  const puzzle = currentRooms[idx].puzzle;
+  const hintEl = document.getElementById(`hint_${idx}`);
+  if (puzzle.type === 'input') {
+    const ans = puzzle.answer;
+    hintEl.textContent = `💡 Hint: The answer starts with "${ans.charAt(0)}" and has ${ans.length} characters.`;
+  } else {
+    hintEl.textContent = '💡 Not quite! Try another answer. (-50 bonus points)';
+  }
+}
+
+function winGame() {
+  clearInterval(timerInterval);
+  const ch = CHARACTERS.find(c=>c.id===selectedChar) || CHARACTERS[0];
+  const rawTime = elapsedMs;
+  const bonus = ch.speed;
+  const adjustedTime = Math.floor(rawTime * (1 - bonus/100));
+
+  state.wins = (state.wins || 0) + 1;
+  if (!state.bestTimes) state.bestTimes = [];
+  state.bestTimes.push({ time: adjustedTime, score, char: selectedChar, date: new Date().toISOString() });
+  saveState();
+
+  // Check new unlock
+  const newUnlockEl = document.getElementById('newUnlock');
+  const newlyUnlocked = CHARACTERS.filter(c => c.unlock === state.wins);
+  if (newlyUnlocked.length > 0) {
+    newUnlockEl.style.display = 'block';
+    newUnlockEl.innerHTML = `🎊 NEW CHARACTER UNLOCKED: ${newlyUnlocked.map(c=>`${c.emoji} ${c.name}`).join(', ')}!`;
+  } else {
+    const next = CHARACTERS.filter(c => c.unlock > state.wins).sort((a,b)=>a.unlock-b.unlock)[0];
+    if (next) {
+      newUnlockEl.style.display = 'block';
+      newUnlockEl.innerHTML = `Next unlock: ${next.emoji} ${next.name} at ${next.unlock} wins (${next.unlock - state.wins} more!)`;
+      newUnlockEl.style.color = '#aaa';
+      newUnlockEl.style.animation = 'none';
+    } else {
+      newUnlockEl.style.display = 'none';
+    }
+  }
+
+  // Stats
+  const best = Math.min(...state.bestTimes.map(t=>t.time));
+  document.getElementById('winStats').innerHTML = `
+    <div class="win-stat-row"><span class="label">Character</span><span class="value">${ch.emoji} ${ch.name}</span></div>
+    <div class="win-stat-row"><span class="label">Raw Time</span><span class="value">${formatTime(rawTime)}</span></div>
+    ${bonus>0?`<div class="win-stat-row"><span class="label">Speed Bonus</span><span class="value">-${bonus}%</span></div>`:''}
+    <div class="win-stat-row"><span class="label">Final Time</span><span class="value">${formatTime(adjustedTime)}</span></div>
+    <div class="win-stat-row"><span class="label">Score</span><span class="value">⭐ ${score}/1500</span></div>
+    <div class="win-stat-row"><span class="label">Total Wins</span><span class="value">🏆 ${state.wins}</span></div>
+    <div class="win-stat-row"><span class="label">Best Time</span><span class="value">🥇 ${formatTime(best)}</span></div>
+    <div class="win-stat-row"><span class="label">Puzzles Solved (all time)</span><span class="value">${state.totalPuzzlesSolved}</span></div>
+  `;
+
+  document.getElementById('progressFill').style.width = '100%';
+  switchScreen('winScreen');
+}
+
+// Keyboard support
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') showTitle();
+});
+
+showTitle();
+</script>
+</body>
+</html>

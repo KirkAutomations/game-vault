@@ -1,0 +1,1124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PedaMod — Foot Physical Therapy Modalities Trainer</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e17;--surface:#131a2b;--surface2:#1a2340;--accent:#00e5ff;--accent2:#7c4dff;
+  --accent3:#ff6d00;--text:#e0e6f0;--text2:#8892a8;--success:#00e676;--danger:#ff5252;
+  --warm:#ff8a65;--cool:#4fc3f7;--radius:12px;
+  --glow:0 0 20px rgba(0,229,255,.15);
+}
+html{scroll-behavior:smooth}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);line-height:1.6;overflow-x:hidden}
+h1,h2,h3,h4{font-weight:700;letter-spacing:-.02em}
+
+/* HERO */
+.hero{position:relative;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:2rem;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 80% 60% at 50% 40%,rgba(0,229,255,.08),transparent 70%),radial-gradient(ellipse 60% 50% at 30% 70%,rgba(124,77,255,.06),transparent 60%);pointer-events:none}
+.hero-badge{display:inline-flex;align-items:center;gap:.5rem;padding:.4rem 1rem;border-radius:999px;background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.25);color:var(--accent);font-size:.8rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-bottom:1.5rem}
+.hero h1{font-size:clamp(2.4rem,6vw,4.5rem);background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:1rem}
+.hero h1 span{display:block;font-size:.45em;-webkit-text-fill-color:var(--text2);letter-spacing:.04em;font-weight:400;margin-top:.5rem}
+.hero p{max-width:680px;font-size:1.15rem;color:var(--text2);margin-bottom:2rem}
+.hero-cta{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+.btn{display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.8rem;border-radius:999px;font-size:.95rem;font-weight:600;border:none;cursor:pointer;transition:all .25s;text-decoration:none}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;box-shadow:0 4px 20px rgba(0,229,255,.3)}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 6px 30px rgba(0,229,255,.45)}
+.btn-outline{background:transparent;color:var(--accent);border:2px solid rgba(0,229,255,.4)}
+.btn-outline:hover{background:rgba(0,229,255,.1)}
+
+/* NAV */
+.nav{position:sticky;top:0;z-index:100;background:rgba(10,14,23,.85);backdrop-filter:blur(20px);border-bottom:1px solid rgba(255,255,255,.06);padding:.8rem 2rem;display:flex;align-items:center;justify-content:center;gap:1.5rem;flex-wrap:wrap}
+.nav a{color:var(--text2);text-decoration:none;font-size:.85rem;font-weight:500;padding:.4rem .8rem;border-radius:8px;transition:all .2s}
+.nav a:hover,.nav a.active{color:var(--accent);background:rgba(0,229,255,.08)}
+
+/* SECTIONS */
+section{padding:4rem 2rem;max-width:1300px;margin:0 auto}
+.section-label{display:inline-flex;align-items:center;gap:.4rem;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:.75rem}
+.section-title{font-size:clamp(1.6rem,3.5vw,2.4rem);margin-bottom:.5rem}
+.section-sub{color:var(--text2);max-width:700px;margin-bottom:2.5rem;font-size:1rem}
+
+/* FOOT MAP */
+#anatomy{position:relative}
+.foot-container{display:flex;gap:3rem;align-items:flex-start;flex-wrap:wrap;justify-content:center}
+.foot-svg-wrap{position:relative;width:420px;flex-shrink:0}
+.foot-svg-wrap svg{width:100%;height:auto;filter:drop-shadow(0 0 40px rgba(0,229,255,.12))}
+.foot-zone{cursor:pointer;transition:all .3s;fill:rgba(0,229,255,.06);stroke:var(--accent);stroke-width:1.5}
+.foot-zone:hover,.foot-zone.active{fill:rgba(0,229,255,.22);stroke-width:2.5;filter:drop-shadow(0 0 8px rgba(0,229,255,.5))}
+.zone-info{flex:1;min-width:300px;max-width:520px}
+.zone-card{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2rem;display:none}
+.zone-card.visible{display:block;animation:fadeUp .4s ease}
+.zone-card h3{font-size:1.3rem;margin-bottom:.5rem;color:var(--accent)}
+.zone-card h4{font-size:.9rem;color:var(--accent2);margin:1rem 0 .4rem;text-transform:uppercase;letter-spacing:.05em}
+.zone-card p,.zone-card li{font-size:.92rem;color:var(--text2);line-height:1.7}
+.zone-card ul{padding-left:1.2rem;margin-bottom:.5rem}
+.zone-card .tag{display:inline-block;padding:.15rem .6rem;border-radius:999px;font-size:.72rem;font-weight:600;margin:.15rem .2rem}
+.tag-warm{background:rgba(255,138,101,.15);color:var(--warm)}
+.tag-cool{background:rgba(79,195,247,.15);color:var(--cool)}
+.tag-elec{background:rgba(124,77,255,.15);color:var(--accent2)}
+.tag-mech{background:rgba(0,230,118,.15);color:var(--success)}
+
+/* MODALITY GRID */
+.mod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:1.5rem}
+.mod-card{position:relative;background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:all .3s}
+.mod-card:hover{transform:translateY(-4px);border-color:rgba(0,229,255,.2);box-shadow:var(--glow)}
+.mod-header{padding:1.5rem 1.5rem 1rem;display:flex;align-items:flex-start;gap:1rem}
+.mod-icon{width:52px;height:52px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0}
+.mod-header h3{font-size:1.1rem;margin-bottom:.25rem}
+.mod-header p{font-size:.8rem;color:var(--text2)}
+.mod-body{padding:0 1.5rem 1.5rem}
+.mod-body p{font-size:.88rem;color:var(--text2);line-height:1.65}
+.mod-tags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.8rem}
+.mod-evidence{display:flex;align-items:center;gap:.4rem;margin-top:.8rem;font-size:.78rem;font-weight:600}
+.ev-high{color:var(--success)}
+.ev-mod{color:var(--accent3)}
+.ev-emerging{color:var(--accent2)}
+.ev-bar{height:4px;border-radius:2px;flex:1;max-width:80px;background:rgba(255,255,255,.08);overflow:hidden}
+.ev-bar span{display:block;height:100%;border-radius:2px}
+
+/* DETAIL MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);display:none;align-items:center;justify-content:center;padding:2rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid rgba(255,255,255,.08);border-radius:16px;max-width:800px;width:100%;max-height:88vh;overflow-y:auto;position:relative;animation:fadeUp .35s ease}
+.modal-close{position:absolute;top:1rem;right:1rem;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.06);border:none;color:var(--text2);font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;z-index:2}
+.modal-close:hover{background:rgba(255,82,82,.2);color:var(--danger)}
+.modal-top{padding:2rem 2rem 0;display:flex;align-items:center;gap:1.2rem}
+.modal-top .mod-icon{width:60px;height:60px;font-size:1.8rem}
+.modal-top h2{font-size:1.5rem}
+.modal-top .subtitle{font-size:.85rem;color:var(--text2)}
+.modal-content{padding:2rem}
+.modal-content h4{font-size:.85rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);margin:1.5rem 0 .6rem;padding-bottom:.4rem;border-bottom:1px solid rgba(255,255,255,.06)}
+.modal-content h4:first-child{margin-top:0}
+.modal-content p,.modal-content li{font-size:.9rem;color:var(--text2);line-height:1.75}
+.modal-content ul{padding-left:1.3rem;margin-bottom:.5rem}
+.modal-content .param-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:.8rem;margin:.8rem 0}
+.param-box{background:var(--surface2);border-radius:8px;padding:.8rem 1rem}
+.param-box .label{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text2);margin-bottom:.25rem}
+.param-box .value{font-size:1.05rem;font-weight:700;color:var(--accent)}
+.ref-list{margin:.5rem 0}
+.ref-list li{font-size:.78rem;color:var(--text2);margin-bottom:.35rem;font-style:italic}
+
+/* SIMULATOR */
+#simulator{background:linear-gradient(180deg,transparent,rgba(0,229,255,.02),transparent)}
+.sim-container{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center}
+.sim-foot{position:relative;width:360px;height:500px;background:var(--surface);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06);overflow:hidden;flex-shrink:0}
+.sim-foot canvas{width:100%;height:100%}
+.sim-panel{flex:1;min-width:300px;max-width:500px}
+.sim-modality-select{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.5rem}
+.sim-mod-btn{padding:.5rem 1rem;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:var(--surface);color:var(--text2);cursor:pointer;font-size:.82rem;font-weight:500;transition:all .2s}
+.sim-mod-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sim-mod-btn.active{background:rgba(0,229,255,.12);border-color:var(--accent);color:var(--accent)}
+.sim-controls label{display:block;font-size:.82rem;color:var(--text2);margin-bottom:.3rem;margin-top:1rem}
+.sim-controls input[type=range]{width:100%;accent-color:var(--accent);margin:.3rem 0}
+.sim-readout{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:1.2rem;margin-top:1.5rem}
+.sim-readout h4{font-size:.85rem;color:var(--accent);margin-bottom:.6rem}
+.sim-readout p{font-size:.85rem;color:var(--text2);line-height:1.7}
+.tissue-bar{margin:.5rem 0}
+.tissue-bar .bar-label{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text2)}
+.tissue-bar .bar-track{height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;margin:.3rem 0}
+.tissue-bar .bar-fill{height:100%;border-radius:3px;transition:width .5s ease}
+
+/* QUIZ */
+#quiz{background:linear-gradient(180deg,transparent,rgba(124,77,255,.02),transparent)}
+.quiz-container{max-width:700px;margin:0 auto}
+.quiz-progress{display:flex;align-items:center;gap:1rem;margin-bottom:2rem}
+.quiz-progress .bar{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.quiz-progress .bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:3px;transition:width .4s}
+.quiz-progress .count{font-size:.85rem;color:var(--text2);white-space:nowrap}
+.quiz-question{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:2rem;margin-bottom:1.5rem}
+.quiz-question .q-category{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);margin-bottom:.6rem}
+.quiz-question .q-text{font-size:1.1rem;font-weight:600;margin-bottom:1.5rem;line-height:1.5}
+.quiz-options{display:flex;flex-direction:column;gap:.6rem}
+.q-option{padding:1rem 1.2rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:var(--surface2);cursor:pointer;font-size:.9rem;color:var(--text);transition:all .2s;text-align:left}
+.q-option:hover:not(.disabled){border-color:var(--accent);background:rgba(0,229,255,.06)}
+.q-option.correct{border-color:var(--success);background:rgba(0,230,118,.1);color:var(--success)}
+.q-option.wrong{border-color:var(--danger);background:rgba(255,82,82,.1);color:var(--danger)}
+.q-option.disabled{pointer-events:none;opacity:.7}
+.quiz-explain{background:var(--surface2);border-radius:10px;padding:1.2rem;margin-top:1rem;display:none;font-size:.88rem;color:var(--text2);line-height:1.7;border-left:3px solid var(--accent)}
+.quiz-explain.visible{display:block;animation:fadeUp .3s ease}
+.quiz-nav{display:flex;justify-content:center;gap:1rem;margin-top:1.5rem}
+.quiz-score{text-align:center;padding:3rem 2rem;background:var(--surface);border-radius:var(--radius);border:1px solid rgba(255,255,255,.06)}
+.quiz-score .big{font-size:3rem;font-weight:800;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.quiz-score p{color:var(--text2);margin:.5rem 0}
+
+/* PROTOCOL BUILDER */
+.proto-builder{display:flex;gap:2rem;flex-wrap:wrap}
+.proto-conditions{flex:1;min-width:280px}
+.proto-condition-btn{display:block;width:100%;text-align:left;padding:1rem 1.2rem;margin-bottom:.6rem;border-radius:10px;border:1px solid rgba(255,255,255,.08);background:var(--surface);color:var(--text);cursor:pointer;transition:all .2s}
+.proto-condition-btn:hover{border-color:var(--accent2)}
+.proto-condition-btn.active{border-color:var(--accent2);background:rgba(124,77,255,.1)}
+.proto-condition-btn h4{font-size:.95rem;margin-bottom:.2rem}
+.proto-condition-btn p{font-size:.78rem;color:var(--text2)}
+.proto-timeline{flex:2;min-width:340px}
+.proto-phase{background:var(--surface);border:1px solid rgba(255,255,255,.06);border-radius:var(--radius);padding:1.5rem;margin-bottom:1rem;position:relative;border-left:3px solid var(--accent2)}
+.proto-phase h4{font-size:.95rem;color:var(--accent2);margin-bottom:.5rem}
+.proto-phase p{font-size:.85rem;color:var(--text2);line-height:1.65}
+.proto-phase .modalities-used{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
+.proto-phase .mod-chip{padding:.2rem .6rem;border-radius:6px;font-size:.72rem;font-weight:600;background:rgba(0,229,255,.1);color:var(--accent)}
+
+/* FOOTER */
+footer{text-align:center;padding:3rem 2rem;border-top:1px solid rgba(255,255,255,.06);color:var(--text2);font-size:.8rem}
+
+/* ANIMATIONS */
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--surface2);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15)}
+
+/* PARTICLES */
+#particles{position:fixed;inset:0;pointer-events:none;z-index:0}
+section,.nav,.hero{position:relative;z-index:1}
+
+@media(max-width:768px){
+  .mod-grid{grid-template-columns:1fr}
+  .foot-container,.sim-container,.proto-builder{flex-direction:column;align-items:center}
+  .foot-svg-wrap{width:100%;max-width:360px}
+  .zone-info,.sim-panel,.proto-timeline,.proto-conditions{max-width:100%;min-width:0}
+}
+</style>
+</head>
+<body>
+
+<canvas id="particles"></canvas>
+
+<!-- HERO -->
+<header class="hero">
+  <div class="hero-badge">&#9883; Evidence-Based Podiatric Rehabilitation</div>
+  <h1>PedaMod<span>Physical Therapy Modalities for the Foot &amp; Ankle Complex</span></h1>
+  <p>Interactive, PhD-level education on therapeutic modalities applied to pedal biomechanics &mdash; from tissue-level physiology to clinical dosimetry. Built for residency and fellowship training.</p>
+  <div class="hero-cta">
+    <a href="#modalities" class="btn btn-primary">&#9889; Explore Modalities</a>
+    <a href="#simulator" class="btn btn-outline">&#127891; Treatment Simulator</a>
+  </div>
+</header>
+
+<!-- NAV -->
+<nav class="nav" id="topnav">
+  <a href="#anatomy">Foot Anatomy</a>
+  <a href="#modalities">Modalities</a>
+  <a href="#simulator">Simulator</a>
+  <a href="#protocols">Protocols</a>
+  <a href="#quiz">Assessment</a>
+</nav>
+
+<!-- ANATOMY -->
+<section id="anatomy">
+  <div class="section-label">&#128166; Interactive Anatomy</div>
+  <h2 class="section-title">Functional Foot Zones &amp; Modality Targets</h2>
+  <p class="section-sub">Select a zone to view its structural anatomy, common pathologies, and which modalities target that region most effectively.</p>
+  <div class="foot-container">
+    <div class="foot-svg-wrap">
+      <svg viewBox="0 0 400 580" xmlns="http://www.w3.org/2000/svg" id="foot-svg">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+        </defs>
+        <!-- Foot outline -->
+        <path d="M200 30 C140 30 90 60 75 120 C60 180 55 260 60 340 C65 420 80 470 110 510 C140 545 180 565 220 565 C260 565 300 540 320 500 C340 460 350 400 350 340 C350 260 345 180 330 120 C315 60 260 30 200 30Z" fill="rgba(0,229,255,.03)" stroke="rgba(0,229,255,.3)" stroke-width="2"/>
+        <!-- Zones -->
+        <path class="foot-zone" id="zone-toes" d="M140 45 C130 50 110 70 100 100 C95 115 100 125 115 125 C125 110 140 95 160 85 L200 70 L240 85 C260 95 275 110 285 125 C300 125 305 115 300 100 C290 70 270 50 260 45 C240 35 160 35 140 45Z" data-zone="toes"/>
+        <path class="foot-zone" id="zone-met" d="M100 125 C95 155 90 190 88 220 L312 220 C310 190 305 155 300 125 C275 120 260 105 240 95 L200 78 L160 95 C140 105 125 120 100 125Z" data-zone="metatarsals"/>
+        <path class="foot-zone" id="zone-arch" d="M88 220 C82 270 78 320 80 365 L165 365 L165 220Z" data-zone="medial-arch"/>
+        <path class="foot-zone" id="zone-lateral" d="M235 220 L320 220 C325 270 328 320 325 365 L235 365Z" data-zone="lateral"/>
+        <path class="foot-zone" id="zone-midfoot" d="M165 220 L235 220 L235 365 L165 365Z" data-zone="midfoot"/>
+        <path class="foot-zone" id="zone-heel" d="M80 365 C85 420 100 470 130 510 C155 540 185 558 220 560 C255 558 285 540 305 510 C325 470 335 420 325 365 L80 365Z" data-zone="heel"/>
+        <!-- Zone labels -->
+        <text x="200" y="90" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="11" font-weight="600">PHALANGES</text>
+        <text x="200" y="175" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="11" font-weight="600">METATARSALS</text>
+        <text x="120" y="298" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="10" font-weight="600">MEDIAL</text>
+        <text x="120" y="312" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="10" font-weight="600">ARCH</text>
+        <text x="200" y="305" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="10" font-weight="600">MIDFOOT</text>
+        <text x="280" y="298" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="10" font-weight="600">LATERAL</text>
+        <text x="280" y="312" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="10" font-weight="600">COLUMN</text>
+        <text x="200" y="470" text-anchor="middle" fill="rgba(0,229,255,.6)" font-size="11" font-weight="600">CALCANEUS</text>
+      </svg>
+    </div>
+    <div class="zone-info" id="zone-info">
+      <div class="zone-card visible" id="zone-default">
+        <h3>Select a Foot Zone</h3>
+        <p>Click on any anatomical region of the foot to explore its structure, innervation, common pathologies, and the modalities most effective for that zone.</p>
+        <h4>Quick Reference</h4>
+        <ul>
+          <li><strong>26 bones</strong>, 33 joints, &gt;100 ligaments</li>
+          <li><strong>Windlass mechanism</strong> &mdash; plantar fascia tightens during toe dorsiflexion to stiffen the longitudinal arch</li>
+          <li><strong>Truss model</strong> &mdash; calcaneus + metatarsal heads = struts; plantar fascia = tie rod</li>
+          <li>Rich proprioceptive field: ~104 mechanoreceptors per cm&sup2; in glabrous plantar skin</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- MODALITIES -->
+<section id="modalities">
+  <div class="section-label">&#9889; Therapeutic Modalities</div>
+  <h2 class="section-title">Evidence-Based Modalities for the Foot</h2>
+  <p class="section-sub">Each modality card summarizes the biophysical mechanism, foot-specific applications, and current evidence level. Click any card for the full clinical deep-dive.</p>
+  <div class="mod-grid" id="mod-grid"></div>
+</section>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modal-close">&times;</button>
+    <div class="modal-top" id="modal-top"></div>
+    <div class="modal-content" id="modal-content"></div>
+  </div>
+</div>
+
+<!-- SIMULATOR -->
+<section id="simulator">
+  <div class="section-label">&#127891; Treatment Simulator</div>
+  <h2 class="section-title">Tissue-Response Simulator</h2>
+  <p class="section-sub">Apply a modality and adjust dosimetry parameters to observe real-time tissue-level physiological responses. Based on peer-reviewed dose-response curves.</p>
+  <div class="sim-container">
+    <div class="sim-foot">
+      <canvas id="sim-canvas" width="720" height="1000"></canvas>
+    </div>
+    <div class="sim-panel">
+      <div class="sim-modality-select" id="sim-mod-select"></div>
+      <div class="sim-controls" id="sim-controls"></div>
+      <div class="sim-readout" id="sim-readout">
+        <h4>Tissue Response</h4>
+        <p id="sim-response-text">Select a modality and adjust parameters to begin simulation.</p>
+        <div id="sim-bars"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PROTOCOLS -->
+<section id="protocols">
+  <div class="section-label">&#128203; Clinical Protocols</div>
+  <h2 class="section-title">Condition-Based Treatment Protocols</h2>
+  <p class="section-sub">Select a common pedal condition to view a phased, evidence-based rehabilitation protocol integrating multiple modalities.</p>
+  <div class="proto-builder">
+    <div class="proto-conditions" id="proto-conditions"></div>
+    <div class="proto-timeline" id="proto-timeline">
+      <p style="color:var(--text2);font-size:.92rem">Select a condition to view its treatment protocol.</p>
+    </div>
+  </div>
+</section>
+
+<!-- QUIZ -->
+<section id="quiz">
+  <div class="section-label">&#128300; Knowledge Assessment</div>
+  <h2 class="section-title">Clinical Reasoning Quiz</h2>
+  <p class="section-sub">Test your understanding of modality selection, dosimetry, contraindications, and tissue-level mechanisms &mdash; at a doctoral level.</p>
+  <div class="quiz-container" id="quiz-container"></div>
+</section>
+
+<footer>
+  <p>PedaMod &mdash; For educational use in physical therapy residency and fellowship training.<br>
+  Content synthesized from peer-reviewed literature. Always verify with current clinical guidelines.</p>
+</footer>
+
+<script>
+// ========== DATA ==========
+
+const ZONES = {
+  toes: {
+    title: "Phalanges & MTP Joints",
+    anatomy: "14 phalanges (2 in hallux, 3 in digits 2\u20135). The 1st MTP joint bears ~40\u201360% of body weight during terminal stance. Sesamoids embedded in FHB tendons serve as a fulcrum for the hallux flexor apparatus.",
+    innervation: "Medial plantar nerve (hallux, digits 2\u20133 medial), lateral plantar nerve (digit 3 lateral, 4\u20135). Digital nerves travel plantar-lateral to the metatarsal heads \u2014 a critical consideration for Morton\u2019s neuroma.",
+    pathologies: ["Hallux rigidus (1st MTP OA)", "Morton\u2019s neuroma (3rd web space)", "Hallux valgus with sesamoid subluxation", "Turf toe (1st MTP plantar plate sprain)", "Metatarsalgia (mechanical overload)"],
+    modalities: [
+      {name: "Therapeutic Ultrasound", why: "1 MHz continuous for periarticular fibrosis; pulsed for acute capsulitis. Targets joint capsule at 1\u20133 cm depth.", type: "warm"},
+      {name: "Joint Mobilization", why: "Maitland Grade III\u2013IV dorsal/plantar glides for 1st MTP. Restores arthrokinematic roll-glide.", type: "mech"},
+      {name: "Low-Level Laser (PBM)", why: "660\u2013905 nm wavelengths reduce TNF-\u03b1 and IL-1\u03b2 in MTP synovitis. 4\u20138 J/cm\u00b2 per point.", type: "elec"},
+      {name: "Cryotherapy", why: "Acute neuritis or post-mobilization. Vasoconstriction limits inflammatory exudate.", type: "cool"}
+    ]
+  },
+  metatarsals: {
+    title: "Metatarsal Region & Transverse Arch",
+    anatomy: "5 metatarsals forming the transverse arch (highest at 2nd met base). Deep transverse metatarsal ligament connects met heads 2\u20135. Interossei and lumbricals control MTP sagittal plane mechanics.",
+    innervation: "Common digital nerves bifurcate at met head level. Medial plantar nerve supplies abductor hallucis and FDB medially; lateral plantar nerve drives interossei and adductor hallucis.",
+    pathologies: ["Stress fractures (2nd/3rd met \u2014 bending stress concentration)", "Metatarsalgia (transverse arch collapse)", "Freiberg\u2019s infraction (2nd met head AVN)", "Morton\u2019s neuroma", "Plantar plate tears"],
+    modalities: [
+      {name: "ESWT", why: "Radial shockwave at 2.0\u20133.0 bar, 2000 pulses targeting met head periosteum for stress reactions.", type: "mech"},
+      {name: "Therapeutic Ultrasound", why: "Pulsed 1 MHz, 20% duty cycle for bone stress injuries \u2014 upregulates osteoblast activity via integrin-mediated mechanotransduction.", type: "warm"},
+      {name: "Neuromuscular E-Stim", why: "Targets intrinsic foot muscles (interossei, lumbricals) to restore transverse arch support. 35\u201350 Hz, 200 \u03bcs.", type: "elec"},
+      {name: "Taping/Orthotic Offloading", why: "Metatarsal pad placement proximal to met heads redistributes plantar pressure.", type: "mech"}
+    ]
+  },
+  "medial-arch": {
+    title: "Medial Longitudinal Arch",
+    anatomy: "Calcaneus \u2192 talus \u2192 navicular \u2192 3 cuneiforms \u2192 metatarsals 1\u20133. Keystone: navicular. Spring ligament (calcaneonavicular) supports talar head. Tibialis posterior is the primary dynamic arch stabilizer.",
+    innervation: "Medial plantar nerve runs beneath abductor hallucis through the tarsal tunnel \u2014 clinically relevant for tarsal tunnel syndrome. Rich in slow-adapting mechanoreceptors (Ruffini endings) for proprioceptive feedback.",
+    pathologies: ["Plantar fasciitis / fasciopathy", "Tibialis posterior tendinopathy (stage I\u2013II AAFD)", "Tarsal tunnel syndrome", "Spring ligament insufficiency", "Navicular stress fracture"],
+    modalities: [
+      {name: "ESWT", why: "Focused or radial for insertional plantar fasciopathy. Triggers neovascularization via VEGF upregulation and substance P\u2013mediated analgesic cascade.", type: "mech"},
+      {name: "Iontophoresis", why: "Dexamethasone 0.4% via DC current (4 mA \u00d7 20 min = 80 mA\u00b7min) for focal anti-inflammatory delivery to fascia origin.", type: "elec"},
+      {name: "IASTM", why: "Controlled microtrauma to degenerated plantar fascia activates fibroblast proliferation and collagen remodeling.", type: "mech"},
+      {name: "Thermotherapy", why: "Moist heat or paraffin to plantar intrinsic muscles pre-exercise. Increases collagen extensibility (requires >40\u00b0C tissue temp).", type: "warm"}
+    ]
+  },
+  lateral: {
+    title: "Lateral Column & Peroneal Complex",
+    anatomy: "Calcaneus \u2192 cuboid \u2192 metatarsals 4\u20135. Calcaneocuboid joint is a key component of the midtarsal joint (Chopart\u2019s). Peroneus longus tendon crosses plantar cuboid groove \u2014 stabilizes 1st ray and lateral arch.",
+    innervation: "Sural nerve provides lateral foot cutaneous sensation. Superficial peroneal nerve supplies dorsolateral foot. Deep peroneal nerve \u2014 1st web space only.",
+    pathologies: ["Chronic lateral ankle instability (ATFL/CFL laxity)", "Peroneal tendinopathy / subluxation", "Cuboid syndrome", "5th metatarsal (Jones) fracture", "Sural nerve entrapment"],
+    modalities: [
+      {name: "Cryotherapy", why: "Acute lateral ankle sprain \u2014 cryokinetics protocol (ice 20 min \u2192 active ROM \u2192 repeat). Reduces secondary hypoxic injury.", type: "cool"},
+      {name: "Neuromuscular E-Stim", why: "Peroneal retraining post-sprain. Targets peroneus longus reaction time (<60 ms goal) for dynamic ankle stability.", type: "elec"},
+      {name: "Therapeutic Ultrasound", why: "Continuous 3 MHz to peroneal tendons \u2014 heats tissue at 1\u20132 cm depth. Increases tendon extensibility before stretching.", type: "warm"},
+      {name: "Proprioceptive Training", why: "Single-leg stance on unstable surfaces activates lateral ankle mechanoreceptors. Reduces recurrence by 50% (Cochrane data).", type: "mech"}
+    ]
+  },
+  midfoot: {
+    title: "Midfoot (Lisfranc & Chopart Complexes)",
+    anatomy: "Tarsometatarsal (Lisfranc) joint complex: 3 cuneiforms + cuboid articulating with 5 met bases. Lisfranc ligament connects medial cuneiform to 2nd met base \u2014 critical for midfoot stability. Chopart joint (talonavicular + calcaneocuboid) allows forefoot supination/pronation.",
+    innervation: "Deep peroneal nerve (dorsal), medial and lateral plantar nerves (plantar). Midfoot has relatively sparse cutaneous innervation compared to forefoot and heel.",
+    pathologies: ["Lisfranc sprain / instability", "Midfoot osteoarthritis", "Os naviculare syndrome", "Chopart joint sprain", "Midfoot Charcot neuroarthropathy (diabetic)"],
+    modalities: [
+      {name: "Joint Mobilization", why: "Tarsometatarsal PA glides restore accessory motion lost post-sprain. Kaltenborn convex-concave rule applied to cuneiform-metatarsal articulations.", type: "mech"},
+      {name: "Low-Level Laser (PBM)", why: "For post-traumatic midfoot OA: 830 nm, 30 mW, 4 J/point modulates chondrocyte metabolism and reduces MMP-13 expression.", type: "elec"},
+      {name: "Contrast Bath Hydrotherapy", why: "Alternating 38\u201340\u00b0C / 10\u201315\u00b0C (4:1 ratio, 20\u201330 min total) \u2014 vascular pumping reduces midfoot edema.", type: "warm"},
+      {name: "Therapeutic Exercise", why: "Short-foot exercise activates intrinsic muscles: abductor hallucis, FDB, quadratus plantae. Increases arch height and midfoot stiffness.", type: "mech"}
+    ]
+  },
+  heel: {
+    title: "Calcaneus & Fat Pad Complex",
+    anatomy: "Largest tarsal bone. Sustentaculum tali supports talar neck. Calcaneal tuberosity: insertion of Achilles tendon (posteriorly) and plantar fascia (inferiorly). Heel fat pad: specialized fibro-adipose tissue with closed-cell septal architecture \u2014 dissipates up to 110% body weight at heel strike.",
+    innervation: "Medial calcaneal nerve (branch of tibial n.) \u2014 the primary sensory nerve of the heel pad. Baxter\u2019s nerve (1st branch of lateral plantar n.) can be entrapped between abductor hallucis and QP \u2014 mimics plantar fasciitis.",
+    pathologies: ["Plantar fasciopathy (insertional)", "Heel fat pad atrophy / contusion", "Calcaneal stress fracture", "Haglund\u2019s deformity + retrocalcaneal bursitis", "Baxter\u2019s nerve entrapment", "Achilles insertional tendinopathy"],
+    modalities: [
+      {name: "ESWT (Shockwave)", why: "Level I evidence for chronic plantar fasciopathy (>6 months). 2000\u20133000 pulses, 0.2\u20130.4 mJ/mm\u00b2. Disrupts dystrophic calcification and upregulates TGF-\u03b21.", type: "mech"},
+      {name: "Eccentric Loading", why: "Alfredson protocol adapted: heel drops off step, 3\u00d715 reps, 2\u00d7/day for 12 weeks. Stimulates tenocyte collagen synthesis via scleraxis pathway.", type: "mech"},
+      {name: "Dry Needling", why: "Targets calcaneal enthesopathy and trigger points in QP and FDB. Local twitch response restores sarcomere length. Segmental inhibition at S1\u2013S2.", type: "mech"},
+      {name: "Phonophoresis", why: "US-driven transdermal delivery of ketoprofen/diclofenac gel. 1 MHz continuous, 1.0 W/cm\u00b2 \u2014 enhances drug penetration via acoustic streaming.", type: "warm"}
+    ]
+  }
+};
+
+const MODALITIES = [
+  {
+    id: "cryo", name: "Cryotherapy", icon: "\u2744\uFE0F", iconBg: "linear-gradient(135deg,#4fc3f7,#0288d1)",
+    subtitle: "Cold-Induced Analgesia & Anti-inflammatory",
+    brief: "Reduces tissue temperature to slow nerve conduction velocity, decrease metabolic rate, and limit secondary hypoxic injury. Activates cold-responsive TRPM8 channels, engaging descending inhibitory pain pathways.",
+    tags: [["Thermal","cool"],["Analgesic","cool"],["Anti-inflammatory","cool"]],
+    evidence: "High", evPct: 90,
+    detail: {
+      mechanism: "Tissue cooling to 10\u201315\u00b0C reduces nerve conduction velocity (2 m/s per \u00b0C drop in A\u03b4 fibers), suppressing nociceptive transmission. Vasoconstriction via smooth muscle \u03b1-adrenergic response decreases capillary hydrostatic pressure, limiting edema. Metabolic rate decreases ~10% per \u00b0C (Q10 effect), protecting viable cells in the zone of secondary injury. TRPM8 channel activation on A\u03b4 and C fibers produces cold-mediated analgesia via the periaqueductal gray descending inhibitory system.",
+      footApp: "Post-acute lateral ankle sprain (ATFL/CFL): cryokinetics protocol \u2014 20 min ice \u2192 active pain-free ROM \u2192 repeat \u00d73. Morton\u2019s neuroma flare: focal cold pack to 3rd intermetatarsal space. Post-operative hallux valgus correction: continuous cryotherapy cuff for 48h reduces opioid consumption by ~30%.",
+      params: [
+        {label: "Target Tissue Temp", value: "10\u201315\u00b0C"},
+        {label: "Application Time", value: "15\u201320 min"},
+        {label: "Modality Options", value: "Ice pack, cold bath, vapocoolant, cryo cuff"},
+        {label: "Nerve Block Threshold", value: "< 10\u00b0C (risk of neuropraxia)"}
+      ],
+      contraindications: "Raynaud\u2019s phenomenon, cryoglobulinemia, cold urticaria, peripheral vascular disease (ABI < 0.8), regenerating peripheral nerves, areas of impaired sensation (diabetic neuropathy).",
+      references: ["Bleakley C, et al. (2004). Cryotherapy for acute ankle sprains. Br J Sports Med.", "Costello JT, et al. (2012). Whole-body cryotherapy and cold water immersion. Eur J Appl Physiol.", "Malanga GA, et al. (2015). Mechanisms and efficacy of heat and cold therapies. Postgrad Med."]
+    }
+  },
+  {
+    id: "thermo", name: "Thermotherapy", icon: "\uD83D\uDD25", iconBg: "linear-gradient(135deg,#ff8a65,#e64a19)",
+    subtitle: "Heat-Mediated Tissue Extensibility & Vasodilation",
+    brief: "Raises tissue temperature to increase collagen extensibility, enhance enzymatic activity, and promote vasodilation. Activates TRPV1/TRPV3 thermosensitive ion channels for pain modulation.",
+    tags: [["Thermal","warm"],["Vasodilatory","warm"],["Extensibility","warm"]],
+    evidence: "High", evPct: 85,
+    detail: {
+      mechanism: "Tissue heating >40\u00b0C increases collagen extensibility by disrupting hydrogen cross-links in the triple helix. TRPV1 channel activation at >43\u00b0C modulates pain via endorphin release. Vasodilation through local NO release and histamine-mediated arteriolar relaxation increases blood flow 2\u20133\u00d7 baseline. Heat shock proteins (HSP70, HSP90) are upregulated, providing cytoprotective effects.",
+      footApp: "Plantar fascia stretching: paraffin bath (52\u00b0C \u00d7 15 min) heats plantar tissue to >40\u00b0C \u2014 perform windlass-mechanism stretches immediately after for maximum plastic deformation. Midfoot OA: moist heat prior to joint mobilization. Chronic Achilles tendinopathy: deep heating with continuous US before eccentric loading.",
+      params: [
+        {label: "Target Tissue Temp", value: "40\u201345\u00b0C"},
+        {label: "Superficial Heat", value: "15\u201320 min (hot pack, paraffin)"},
+        {label: "Vigorous Heating", value: "> 45\u00b0C tissue (requires monitoring)"},
+        {label: "Paraffin Temp", value: "52\u201354\u00b0C (dip-wrap method)"}
+      ],
+      contraindications: "Acute inflammation (first 48\u201372h), malignancy, active hemorrhage, impaired sensation, ischemic tissue (PVD), over demyelination areas, pregnancy (abdomen), DVT.",
+      references: ["Lehmann JF, de Lateur BJ. (1999). Therapeutic Heat. In: Therapeutic Heat and Cold. 4th ed.", "Petrofsky J, et al. (2013). Moist heat application. J Bodyw Mov Ther.", "Draper DO, et al. (2002). Rate of temperature increase in human muscle during US. J Athl Train."]
+    }
+  },
+  {
+    id: "us", name: "Therapeutic Ultrasound", icon: "\u2261", iconBg: "linear-gradient(135deg,#00e5ff,#7c4dff)",
+    subtitle: "Acoustic Energy for Deep Tissue Heating & Repair",
+    brief: "Delivers mechanical acoustic waves (1\u20133 MHz) producing thermal and non-thermal effects. Continuous mode for deep heating; pulsed mode for cavitation-mediated tissue repair without significant temperature rise.",
+    tags: [["Acoustic","elec"],["Deep Heating","warm"],["Tissue Repair","mech"]],
+    evidence: "Moderate", evPct: 68,
+    detail: {
+      mechanism: "<strong>Thermal:</strong> Continuous mode at 1 MHz penetrates 3\u20135 cm; 3 MHz targets 1\u20132 cm depth. Absorption is highest at bone-soft tissue interfaces (periosteum heating). Rate of temperature rise: ~0.2\u00b0C/sec at 1.5 W/cm\u00b2 in muscle.<br><strong>Non-thermal:</strong> Stable cavitation creates microstreaming at cell membranes, increasing permeability and intracellular calcium influx \u2014 upregulates fibroblast proliferation and collagen synthesis. Acoustic streaming enhances drug/protein transport through ECM.",
+      footApp: "1st MTP joint capsule contracture (hallux rigidus): 1 MHz continuous, 1.5 W/cm\u00b2, 8 min \u2192 immediate joint mobilization. Plantar fascia: 1 MHz pulsed 20%, 0.5 W/cm\u00b2 for fasciopathy collagen remodeling. Peroneal tendons: 3 MHz continuous, 1.0 W/cm\u00b2, 5 min for superficial heating. Stress fracture: pulsed LIPUS at 1.5 MHz, 30 mW/cm\u00b2, 20 min/day.",
+      params: [
+        {label: "Frequency", value: "1 MHz (deep) / 3 MHz (superficial)"},
+        {label: "Intensity", value: "0.5\u20132.0 W/cm\u00b2"},
+        {label: "Duty Cycle", value: "100% continuous / 20\u201350% pulsed"},
+        {label: "BNR", value: "< 6:1 for uniform dosing"},
+        {label: "Treatment Area", value: "2\u00d7 ERA per field"},
+        {label: "Duration", value: "5\u201310 min per field"}
+      ],
+      contraindications: "Over growth plates, malignancy, thrombophlebitis, pacemaker leads, cemented metal implants, acute infection, eyes/reproductive organs, over spinal cord post-laminectomy.",
+      references: ["Robertson VJ, Baker KG. (2001). A review of therapeutic ultrasound. Phys Ther.", "Watson T. (2008). Ultrasound in contemporary physiotherapy practice. Ultrasonics.", "Khanna A, et al. (2009). Effects of LIPUS on fracture healing. Br Med Bull."]
+    }
+  },
+  {
+    id: "estim", name: "Electrical Stimulation", icon: "\u26A1", iconBg: "linear-gradient(135deg,#7c4dff,#aa00ff)",
+    subtitle: "TENS, NMES & Interferential Current",
+    brief: "Delivers electrical current to modulate pain (gate control, endorphin release), produce muscle contractions for re-education, and drive iontophoretic drug delivery. Includes TENS, NMES, IFC, and microcurrent.",
+    tags: [["Electrotherapy","elec"],["Pain Mod","elec"],["NM Re-ed","elec"]],
+    evidence: "High", evPct: 82,
+    detail: {
+      mechanism: "<strong>TENS (Pain):</strong> High-rate (80\u2013150 Hz) conventional TENS activates large-diameter A\u03b2 fibers, closing the spinal gate at substantia gelatinosa (Melzack-Wall). Low-rate (2\u201310 Hz) acupuncture-like TENS triggers endogenous opioid release (\u03b2-endorphin, met-enkephalin) via PAG/raphe nuclei.<br><strong>NMES (Motor):</strong> Depolarizes \u03b1-motor neurons at 35\u201380 Hz for tetanic contraction. Reverses selective type II fiber atrophy. Overrides Henneman\u2019s size principle.<br><strong>IFC:</strong> Two 4000 Hz currents intersect producing a low-frequency beat (1\u2013150 Hz) at depth with less cutaneous discomfort.",
+      footApp: "Plantar fasciitis: conventional TENS (100 Hz, 100 \u03bcs) flanking medial calcaneal tubercle. Peroneal weakness: NMES to peroneus longus (50 Hz, 300 \u03bcs, 10:50 sec). Intrinsic foot muscle atrophy: NMES targeting abductor hallucis via medial plantar nerve point. Chronic ankle pain: IFC 4-pole around lateral malleolus.",
+      params: [
+        {label: "TENS Frequency", value: "2\u2013150 Hz (mode-dependent)"},
+        {label: "NMES Frequency", value: "35\u201380 Hz (tetanic)"},
+        {label: "Pulse Duration", value: "50\u2013400 \u03bcs"},
+        {label: "On:Off Ratio", value: "1:5 (deconditioned) \u2192 1:1"},
+        {label: "Ramp Time", value: "1\u20133 sec"},
+        {label: "Treatment Time", value: "20\u201330 min (TENS); 15\u201320 min (NMES)"}
+      ],
+      contraindications: "Demand pacemaker, over carotid sinus, transcranial, active DVT, pregnant uterus, epilepsy (transcranial), skin lesions at electrode site. NMES: avoid recently repaired tendons (< 6 wk).",
+      references: ["Sluka KA, Walsh D. (2003). TENS: basic science mechanisms and clinical effectiveness. J Pain.", "Maffiuletti NA. (2010). NMES considerations. Eur J Appl Physiol.", "Fuentes JP, et al. (2010). IFC therapy effectiveness. Phys Ther."]
+    }
+  },
+  {
+    id: "eswt", name: "Extracorporeal Shockwave", icon: "\uD83D\uDCA5", iconBg: "linear-gradient(135deg,#ff6d00,#ff9100)",
+    subtitle: "Mechanotransduction-Driven Tissue Regeneration",
+    brief: "High-energy acoustic pulses induce controlled microtrauma, triggering neovascularization via VEGF upregulation, disrupting dystrophic calcification, and modulating substance P for pain relief. Level I evidence for plantar fasciopathy.",
+    tags: [["Mechanotransduction","mech"],["Neovascularization","mech"],["Level I Evidence","mech"]],
+    evidence: "High", evPct: 92,
+    detail: {
+      mechanism: "Focused ESWT generates peak pressures of 30\u2013100 MPa at the focal zone. Cascade: (1) Mechanical disruption of dystrophic calcification. (2) Cavitation bubble collapse produces secondary shockwaves. (3) Mechanotransduction via integrin-FAK signaling upregulates TGF-\u03b21, VEGF, eNOS, PCNA. (4) Substance P depletion from C-fiber terminals \u2192 long-lasting analgesia (8\u201312 weeks). (5) NO-mediated neovascularization restores blood supply to hypovascular zones.",
+      footApp: "Chronic plantar fasciopathy (>6 months, failed conservative Rx): 3 sessions weekly, 2000\u20133000 pulses/session. Insertional Achilles tendinopathy: focused ESWT (avoid growth plates in adolescents). Heel spur: shockwave disrupts calcific deposits; pain relief is via neurogenic and vascular pathways independent of spur size.",
+      params: [
+        {label: "Energy Flux Density", value: "0.1\u20130.4 mJ/mm\u00b2"},
+        {label: "Pulses", value: "2000\u20133000 per session"},
+        {label: "Frequency", value: "6\u201310 Hz pulse rate"},
+        {label: "Sessions", value: "3\u20135 at 1-week intervals"},
+        {label: "Focal Depth", value: "10\u201340 mm (adjustable)"},
+        {label: "Type", value: "Focused vs. radial (r-ESWT)"}
+      ],
+      contraindications: "Coagulopathy/anticoagulants, pregnancy, over growth plates, malignancy, acute infection, over lung tissue, over major neurovascular bundle.",
+      references: ["Gerdesmeyer L, et al. (2008). r-ESWT in plantar fasciitis. Am J Sports Med.", "Rompe JD, et al. (2010). Eccentric loading vs ESWT for Achilles tendinopathy. JBJS Am.", "Wang CJ. (2012). ESWT in musculoskeletal disorders. J Orthop Surg Res."]
+    }
+  },
+  {
+    id: "laser", name: "Photobiomodulation (LLLT)", icon: "\uD83D\uDD34", iconBg: "linear-gradient(135deg,#ff5252,#d50000)",
+    subtitle: "Photonic Modulation of Cellular Energetics",
+    brief: "Non-thermal photon absorption by cytochrome c oxidase (Complex IV) dissociates inhibitory NO, accelerating electron transport chain activity and ATP synthesis. Reduces oxidative stress and pro-inflammatory cytokines.",
+    tags: [["Photonic","elec"],["Anti-inflammatory","cool"],["ATP Synthesis","elec"]],
+    evidence: "Moderate", evPct: 72,
+    detail: {
+      mechanism: "Chromophore absorption: Cytochrome c oxidase (CCO) in mitochondrial Complex IV absorbs red (630\u2013670 nm) and near-infrared (780\u2013940 nm) photons, dissociating inhibitory NO from the binuclear center \u2192 restored electron flow \u2192 enhanced ATP via ATP synthase. Downstream: increased ATP activates NF-\u03baB but paradoxically shifts toward anti-inflammatory gene expression (\u2191IL-10, \u2193TNF-\u03b1, IL-1\u03b2, IL-6). Hormetic ROS activates Nrf2 antioxidant pathway.",
+      footApp: "MTP joint synovitis: 830 nm, CW, 30\u201360 mW, 4\u20138 J/cm\u00b2 per point, 4\u20136 points. Plantar fasciopathy (augment to ESWT): 904 nm superpulsed, 6 J/cm\u00b2 at enthesis. Diabetic foot ulcer: 660 nm, 2\u20134 J/cm\u00b2 for fibroblast proliferation. Morton\u2019s neuroma: 830 nm, 4 J/cm\u00b2 to 3rd web space.",
+      params: [
+        {label: "Wavelength", value: "630\u2013670 nm (red) / 780\u2013940 nm (NIR)"},
+        {label: "Power Output", value: "10\u2013500 mW (Class 3B)"},
+        {label: "Dose", value: "1\u20138 J/cm\u00b2 (biphasic response)"},
+        {label: "Spot Size", value: "0.1\u20131.0 cm\u00b2"},
+        {label: "Irradiance", value: "10\u201350 mW/cm\u00b2"},
+        {label: "Time per Point", value: "30\u2013120 sec"}
+      ],
+      contraindications: "Directly over eyes (wear appropriate OD goggles), over malignancy, over thyroid, over pregnant uterus. Relative: photosensitizing meds, epilepsy (cranial). NOT contraindicated over metal implants.",
+      references: ["Hamblin MR. (2017). Anti-inflammatory effects of PBM. AIMS Biophys.", "Bjordal JM, et al. (2006). LLLT for tendinopathy. Photomed Laser Surg.", "Chung H, et al. (2012). LLLT nuts and bolts. Ann Biomed Eng."]
+    }
+  },
+  {
+    id: "hydro", name: "Hydrotherapy & Contrast Baths", icon: "\uD83D\uDCA7", iconBg: "linear-gradient(135deg,#4fc3f7,#00bfa5)",
+    subtitle: "Hydrostatic Pressure & Thermal Vascular Pumping",
+    brief: "Immersion provides hydrostatic pressure (edema reduction), buoyancy (gravity-eliminated exercise), and thermal effects. Contrast baths alternate vasodilation/vasoconstriction for vascular pumping to manage subacute edema.",
+    tags: [["Thermal","warm"],["Hydrostatic","cool"],["Vascular Pump","mech"]],
+    evidence: "Moderate", evPct: 65,
+    detail: {
+      mechanism: "Hydrostatic pressure: per Pascal\u2019s law, ~0.73 mmHg/cm at foot level, exceeding venous/lymphatic intraluminal pressure \u2192 centripetal fluid displacement. Warm (36\u201340\u00b0C): vasodilation, decreased muscle spindle firing, TRPV3 activation. Cold (10\u201315\u00b0C): vasoconstriction, reduced NCV. Contrast: alternating warm (4 min) \u2192 cold (1 min) \u00d7 4\u20136 cycles creates mechanical vascular pumping for lymphatic return.",
+      footApp: "Post-surgical ankle edema (>72h): contrast bath for volumetric edema reduction. Chronic venous insufficiency: cool immersion with active toe pumps. Plantar fasciitis: warm foot bath (40\u00b0C \u00d7 15 min) + underwater intrinsic exercises. Charcot restraint phase: cool immersion to manage inflammatory temperature.",
+      params: [
+        {label: "Warm Temp", value: "36\u201340\u00b0C"},
+        {label: "Cold Temp", value: "10\u201315\u00b0C"},
+        {label: "Warm:Cold Ratio", value: "4:1 or 3:1 (minutes)"},
+        {label: "Total Duration", value: "20\u201330 min"},
+        {label: "Cycles", value: "4\u20136 (end warm for chronic, cold for acute)"},
+        {label: "Depth", value: "Minimum ankle-deep"}
+      ],
+      contraindications: "Open wounds, PVD (cold component), Raynaud\u2019s, DVT, active cellulitis, impaired thermal sensation, acute febrile condition.",
+      references: ["Cochrane DJ. (2004). Alternating hot/cold water immersion. Phys Ther Sport.", "Mooventhan A, Nivethitha L. (2014). Hydrotherapy evidence. N Am J Med Sci.", "Breger Stanton DE, et al. (2009). Contrast bath effectiveness. J Hand Ther."]
+    }
+  },
+  {
+    id: "manual", name: "Manual Therapy & Dry Needling", icon: "\u270B", iconBg: "linear-gradient(135deg,#00e676,#00c853)",
+    subtitle: "Articular & Myofascial Neurophysiological Techniques",
+    brief: "Joint mobilization/manipulation restores arthrokinematic motion and activates mechanoreceptor-mediated pain inhibition. Dry needling disrupts myofascial trigger points via local twitch response and segmental spinal modulation.",
+    tags: [["Manual","mech"],["Neurophysiological","mech"],["Mechanoreceptor","mech"]],
+    evidence: "High", evPct: 87,
+    detail: {
+      mechanism: "<strong>Joint Mobilization:</strong> Oscillatory forces (Maitland Grades I\u2013IV) stimulate articular mechanoreceptors (types I, II), activating segmental inhibitory interneurons \u2192 reduced \u03b1-motor neuron excitability and pain gate closure. Grade V (thrust) produces joint cavitation with hypoalgesia lasting 5\u201315 min.<br><strong>Dry Needling:</strong> Filament needle into myofascial trigger point produces local twitch response (LTR) \u2014 spinal reflex arc normalizes end-plate noise (excessive ACh), restores sarcomere length, reduces substance P, CGRP, bradykinin, TNF-\u03b1, IL-1\u03b2.",
+      footApp: "1st MTP dorsal glide for hallux rigidus: convex-concave rule \u2192 glide plantar for DF. Subtalar lateral glide for limited eversion post-sprain. Talocrural posterior talar glide for ankle DF limitation. Dry needling: quadratus plantae TrPs (mimic plantar fasciitis), abductor hallucis TrPs, gastrosoleus complex (kinetic chain).",
+      params: [
+        {label: "Mob Grade I\u2013II", value: "Pain management (within resistance)"},
+        {label: "Mob Grade III\u2013IV", value: "Motion restoration (into resistance)"},
+        {label: "Mob Grade V", value: "Thrust (HVLA) \u2014 end-range"},
+        {label: "Mob Duration", value: "30 sec \u2013 2 min per direction"},
+        {label: "Needle Gauge", value: "0.25\u20130.30 mm \u00d7 30\u201340 mm"},
+        {label: "Needle Technique", value: "Pistoning / rotation until LTR ceases"}
+      ],
+      contraindications: "Mobilization: joint instability, fracture, malignancy, active RA flare, osteoporosis (thrust), vertebral artery insufficiency. Dry needling: anticoagulants (relative), local infection, needle phobia, lymphedema, patient unable to consent/communicate.",
+      references: ["Maitland GD, et al. (2005). Vertebral Manipulation. 7th ed. Elsevier.", "Dommerholt J, et al. (2006). Myofascial trigger points. J Man Manip Ther.", "Brantingham JW, et al. (2009). Manipulative therapy for extremity disorders. JMPT."]
+    }
+  }
+];
+
+const PROTOCOLS = [
+  {
+    id: "pf", name: "Plantar Fasciopathy", desc: "Chronic insertional plantar heel pain > 6 months",
+    phases: [
+      { title: "Phase 1: Acute Pain Management (Weeks 0\u20132)", text: "Goal: Reduce pain to < 4/10 VAS during first-step morning pain. Address neurogenic inflammation at calcaneal enthesis. Relative rest from provocative activity.", modalities: ["Cryotherapy (15 min post-activity)", "TENS (100 Hz, 100 \u03bcs flanking medial calcaneal tubercle)", "Iontophoresis (dex 0.4%, 80 mA\u00b7min, q3d \u00d7 4)", "Low-load isometric fascia loading (45s holds \u00d7 5)"] },
+      { title: "Phase 2: Tissue Remodeling (Weeks 2\u20138)", text: "Stimulate collagen remodeling via controlled mechanical loading. Address kinetic chain (tight gastroc, weak intrinsics). Progressive tensile load.", modalities: ["ESWT (2500 pulses, 0.25 mJ/mm\u00b2, weekly \u00d7 3)", "Thermotherapy (paraffin pre-stretch, 52\u00b0C \u00d7 15 min)", "IASTM to plantar fascia (2\u20133 min, proximal\u2192distal)", "Rathleff high-load eccentric protocol", "Short-foot exercise progression"] },
+      { title: "Phase 3: Functional Restoration (Weeks 8\u201316)", text: "Return to full activity < 2/10 VAS. Restore windlass mechanism. Optimize kinetic chain for energy storage-return.", modalities: ["PBM (830 nm, 6 J/cm\u00b2 if residual symptoms)", "Progressive plyometrics (jump rope \u2192 SL hops)", "Neuromuscular training (SL stance progressions)", "Running retraining (cadence, forefoot load)"] }
+    ]
+  },
+  {
+    id: "las", name: "Lateral Ankle Sprain (Grade II)", desc: "ATFL + partial CFL tear, acute\u2013subacute rehabilitation",
+    phases: [
+      { title: "Phase 1: Protection & Edema Control (Days 0\u20135)", text: "POLICE protocol. Resolve inflammation, protect healing ligament, maintain ROM. Evidence supports early mobilization over immobilization.", modalities: ["Cryokinetics (20 min ice \u2192 pain-free AROM \u00d7 3)", "Compression (intermittent pneumatic or elastic)", "HV pulsed galvanic for edema (negative polarity, 120 pps)", "Grade I\u2013II talocrural mobilization"] },
+      { title: "Phase 2: Early Rehab (Weeks 1\u20133)", text: "Restore full ROM, initiate peroneal neuromuscular retraining, progressive WB. Address arthrogenic muscle inhibition.", modalities: ["Contrast bath (38\u00b0C/12\u00b0C, 4:1, 25 min)", "NMES to peroneus longus (50 Hz, 300 \u03bcs, 10:50)", "Therapeutic US (3 MHz, 1.0 W/cm\u00b2 to ATFL \u2192 stretch)", "Joint mobilization (talocrural AP Grade III for DF)"] },
+      { title: "Phase 3: Neuromuscular Control (Weeks 3\u20138)", text: "SL balance progression (stable \u2192 unstable \u2192 perturbation). Peroneal reaction time <60 ms. Sport-specific movement.", modalities: ["Proprioceptive training (wobble board, BAPS, SL eyes-closed)", "Plyometric progression (bilateral \u2192 unilateral hopping)", "NMES-augmented peroneal training during function", "Taping/bracing during sport (semi-rigid per Cochrane)"] }
+    ]
+  },
+  {
+    id: "dn", name: "Diabetic Peripheral Neuropathy", desc: "Sensorimotor neuropathy with foot-specific management",
+    phases: [
+      { title: "Phase 1: Sensory Assessment & Pain Management", text: "Comprehensive monofilament testing (5.07/10g at 10 plantar sites). Quantify vibration threshold. Manage neuropathic pain. Classify protective sensation status.", modalities: ["TENS (low-freq 4 Hz for endorphin release \u2014 NOT over insensate skin)", "PBM (830 nm, 4 J/cm\u00b2 \u2014 NGF upregulation evidence)", "Sensory re-education (graded texture discrimination)", "Temperature discrimination exercises"] },
+      { title: "Phase 2: Intrinsic Muscle & Balance Restoration", text: "Address intrinsic foot muscle atrophy (MRI shows ~50% volume loss in DPN). Restore balance to reduce fall/ulceration risk.", modalities: ["NMES to intrinsics (FDB, AbH, 35 Hz, 200 \u03bcs)", "Progressive balance (dual-task, perturbation-based)", "Short-foot exercise \u2192 towel curls \u2192 barefoot walking", "Warm water exercise (buoyancy + proprioceptive input)"] },
+      { title: "Phase 3: Ulcer Prevention & Lifetime Management", text: "Pressure redistribution via custom orthotics. Daily self-inspection. Footwear education. Safe exercise prescription.", modalities: ["Custom orthotics (pressure-mapping guided)", "Skin care protocol (emollients, nail, callus)", "Non-impact aerobic conditioning (cycling, swimming)", "Annual risk re-stratification (IWGDF classification)"] }
+    ]
+  },
+  {
+    id: "hr", name: "Hallux Rigidus (1st MTP OA)", desc: "Degenerative arthritis of the great toe with DF loss",
+    phases: [
+      { title: "Phase 1: Pain & Inflammation Control", text: "Reduce synovitis and osteophyte impingement. Protect joint from end-range DF stress. Coughlin Grade I\u2013II (joint space preserved, dorsal osteophytes).", modalities: ["Cryotherapy (focal ice massage to dorsal 1st MTP, 8 min)", "PBM (830 nm, 6 J/cm\u00b2 to dorsal/medial joint line)", "Iontophoresis (dex 0.4% to dorsal capsule)", "Carbon plate to limit MTP DF in shoe"] },
+      { title: "Phase 2: Joint Mobility & Sesamoid Function", text: "Restore available DF via capsular stretching and mobilization. Address sesamoid mobility for FHB function. Mulligan MWM.", modalities: ["Therapeutic US (1 MHz, 1.5 W/cm\u00b2 continuous \u2192 capsular stretch)", "Maitland caudal glide Grade III\u2013IV for DF", "Sesamoid mobilization (plantar glide medial/lateral)", "Paraffin dip \u2192 immediate sustained DF stretch"] },
+      { title: "Phase 3: Gait Optimization & Long-term", text: "Restore terminal stance push-off via windlass mechanism. Gait retraining. Footwear modification.", modalities: ["Gait training (rocker sole, Morton\u2019s extension orthotic)", "Intrinsic strengthening (FHB, AbH isolation)", "Maintenance self-mobilization (1\u20132\u00d7/week with belt)", "Activity modification as needed"] }
+    ]
+  }
+];
+
+const QUESTIONS = [
+  {
+    category: "Cryotherapy \u2014 Mechanism",
+    q: "A patient presents 2 hours post-Grade II lateral ankle sprain. Which mechanism BEST explains why cryotherapy reduces secondary cell death in the zone of injury?",
+    options: ["Activation of TRPV1 receptors causing analgesia", "Decreased metabolic rate (Q10 effect) reducing oxygen demand of viable cells adjacent to the primary lesion", "Direct vasoconstriction via TRPM8-mediated smooth muscle contraction", "Upregulation of heat shock proteins in injured tissue"],
+    correct: 1,
+    explain: "The Q10 effect describes the reduction in metabolic rate (~10% per \u00b0C decrease). In the zone of secondary hypoxic injury \u2014 viable cells adjacent to the primary lesion at risk due to edema-induced ischemia \u2014 reducing metabolic rate lowers O\u2082 demand, keeping respiration within the constraints of reduced supply. TRPV1 is a heat receptor. TRPM8 is on sensory neurons, not smooth muscle. HSPs are upregulated by heat, not cold."
+  },
+  {
+    category: "ESWT \u2014 Dosimetry",
+    q: "When prescribing focused ESWT for chronic plantar fasciopathy, what energy flux density range is recommended, and what is the PRIMARY tissue-level effect?",
+    options: ["0.01\u20130.05 mJ/mm\u00b2; enhanced ATP synthesis via mitochondrial stimulation", "0.1\u20130.4 mJ/mm\u00b2; mechanotransduction-mediated VEGF upregulation and neovascularization", "0.5\u20131.0 mJ/mm\u00b2; complete fascial rupture and scar tissue replacement", "1.0\u20132.0 mJ/mm\u00b2; thermal ablation of sensory nerve endings"],
+    correct: 1,
+    explain: "Low-to-medium energy (0.1\u20130.4 mJ/mm\u00b2) ESWT works through mechanotransduction \u2014 mechanical stress is converted to biochemical signals via integrin-FAK signaling, upregulating VEGF, TGF-\u03b21, and eNOS. This promotes neovascularization in hypovascular degenerative fascia. Higher energies (>0.6) are for lithotripsy. ESWT does not cause thermal effects or fascial rupture at clinical doses."
+  },
+  {
+    category: "Therapeutic Ultrasound \u2014 Physics",
+    q: "A clinician wants to heat the periosteum of the 2nd metatarsal head (depth ~2 cm) to >40\u00b0C prior to mobilization. Which US parameters are MOST appropriate?",
+    options: ["3 MHz, continuous, 1.5 W/cm\u00b2, 5 minutes", "1 MHz, continuous, 1.5 W/cm\u00b2, 8 minutes", "1 MHz, pulsed 20%, 0.5 W/cm\u00b2, 10 minutes", "3 MHz, pulsed 50%, 2.0 W/cm\u00b2, 5 minutes"],
+    correct: 1,
+    explain: "At ~2 cm depth, 1 MHz is appropriate (penetrates 3\u20135 cm; 3 MHz only reaches 1\u20132 cm). Continuous mode is needed for thermal effects. At 1.5 W/cm\u00b2, temperature rise is ~0.2\u00b0C/sec at bone-tissue interface. 8 minutes achieves vigorous heating (>40\u00b0C). Pulsed mode reduces thermal accumulation and is used for non-thermal repair effects."
+  },
+  {
+    category: "Photobiomodulation \u2014 Cellular",
+    q: "Photobiomodulation at 830 nm primarily exerts its anti-inflammatory effects through which cellular pathway?",
+    options: ["Activation of voltage-gated Na+ channels on nociceptors, reducing AP frequency", "Absorption by cytochrome c oxidase, dissociation of inhibitory NO, restoring ETC function and shifting NF-\u03baB toward anti-inflammatory gene expression", "Direct thermal denaturation of pro-inflammatory cytokines in extracellular space", "Stimulation of TRPV1 causing release of anti-inflammatory neuropeptides"],
+    correct: 1,
+    explain: "The primary chromophore for PBM at 780\u2013940 nm is cytochrome c oxidase (CCO) in Complex IV. Photon absorption dissociates NO from the binuclear center, restoring electron transport, increasing proton gradient, and enhancing ATP synthesis. The resultant redox shift activates Nrf2 antioxidant pathways and modulates NF-\u03baB to favor anti-inflammatory expression (\u2191IL-10, \u2193TNF-\u03b1, \u2193IL-1\u03b2)."
+  },
+  {
+    category: "Electrical Stimulation \u2014 Clinical",
+    q: "A patient with chronic lateral ankle instability shows peroneus longus reaction time of 120 ms (normal <60 ms). Which protocol BEST addresses this deficit?",
+    options: ["Conventional TENS at 100 Hz, 100 \u03bcs over lateral malleolus for 30 min", "NMES at 50 Hz, 300 \u03bcs to peroneus longus motor point with 10:50 on:off, progressing to functional perturbation training", "IFC at 4000 Hz carrier with 80 Hz beat around ankle for 20 min", "Microcurrent at 600 \u03bcA, subsensory over peroneal nerve for 45 min"],
+    correct: 1,
+    explain: "The goal is neuromuscular re-education. NMES at 50 Hz produces tetanic contraction via \u03b1-motor neuron depolarization, overriding arthrogenic muscle inhibition. 300 \u03bcs captures both sensory and motor fibers. The 10:50 ratio suits a deconditioned muscle, progressing to perturbation-based exercises. TENS/IFC address pain only. Microcurrent is subsensory with no motor recruitment."
+  },
+  {
+    category: "Hydrotherapy \u2014 Biophysics",
+    q: "During contrast bath therapy for subacute ankle edema, what is the PRIMARY mechanism reducing edema?",
+    options: ["Osmotic shifts due to temperature-dependent interstitial fluid viscosity changes", "Cyclical vasodilation/vasoconstriction creating vascular pumping that augments venous and lymphatic return", "Thermal destruction of inflammatory mediators in the interstitial space", "Activation of aquaporin channels in capillary endothelium by temperature fluctuation"],
+    correct: 1,
+    explain: "Contrast baths create vascular pumping through cyclical vessel diameter changes. Warm (38\u201340\u00b0C) causes vasodilation via local NO release. Cold (10\u201315\u00b0C) triggers vasoconstriction via sympathetic \u03b1-adrenergic response. This alternating expansion/contraction creates mechanical pumping assisting venous and lymphatic return. Hydrostatic pressure from immersion itself provides additional compression."
+  },
+  {
+    category: "Manual Therapy \u2014 Biomechanics",
+    q: "When performing a PA glide at the talocrural joint to increase ankle dorsiflexion, the clinician applies force to which bone and in which direction?",
+    options: ["Anteriorly directed force on calcaneus to open posterior joint space", "Posterior glide of talus relative to tibial mortise to restore roll-glide during DF", "Anterior glide of tibia on fixed talus (open-chain equivalent of talar posterior glide)", "Both B and C are correct \u2014 they produce the same relative arthrokinematic motion"],
+    correct: 3,
+    explain: "During DF, the talus rolls anteriorly and glides posteriorly in the mortise (convex-on-concave rule). Restricted talar posterior glide limits DF. This is restored by either: (B) posterior force to talus with tibia fixed, or (C) anterior force to tibia on fixed talus. Both produce the same relative motion. Mulligan\u2019s MWM uses option C (therapist glides tibia anteriorly while patient dorsiflexes)."
+  },
+  {
+    category: "Contraindications \u2014 Safety",
+    q: "A patient with Type 2 DM and confirmed peripheral neuropathy (fails 5.07 monofilament) has chronic plantar heel pain. Which modality is CONTRAINDICATED?",
+    options: ["ESWT to calcaneal enthesis", "Superficial heat (paraffin bath at 52\u00b0C) to plantar foot", "PBM at 830 nm, 4 J/cm\u00b2 to heel", "NMES to intrinsic foot muscles at sensory-level intensity"],
+    correct: 1,
+    explain: "Paraffin at 52\u00b0C is contraindicated with impaired protective sensation \u2014 the patient cannot detect excessive heat, risking thermal burns. ESWT can be used cautiously (mechanical, not sensation-dependent). PBM is non-thermal and safe. NMES at sensory level may not be felt but can be used with visual confirmation and skin monitoring."
+  },
+  {
+    category: "Tissue Healing \u2014 Timing",
+    q: "At which healing phase is pulsed therapeutic ultrasound (20% duty cycle) MOST beneficial, and through what mechanism?",
+    options: ["Inflammatory (days 0\u20133): thermal effects accelerate neutrophil phagocytosis", "Proliferative (days 3\u201321): stable cavitation and acoustic microstreaming increase fibroblast membrane permeability and collagen synthesis", "Remodeling (weeks 3\u201312): continuous thermal effects cross-link mature collagen", "Hemostasis (min 0\u201360): acoustic pressure promotes platelet aggregation"],
+    correct: 1,
+    explain: "Pulsed US (20% duty cycle) delivers primarily non-thermal effects \u2014 stable cavitation microstreaming increases membrane permeability in nearby cells. During proliferation (days 3\u201321), enhanced permeability increases intracellular Ca\u00b2+ influx in fibroblasts, upregulating protein synthesis via calmodulin-dependent pathways. The low duty cycle is safe during active repair. Continuous/thermal mode is for remodeling phase."
+  },
+  {
+    category: "Integrated Protocol Design",
+    q: "A runner with 4-month medial plantar heel pain (worse with first steps, pain with standing, tender at medial calcaneal tubercle, MRI: 6.2 mm fascia thickening, no tear). Which is the MOST evidence-based approach?",
+    options: ["Continuous US (thermal) to fascia + immediate static stretch + NSAIDs \u00d7 6 weeks", "ESWT (3 sessions) + high-load progressive strength (Rathleff protocol) + intrinsic foot muscle activation", "Cryotherapy only + complete rest 8 weeks + cushioned heel cup", "Daily PBM + TENS + passive ROM indefinitely"],
+    correct: 1,
+    explain: "Chronic plantar fasciopathy (>3 months) with thickening represents degenerative tendinopathy, not acute inflammation. ESWT has Level I evidence for chronic cases. The Rathleff protocol (slow heel raises with towel under toes engaging windlass) provides mechanotransduction stimulus for collagen remodeling \u2014 superior to stretching alone in RCTs. Intrinsic muscle activation addresses dynamic arch support. Option A applies thermal US to degenerative tissue and relies on anti-inflammatories for a non-inflammatory condition."
+  }
+];
+
+// ========== ZONE INFO ==========
+
+function renderZoneInfo(zoneId) {
+  const z = ZONES[zoneId];
+  if (!z) return;
+  document.querySelectorAll('.foot-zone').forEach(el => el.classList.remove('active'));
+  const zoneMap = {'toes':'zone-toes','metatarsals':'zone-met','medial-arch':'zone-arch','lateral':'zone-lateral','midfoot':'zone-midfoot','heel':'zone-heel'};
+  const el = document.getElementById(zoneMap[zoneId]);
+  if (el) el.classList.add('active');
+
+  const tagMap = {warm:'tag-warm',cool:'tag-cool',elec:'tag-elec',mech:'tag-mech'};
+  document.getElementById('zone-info').innerHTML = '<div class="zone-card visible">' +
+    '<h3>' + z.title + '</h3>' +
+    '<p>' + z.anatomy + '</p>' +
+    '<h4>Innervation</h4><p>' + z.innervation + '</p>' +
+    '<h4>Common Pathologies</h4><ul>' + z.pathologies.map(function(p){return '<li>'+p+'</li>';}).join('') + '</ul>' +
+    '<h4>Targeted Modalities</h4>' +
+    z.modalities.map(function(m){return '<div style="margin:.6rem 0"><span class="tag '+tagMap[m.type]+'">'+m.name+'</span><br><span style="font-size:.82rem;color:var(--text2)">'+m.why+'</span></div>';}).join('') +
+    '</div>';
+}
+
+document.querySelectorAll('.foot-zone').forEach(function(el) {
+  el.addEventListener('click', function() { renderZoneInfo(el.dataset.zone); });
+});
+
+// ========== MODALITY CARDS ==========
+
+function renderModCards() {
+  var grid = document.getElementById('mod-grid');
+  var evColors = {High:'ev-high',Moderate:'ev-mod',Emerging:'ev-emerging'};
+  var tagMap = {warm:'tag-warm',cool:'tag-cool',elec:'tag-elec',mech:'tag-mech'};
+  grid.innerHTML = MODALITIES.map(function(m) {
+    return '<div class="mod-card" data-id="'+m.id+'">' +
+      '<div class="mod-header"><div class="mod-icon" style="background:'+m.iconBg+'">'+m.icon+'</div>' +
+      '<div><h3>'+m.name+'</h3><p>'+m.subtitle+'</p></div></div>' +
+      '<div class="mod-body"><p>'+m.brief+'</p>' +
+      '<div class="mod-tags">'+m.tags.map(function(t){return '<span class="tag '+tagMap[t[1]]+'">'+t[0]+'</span>';}).join('')+'</div>' +
+      '<div class="mod-evidence '+evColors[m.evidence]+'"><span>Evidence: '+m.evidence+'</span>' +
+      '<div class="ev-bar"><span style="width:'+m.evPct+'%;background:'+(m.evidence==='High'?'var(--success)':m.evidence==='Moderate'?'var(--accent3)':'var(--accent2)')+'"></span></div></div></div></div>';
+  }).join('');
+
+  grid.querySelectorAll('.mod-card').forEach(function(card) {
+    card.addEventListener('click', function() { openModal(card.dataset.id); });
+  });
+}
+
+function openModal(id) {
+  var m = MODALITIES.find(function(x){return x.id===id;});
+  if (!m) return;
+  document.getElementById('modal-top').innerHTML = '<div class="mod-icon" style="background:'+m.iconBg+'">'+m.icon+'</div><div><h2>'+m.name+'</h2><p class="subtitle">'+m.subtitle+'</p></div>';
+  var d = m.detail;
+  document.getElementById('modal-content').innerHTML =
+    '<h4>Biophysical Mechanism of Action</h4><p>'+d.mechanism+'</p>' +
+    '<h4>Foot &amp; Ankle Applications</h4><p>'+d.footApp+'</p>' +
+    '<h4>Dosimetry Parameters</h4><div class="param-grid">'+d.params.map(function(p){return '<div class="param-box"><div class="label">'+p.label+'</div><div class="value">'+p.value+'</div></div>';}).join('')+'</div>' +
+    '<h4>Contraindications &amp; Precautions</h4><p>'+d.contraindications+'</p>' +
+    '<h4>Key References</h4><ul class="ref-list">'+d.references.map(function(r){return '<li>'+r+'</li>';}).join('')+'</ul>';
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+document.getElementById('modal-close').addEventListener('click', function(){
+  document.getElementById('modal-overlay').classList.remove('open');
+});
+document.getElementById('modal-overlay').addEventListener('click', function(e){
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('open');
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') document.getElementById('modal-overlay').classList.remove('open');
+});
+
+// ========== SIMULATOR ==========
+
+var SIM_MODS = [
+  { id:'cryo', label:'Cryotherapy', color:'#4fc3f7',
+    controls:[{id:'temp',label:'Surface Temperature (\u00b0C)',min:0,max:25,value:12,step:1},{id:'time',label:'Duration (min)',min:5,max:30,value:15,step:1}],
+    response: function(p) {
+      var t=p.temp, d=p.time;
+      var ncs=Math.max(0,100-((25-t)*3.5)), met=Math.max(10,100-((25-t)*3.2));
+      var edema=Math.max(5,100-(d*3.5+(25-t)*1.5)), pain=Math.max(8,100-((25-t)*3+(Math.min(d,15))*1.5));
+      var warn = t<10 ? '<br><strong style="color:var(--danger)">WARNING: Below 10\u00b0C \u2014 risk of cold-induced neuropraxia!</strong>' : '';
+      return {text:'Tissue cooled to ~'+t+'\u00b0C. NCV reduced ~'+Math.round((25-t)*2)+' m/s. Metabolic rate \u2193'+Math.round((25-t)*4)+'% (Q10 effect).'+warn,
+        bars:[{label:'Nerve Conduction',pct:ncs,color:'var(--cool)'},{label:'Metabolic Rate',pct:met,color:'var(--accent)'},{label:'Edema',pct:edema,color:'var(--accent2)'},{label:'Pain Level',pct:pain,color:'var(--danger)'}]};
+    }
+  },
+  { id:'thermo', label:'Thermotherapy', color:'#ff8a65',
+    controls:[{id:'temp',label:'Tissue Temperature (\u00b0C)',min:36,max:48,value:41,step:0.5},{id:'time',label:'Duration (min)',min:5,max:25,value:15,step:1}],
+    response: function(p) {
+      var t=p.temp;
+      var ext=Math.min(100,(t-36)*12), flow=Math.min(100,50+(t-36)*8);
+      var visc=Math.max(10,100-(t-36)*10), pain=Math.max(15,100-(t-36)*6);
+      var warn = t>45 ? '<br><strong style="color:var(--danger)">WARNING: >45\u00b0C \u2014 risk of thermal injury!</strong>' : '';
+      var hsp = t>=40 ? ' HSP70 upregulated \u2014 cytoprotective.' : '';
+      return {text:'Tissue at '+t+'\u00b0C. Collagen extensibility \u2191'+Math.round(ext/4)+'%. Blood flow ~'+Math.round(flow*3)+'% baseline.'+hsp+warn,
+        bars:[{label:'Collagen Extensibility',pct:ext,color:'var(--warm)'},{label:'Blood Flow',pct:flow,color:'var(--danger)'},{label:'Tissue Viscosity',pct:visc,color:'var(--accent2)'},{label:'Pain Level',pct:pain,color:'var(--success)'}]};
+    }
+  },
+  { id:'us', label:'Ultrasound', color:'#7c4dff',
+    controls:[{id:'freq',label:'Frequency (MHz)',min:1,max:3,value:1,step:1},{id:'intensity',label:'Intensity (W/cm\u00b2)',min:0.2,max:2.0,value:1.0,step:0.1},{id:'duty',label:'Duty Cycle (%)',min:20,max:100,value:100,step:10}],
+    response: function(p) {
+      var f=p.freq, i=p.intensity, dc=p.duty;
+      var depth=f===1?'3\u20135 cm':f===2?'2\u20133 cm':'1\u20132 cm';
+      var thermalPct=Math.min(100,dc*i/100*90);
+      var cavitation=Math.min(100,(100-dc)*1.2+i*20);
+      var repair=Math.min(100,cavitation*0.7+(dc<80?30:0));
+      var mode=dc===100?'Continuous \u2014 primarily thermal.':dc<=30?'Low duty \u2014 primarily non-thermal (cavitation/streaming).':'Mixed thermal and non-thermal.';
+      var warn=i>1.5&&dc===100?'<br><strong style="color:var(--accent3)">High intensity continuous \u2014 keep transducer moving (4 cm/sec)!</strong>':'';
+      return {text:f+' MHz penetrating '+depth+'. '+mode+' SATA: '+(i*dc/100).toFixed(2)+' W/cm\u00b2.'+warn,
+        bars:[{label:'Thermal Effect',pct:thermalPct,color:'var(--warm)'},{label:'Cavitation Activity',pct:cavitation,color:'var(--accent2)'},{label:'Tissue Repair Stimulus',pct:repair,color:'var(--success)'},{label:'Penetration Depth',pct:f===1?90:f===2?60:30,color:'var(--accent)'}]};
+    }
+  },
+  { id:'estim', label:'E-Stim', color:'#aa00ff',
+    controls:[{id:'freq',label:'Frequency (Hz)',min:2,max:150,value:80,step:1},{id:'pulse',label:'Pulse Duration (\u03bcs)',min:50,max:400,value:200,step:10},{id:'intensity',label:'Intensity Level',min:1,max:10,value:5,step:1}],
+    response: function(p) {
+      var f=p.freq, pw=p.pulse, inten=p.intensity;
+      var isMotor=inten>=6&&pw>=150;
+      var gate=f>50?Math.min(100,f*0.8):f*0.5;
+      var endorphin=f<15?Math.min(100,90-f*3):Math.max(5,40-f*0.2);
+      var motor=isMotor?Math.min(100,(inten-5)*25+pw/10):0;
+      var mode=f>50?'High-frequency (conventional) TENS \u2014 gate control via A\u03b2 fibers.':f<15?'Low-frequency (acupuncture-like) \u2014 endogenous opioid release.':'Mid-frequency \u2014 mixed mechanisms.';
+      var motorText=isMotor?' Motor-level \u2014 visible contraction (NMES effect).':' Sensory-level \u2014 no motor recruitment.';
+      return {text:f+' Hz, '+pw+' \u03bcs. '+mode+motorText,
+        bars:[{label:'Gate Control',pct:gate,color:'var(--cool)'},{label:'Endorphin Release',pct:endorphin,color:'var(--accent2)'},{label:'Motor Recruitment',pct:motor,color:'var(--success)'},{label:'Perceived Intensity',pct:inten*10,color:'var(--accent3)'}]};
+    }
+  },
+  { id:'eswt', label:'Shockwave', color:'#ff6d00',
+    controls:[{id:'efd',label:'Energy Flux Density (mJ/mm\u00b2)',min:0.05,max:0.6,value:0.25,step:0.05},{id:'pulses',label:'Pulse Count',min:500,max:4000,value:2000,step:100},{id:'rate',label:'Pulse Rate (Hz)',min:4,max:12,value:8,step:1}],
+    response: function(p) {
+      var e=p.efd, n=p.pulses, r=p.rate;
+      var totalE=e*n;
+      var neo=Math.min(100,totalE*0.25), analgesic=Math.min(100,e*180+n*0.01), collagen=Math.min(100,totalE*0.18);
+      var energy=e>0.4?'High energy \u2014 focused ESWT territory.':'Low-to-medium \u2014 standard for plantar fasciopathy.';
+      var warn=n>3000?'<br><strong style="color:var(--accent3)">High pulse count \u2014 expect post-treatment soreness (24\u201348h).</strong>':'';
+      return {text:'Total: '+totalE.toFixed(1)+' mJ. Time: ~'+Math.round(n/r/60)+' min. '+energy+' Substance P depletion \u2192 analgesia onset in days, peak at 4\u20138 weeks.'+warn,
+        bars:[{label:'Neovascularization (VEGF)',pct:neo,color:'var(--success)'},{label:'Analgesic Effect',pct:analgesic,color:'var(--cool)'},{label:'Collagen Remodeling',pct:collagen,color:'var(--accent2)'},{label:'Mechanotransduction',pct:Math.min(100,e*250),color:'var(--accent3)'}]};
+    }
+  }
+];
+
+var currentSimMod = null;
+var simAnimFrame = null;
+
+function initSimulator() {
+  var select = document.getElementById('sim-mod-select');
+  select.innerHTML = SIM_MODS.map(function(m){return '<button class="sim-mod-btn" data-sim="'+m.id+'">'+m.label+'</button>';}).join('');
+  select.querySelectorAll('.sim-mod-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      select.querySelectorAll('.sim-mod-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      currentSimMod = SIM_MODS.find(function(m){return m.id===btn.dataset.sim;});
+      renderSimControls();
+      updateSimulation();
+    });
+  });
+  drawSimFoot();
+}
+
+function renderSimControls() {
+  if (!currentSimMod) return;
+  var c = document.getElementById('sim-controls');
+  c.innerHTML = currentSimMod.controls.map(function(ctrl){
+    return '<label>'+ctrl.label+': <strong id="val-'+ctrl.id+'">'+ctrl.value+'</strong></label>' +
+      '<input type="range" id="ctrl-'+ctrl.id+'" min="'+ctrl.min+'" max="'+ctrl.max+'" step="'+ctrl.step+'" value="'+ctrl.value+'">';
+  }).join('');
+  c.querySelectorAll('input[type=range]').forEach(function(inp){
+    inp.addEventListener('input', function(){
+      document.getElementById('val-'+inp.id.replace('ctrl-','')).textContent = inp.value;
+      updateSimulation();
+    });
+  });
+}
+
+function updateSimulation() {
+  if (!currentSimMod) return;
+  var params = {};
+  currentSimMod.controls.forEach(function(ctrl){
+    params[ctrl.id] = parseFloat(document.getElementById('ctrl-'+ctrl.id).value);
+  });
+  var result = currentSimMod.response(params);
+  document.getElementById('sim-response-text').innerHTML = result.text;
+  document.getElementById('sim-bars').innerHTML = result.bars.map(function(b){
+    return '<div class="tissue-bar"><div class="bar-label"><span>'+b.label+'</span><span>'+Math.round(b.pct)+'%</span></div>' +
+      '<div class="bar-track"><div class="bar-fill" style="width:'+b.pct+'%;background:'+b.color+'"></div></div></div>';
+  }).join('');
+  drawSimEffect();
+}
+
+function drawSimFoot() {
+  var canvas = document.getElementById('sim-canvas');
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+
+  ctx.beginPath();
+  ctx.moveTo(360,50);
+  ctx.bezierCurveTo(250,50,150,100,125,210);
+  ctx.bezierCurveTo(100,320,90,460,100,590);
+  ctx.bezierCurveTo(110,720,140,810,190,880);
+  ctx.bezierCurveTo(240,940,310,970,380,970);
+  ctx.bezierCurveTo(450,970,520,930,560,860);
+  ctx.bezierCurveTo(600,790,620,690,620,590);
+  ctx.bezierCurveTo(620,460,610,320,590,210);
+  ctx.bezierCurveTo(570,100,470,50,360,50);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(0,229,255,.04)';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(0,229,255,.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.font = '13px system-ui';
+  ctx.fillStyle = 'rgba(0,229,255,.4)';
+  ctx.textAlign = 'center';
+  ctx.fillText('EPIDERMIS', 360, 200);
+  ctx.fillText('DERMIS + SUBCUTANEOUS', 360, 370);
+  ctx.fillText('FASCIA', 360, 530);
+  ctx.fillText('MUSCLE / TENDON', 360, 680);
+  ctx.fillText('PERIOSTEUM / BONE', 360, 830);
+
+  ctx.setLineDash([4,6]);
+  ctx.strokeStyle = 'rgba(0,229,255,.1)';
+  ctx.lineWidth = 1;
+  [240,440,600,750].forEach(function(y){
+    ctx.beginPath(); ctx.moveTo(140,y); ctx.lineTo(580,y); ctx.stroke();
+  });
+  ctx.setLineDash([]);
+}
+
+function drawSimEffect() {
+  drawSimFoot();
+  if (!currentSimMod) return;
+  var canvas = document.getElementById('sim-canvas');
+  var ctx = canvas.getContext('2d');
+  var m = currentSimMod;
+
+  if (m.id === 'cryo') {
+    var t = parseFloat(document.getElementById('ctrl-temp').value);
+    var depth = Math.max(50, (25-t)*15);
+    var g = ctx.createLinearGradient(360,100,360,100+depth*3);
+    g.addColorStop(0, 'rgba(79,195,247,'+(0.8-t/40).toFixed(2)+')');
+    g.addColorStop(1, 'rgba(79,195,247,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(140,100,440,depth*3);
+  } else if (m.id === 'thermo') {
+    var t2 = parseFloat(document.getElementById('ctrl-temp').value);
+    var depth2 = Math.max(80, (t2-36)*25);
+    var g2 = ctx.createLinearGradient(360,100,360,100+depth2*3);
+    g2.addColorStop(0, 'rgba(255,138,101,'+((t2-36)/12).toFixed(2)+')');
+    g2.addColorStop(1, 'rgba(255,138,101,0)');
+    ctx.fillStyle = g2;
+    ctx.fillRect(140,100,440,depth2*3);
+  } else if (m.id === 'us') {
+    var f = parseFloat(document.getElementById('ctrl-freq').value);
+    var i = parseFloat(document.getElementById('ctrl-intensity').value);
+    var startY=200, endY=f===1?800:f===2?600:400;
+    var g3 = ctx.createLinearGradient(360,startY,360,endY);
+    g3.addColorStop(0, 'rgba(124,77,255,'+(i/2.5).toFixed(2)+')');
+    g3.addColorStop(0.7, 'rgba(0,229,255,'+(i/4).toFixed(2)+')');
+    g3.addColorStop(1, 'rgba(0,229,255,0)');
+    ctx.fillStyle = g3;
+    ctx.beginPath(); ctx.moveTo(300,startY); ctx.lineTo(420,startY); ctx.lineTo(450,endY); ctx.lineTo(270,endY); ctx.closePath(); ctx.fill();
+    var now = Date.now();
+    for (var y=startY; y<endY; y+=30) {
+      ctx.beginPath();
+      ctx.strokeStyle = 'rgba(124,77,255,'+(0.5-(y-startY)/(endY-startY)*0.5).toFixed(2)+')';
+      ctx.lineWidth = 1;
+      for (var x=280; x<440; x+=2) { ctx.lineTo(x, y+Math.sin((x+now/200)*0.1)*8); }
+      ctx.stroke();
+    }
+  } else if (m.id === 'estim') {
+    var inten = parseFloat(document.getElementById('ctrl-intensity').value);
+    for (var j=0; j<20; j++) {
+      ctx.beginPath();
+      ctx.arc(200+Math.random()*320, 150+Math.random()*600, 2+Math.random()*3, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(170,0,255,'+(inten/15).toFixed(2)+')';
+      ctx.fill();
+    }
+    for (var p=0; p<inten; p++) {
+      ctx.beginPath();
+      var ex=280+Math.random()*160, ey=180;
+      ctx.moveTo(ex,ey);
+      for (var s=0; s<8; s++) { ex+=(Math.random()-.5)*40; ey+=60+Math.random()*30; ctx.lineTo(ex,ey); }
+      ctx.strokeStyle = 'rgba(170,0,255,'+(0.1+inten/30).toFixed(2)+')';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  } else if (m.id === 'eswt') {
+    var efd = parseFloat(document.getElementById('ctrl-efd').value);
+    var cx=360, cy=600;
+    for (var r2=0; r2<5; r2++) {
+      ctx.beginPath(); ctx.arc(cx,cy,30+r2*35,0,Math.PI*2);
+      ctx.strokeStyle = 'rgba(255,109,0,'+(0.6-r2*0.1).toFixed(2)+')';
+      ctx.lineWidth = 2; ctx.stroke();
+    }
+    ctx.beginPath(); ctx.arc(cx,cy,20,0,Math.PI*2);
+    ctx.fillStyle = 'rgba(255,145,0,'+(efd*1.5).toFixed(2)+')'; ctx.fill();
+  }
+}
+
+// ========== PROTOCOLS ==========
+
+function initProtocols() {
+  var container = document.getElementById('proto-conditions');
+  container.innerHTML = PROTOCOLS.map(function(p){
+    return '<button class="proto-condition-btn" data-proto="'+p.id+'"><h4>'+p.name+'</h4><p>'+p.desc+'</p></button>';
+  }).join('');
+  container.querySelectorAll('.proto-condition-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      container.querySelectorAll('.proto-condition-btn').forEach(function(b){b.classList.remove('active');});
+      btn.classList.add('active');
+      renderProtocol(btn.dataset.proto);
+    });
+  });
+}
+
+function renderProtocol(id) {
+  var p = PROTOCOLS.find(function(x){return x.id===id;});
+  if (!p) return;
+  document.getElementById('proto-timeline').innerHTML = p.phases.map(function(ph){
+    return '<div class="proto-phase"><h4>'+ph.title+'</h4><p>'+ph.text+'</p>' +
+      '<div class="modalities-used">'+ph.modalities.map(function(m){return '<span class="mod-chip">'+m+'</span>';}).join('')+'</div></div>';
+  }).join('');
+}
+
+// ========== QUIZ ==========
+
+var quizIdx = 0, quizScore = 0, quizAnswered = false;
+
+function initQuiz() { renderQuizQuestion(); }
+
+function renderQuizQuestion() {
+  if (quizIdx >= QUESTIONS.length) { renderQuizScore(); return; }
+  quizAnswered = false;
+  var q = QUESTIONS[quizIdx];
+  var container = document.getElementById('quiz-container');
+  container.innerHTML =
+    '<div class="quiz-progress"><div class="bar"><div class="bar-fill" style="width:'+(quizIdx/QUESTIONS.length*100)+'%"></div></div>' +
+    '<span class="count">'+(quizIdx+1)+' / '+QUESTIONS.length+'</span></div>' +
+    '<div class="quiz-question"><div class="q-category">'+q.category+'</div>' +
+    '<div class="q-text">'+q.q+'</div>' +
+    '<div class="quiz-options">'+q.options.map(function(o,i){return '<button class="q-option" data-idx="'+i+'">'+String.fromCharCode(65+i)+'. '+o+'</button>';}).join('')+'</div>' +
+    '<div class="quiz-explain" id="quiz-explain">'+q.explain+'</div></div>' +
+    '<div class="quiz-nav"><button class="btn btn-primary" id="quiz-next" style="display:none">Next Question \u2192</button></div>';
+
+  container.querySelectorAll('.q-option').forEach(function(btn){
+    btn.addEventListener('click', function(){ answerQuiz(parseInt(btn.dataset.idx)); });
+  });
+  document.getElementById('quiz-next').addEventListener('click', function(){ quizIdx++; renderQuizQuestion(); });
+}
+
+function answerQuiz(idx) {
+  if (quizAnswered) return;
+  quizAnswered = true;
+  var q = QUESTIONS[quizIdx];
+  document.querySelectorAll('.q-option').forEach(function(btn, i){
+    btn.classList.add('disabled');
+    if (i === q.correct) btn.classList.add('correct');
+    if (i === idx && idx !== q.correct) btn.classList.add('wrong');
+  });
+  if (idx === q.correct) quizScore++;
+  document.getElementById('quiz-explain').classList.add('visible');
+  document.getElementById('quiz-next').style.display = 'inline-flex';
+}
+
+function renderQuizScore() {
+  var pct = Math.round(quizScore / QUESTIONS.length * 100);
+  var msg = pct >= 90 ? 'Outstanding! Fellowship-ready clinical reasoning.' :
+            pct >= 70 ? 'Strong foundation \u2014 review missed concepts for mastery.' :
+            pct >= 50 ? 'Developing \u2014 revisit modality mechanisms and dosimetry.' :
+            'Needs significant review \u2014 start with the modality cards above.';
+  document.getElementById('quiz-container').innerHTML =
+    '<div class="quiz-score"><div class="big">'+quizScore+'/'+QUESTIONS.length+'</div>' +
+    '<p style="font-size:1.2rem;margin:.8rem 0">'+pct+'%</p><p>'+msg+'</p>' +
+    '<button class="btn btn-primary" style="margin-top:1.5rem" id="quiz-retake">Retake Assessment</button></div>';
+  document.getElementById('quiz-retake').addEventListener('click', function(){
+    quizIdx = 0; quizScore = 0; renderQuizQuestion();
+  });
+}
+
+// ========== PARTICLES ==========
+
+function initParticles() {
+  var canvas = document.getElementById('particles');
+  var ctx = canvas.getContext('2d');
+  var w, h;
+  function resize() { w = canvas.width = window.innerWidth; h = canvas.height = window.innerHeight; }
+  resize();
+  window.addEventListener('resize', resize);
+
+  var pts = [];
+  for (var i = 0; i < 50; i++) {
+    pts.push({x:Math.random()*w, y:Math.random()*h, vx:(Math.random()-.5)*.3, vy:(Math.random()-.5)*.3, r:Math.random()*2+.5});
+  }
+
+  function draw() {
+    ctx.clearRect(0,0,w,h);
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      p.x += p.vx; p.y += p.vy;
+      if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+      if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fillStyle = 'rgba(0,229,255,.1)'; ctx.fill();
+    }
+    for (var i2 = 0; i2 < pts.length; i2++) {
+      for (var j = i2+1; j < pts.length; j++) {
+        var dx = pts[i2].x - pts[j].x, dy = pts[i2].y - pts[j].y;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist < 150) {
+          ctx.beginPath(); ctx.moveTo(pts[i2].x, pts[i2].y); ctx.lineTo(pts[j].x, pts[j].y);
+          ctx.strokeStyle = 'rgba(0,229,255,'+(0.05*(1-dist/150)).toFixed(3)+')';
+          ctx.lineWidth = .5; ctx.stroke();
+        }
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  draw();
+}
+
+// ========== NAV HIGHLIGHT ==========
+
+function initNav() {
+  var sections = document.querySelectorAll('section');
+  var navLinks = document.querySelectorAll('.nav a');
+  var obs = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if (e.isIntersecting) {
+        navLinks.forEach(function(l){l.classList.remove('active');});
+        var link = document.querySelector('.nav a[href="#'+e.target.id+'"]');
+        if (link) link.classList.add('active');
+      }
+    });
+  }, {threshold: 0.3});
+  sections.forEach(function(s){ obs.observe(s); });
+}
+
+// ========== INIT ==========
+
+renderModCards();
+initSimulator();
+initProtocols();
+initQuiz();
+initParticles();
+initNav();
+
+// Animate US waves
+setInterval(function(){ if (currentSimMod && currentSimMod.id === 'us') drawSimEffect(); }, 100);
+</script>
+</body>
+</html>

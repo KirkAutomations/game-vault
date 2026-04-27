@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>§8 — Night Journey · Thus Spoke Zarathustra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #eae4d2;
+    --ink-dim: #8a8678;
+    --paper: #0b0a08;
+    --accent: #d4a017;
+    --blood: #9e3a2c;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+    user-select: none;
+  }
+  canvas {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+  }
+  .topbar {
+    position: fixed;
+    top: 1rem; left: 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    z-index: 10;
+  }
+  .topbar a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink-dim);
+    padding: 0.4rem 0.85rem;
+    transition: all 0.3s ease;
+  }
+  .topbar a:hover { color: var(--accent); border-color: var(--accent); }
+  .chapter {
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* HUD: stamina + dawn clock */
+  #hud {
+    position: fixed;
+    top: 1rem; right: 1.5rem;
+    z-index: 10;
+    width: 220px;
+    text-align: right;
+  }
+  #hud .row {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 0.4rem;
+  }
+  #hud .row .lbl {
+    color: var(--ink-dim);
+    font-size: 0.66rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+  #hud .row .val {
+    color: var(--ink);
+    font-size: 0.78rem;
+    letter-spacing: 0.1em;
+  }
+  .meter {
+    width: 100%; height: 3px;
+    background: rgba(138,134,120,0.22);
+    margin-bottom: 0.7rem;
+    position: relative;
+  }
+  .meter .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    height: 100%;
+    width: 100%;
+    transition: width 0.2s linear, background 0.4s ease;
+  }
+  .meter .fill.stamina { background: var(--accent); }
+  .meter .fill.dawn    { background: #c8a878; }
+
+  #hint {
+    position: fixed;
+    bottom: 6vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--ink-dim);
+    font-style: italic;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    pointer-events: none;
+    opacity: 0.85;
+    z-index: 3;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.9);
+    text-align: center;
+  }
+  #hint.dim { opacity: 0.18; }
+  #hint .key {
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.05rem 0.4rem;
+    margin: 0 0.15rem;
+    letter-spacing: 0.12em;
+  }
+
+  /* Branch prompt */
+  #branch {
+    position: fixed;
+    left: 50%;
+    bottom: 22vh;
+    transform: translateX(-50%);
+    z-index: 7;
+    text-align: center;
+    display: none;
+  }
+  #branch.visible { display: block; }
+  #branch .q {
+    color: var(--accent);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+  }
+  #branch .ways {
+    display: flex; gap: 1.2rem; justify-content: center;
+  }
+  #branch .way {
+    background: rgba(11,10,8,0.9);
+    border: 1px solid var(--ink-dim);
+    color: var(--ink);
+    font-family: inherit;
+    font-style: italic;
+    font-size: 1.05rem;
+    padding: 0.85rem 1.5rem;
+    cursor: pointer;
+    transition: all 0.25s ease;
+    width: 220px;
+    text-align: center;
+  }
+  #branch .way:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(212,160,23,0.07);
+  }
+  #branch .way .k {
+    display: block;
+    font-style: normal;
+    color: var(--ink-dim);
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    margin-top: 0.35rem;
+  }
+
+  /* Encounter (now spoken, no menu — shows speech and gesture hints) */
+  #encounter {
+    position: fixed;
+    left: 50%;
+    bottom: 16vh;
+    transform: translateX(-50%);
+    width: min(88vw, 720px);
+    background: rgba(11,10,8,0.92);
+    border: 1px solid var(--ink-dim);
+    padding: 1.4rem 1.6rem;
+    z-index: 6;
+    display: none;
+    box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    text-align: center;
+  }
+  #encounter.visible { display: block; }
+  #encounter .who {
+    color: var(--accent);
+    font-size: 0.72rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+  }
+  #encounter .line {
+    font-style: italic;
+    font-size: 1.1rem;
+    line-height: 1.5;
+    min-height: 2.5em;
+  }
+  #encounter .gestures {
+    margin-top: 1.2rem;
+    display: flex;
+    gap: 0.7rem;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  #encounter .g {
+    border: 1px solid var(--ink-dim);
+    color: var(--ink);
+    font-family: inherit;
+    font-style: italic;
+    padding: 0.55rem 0.95rem;
+    background: rgba(0,0,0,0.45);
+    min-width: 150px;
+  }
+  #encounter .g .k {
+    display: block;
+    color: var(--accent);
+    font-style: normal;
+    font-size: 0.7rem;
+    letter-spacing: 0.22em;
+    margin-bottom: 0.2rem;
+  }
+  #encounter .g.hot {
+    border-color: var(--accent);
+    background: rgba(212,160,23,0.08);
+  }
+
+  /* Caption strip (top) */
+  #caption {
+    position: fixed;
+    left: 50%;
+    top: 12vh;
+    transform: translateX(-50%);
+    max-width: 680px;
+    width: min(86vw, 680px);
+    color: var(--ink);
+    font-style: italic;
+    font-size: clamp(1.05rem, 2vw, 1.3rem);
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease;
+    z-index: 5;
+    text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  }
+  #caption.visible { opacity: 1; }
+
+  /* Begin overlay */
+  #begin {
+    position: fixed; inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: var(--paper);
+    z-index: 40;
+    transition: opacity 1.2s ease;
+    padding: 2rem;
+    text-align: center;
+  }
+  #begin.hidden { opacity: 0; pointer-events: none; }
+  #begin .n {
+    color: var(--accent);
+    font-size: 0.85rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    margin-bottom: 0.7rem;
+  }
+  #begin h1 {
+    font-weight: 500;
+    font-size: clamp(2rem, 6vw, 3.4rem);
+    letter-spacing: 0.04em;
+    margin: 0 0 1.5rem;
+  }
+  #begin .ep {
+    color: var(--ink-dim);
+    font-style: italic;
+    max-width: 40ch;
+    margin: 0 auto 1.4rem;
+    line-height: 1.5;
+  }
+  #begin .keys {
+    color: var(--ink-dim);
+    font-size: 0.85rem;
+    line-height: 1.7;
+    max-width: 38ch;
+    margin: 0 auto 1.6rem;
+  }
+  #begin .keys .k {
+    display: inline-block;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    padding: 0.05rem 0.4rem;
+    margin-right: 0.35rem;
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+  }
+  #begin button {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    font-family: inherit;
+    font-size: 1rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    padding: 0.7rem 1.6rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #begin button:hover { background: rgba(212,160,23,0.12); }
+
+  /* Ending */
+  #ending {
+    position: fixed; inset: 0;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.94);
+    z-index: 50;
+    padding: 2rem;
+    text-align: center;
+    opacity: 0;
+    transition: opacity 2s ease;
+  }
+  #ending.visible { display: flex; opacity: 1; }
+  #ending h2 {
+    font-weight: 500;
+    font-size: clamp(1.8rem, 4vw, 2.6rem);
+    margin: 0 0 1rem;
+  }
+  #ending .ln {
+    font-style: italic;
+    font-size: clamp(1.05rem, 2vw, 1.35rem);
+    max-width: 600px;
+    line-height: 1.55;
+    margin: 0 0 2rem;
+  }
+  #ending .src {
+    color: var(--ink-dim);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    margin-bottom: 2.2rem;
+  }
+  #ending .return {
+    color: var(--ink-dim);
+    border: 1px solid var(--ink-dim);
+    padding: 0.6rem 1.4rem;
+    text-decoration: none;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    transition: all 0.3s ease;
+  }
+  #ending .return:hover {
+    color: var(--accent); border-color: var(--accent);
+  }
+</style>
+</head>
+<body>
+  <canvas id="stage"></canvas>
+
+  <div class="topbar">
+    <a href="../index.html">&larr; hub</a>
+    <span class="chapter">Prologue · §8 — Night Journey</span>
+  </div>
+
+  <div id="hud">
+    <div class="row"><span class="lbl">Stamina</span><span class="val" id="stamVal">100</span></div>
+    <div class="meter"><div class="fill stamina" id="stamFill"></div></div>
+    <div class="row"><span class="lbl">Until Dawn</span><span class="val" id="dawnVal">night</span></div>
+    <div class="meter"><div class="fill dawn" id="dawnFill" style="width:0%"></div></div>
+  </div>
+
+  <div id="caption"></div>
+  <div id="hint"><span class="key">D</span> walk &nbsp; <span class="key">S</span> shift the body / set down</div>
+
+  <div id="branch">
+    <div class="q">A fork in the path</div>
+    <div class="ways">
+      <button class="way" id="wayLeft">left, through the village<span class="k">A or &larr;</span></button>
+      <button class="way" id="wayRight">right, into the forest<span class="k">D or &rarr;</span></button>
+    </div>
+  </div>
+
+  <div id="encounter">
+    <div class="who">—</div>
+    <div class="line"></div>
+    <div class="gestures">
+      <div class="g" id="gFace"><span class="k">A or &larr;</span>face them</div>
+      <div class="g" id="gWalk"><span class="k">D or &rarr;</span>keep walking</div>
+      <div class="g" id="gSet"><span class="k">S</span>set him down</div>
+    </div>
+  </div>
+
+  <div id="begin">
+    <div class="n">Prologue · §8</div>
+    <h1>Night Journey</h1>
+    <div class="ep">The body on his back, Zarathustra left the market and set out through the dark lanes.</div>
+    <div class="keys">
+      <span class="k">D</span> or <span class="k">&rarr;</span> walk &nbsp;
+      <span class="k">A</span> or <span class="k">&larr;</span> turn back / face<br/>
+      <span class="k">S</span> shift the body — recover stamina<br/>
+      Walking drains stamina. Encounters wait at silhouettes on the path —
+      stop near them, then respond by gesture, not menu.
+      Reach the hollow tree before dawn.
+    </div>
+    <button id="startBtn">Begin</button>
+  </div>
+
+  <div id="ending">
+    <h2 id="endTitle">He laid the body in a hollow tree.</h2>
+    <div class="ln" id="endLine"></div>
+    <div class="src" id="endSource"></div>
+    <a class="return" href="../index.html">Return to the hub</a>
+  </div>
+
+<script src="../sdk.js"></script>
+<script>
+(() => {
+  const canvas = document.getElementById('stage');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1;
+
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth; H = window.innerHeight;
+    canvas.width = Math.floor(W * DPR);
+    canvas.height = Math.floor(H * DPR);
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  }
+  resize(); window.addEventListener('resize', resize);
+
+  // ============ STATE ============
+  const TOTAL = 4000;             // distance to hollow tree
+  const FORK_AT = 1500;           // branch point
+  const DAWN_TOTAL_MS = 210000;   // ~3.5 minutes until dawn
+
+  const state = {
+    x: 0,
+    v: 0,
+    walking: false,
+    facing: 1,                    // 1 right, -1 left
+    phase: 'idle',                // idle | walking | branch | encounter | grounded | ending
+    bob: 0,
+    t: 0,
+    started: false,
+    stamina: 100,
+    setDown: false,
+    branch: null,                 // 'village' | 'forest' | null
+    branchOffered: false,
+    dawn: 0,                      // 0..1
+    dawnPaused: false,
+    encounterIdx: -1,             // current encounter index
+    encounter: null,              // the encounter object
+    encounterStep: 0,             // index in lines
+    hoveredGesture: null,
+    lastFoot: 0,
+    deathByExposure: false,
+    pickedGestures: [],           // recorded
+  };
+
+  // ============ ENCOUNTER DATA ============
+  // Two paths share encounter slots but have different data.
+  // Each encounter: at (distance), who, lines (typewriter strings),
+  // expectedKind ('face'|'walk'|'set'), responses (per-kind aftermath),
+  // optional quote.
+  const VILLAGE_ENCOUNTERS = [
+    {
+      at: 2100,
+      who: 'the gravediggers',
+      ambient: () => { Zara.laugh(0.16); setTimeout(() => Zara.laugh(0.14), 280); },
+      lines: [
+        "Look — Zarathustra carries off the dead dog!",
+        "How nice that Zarathustra has become a gravedigger.",
+        "Would you steal this bite from the devil? If only the devil were not a better thief than you...",
+      ],
+      expected: 'walk',
+      responses: {
+        face: { text: "You face them. Their laughter doubles. The body grows heavier.", weight: 8 },
+        walk: { text: "You said nothing and went your way.", weight: -3, quote: { id:'p8-gravediggers', text:"Zarathustra never said a word and went his way.", source:"Prologue §8" } },
+        set: { text: "You set the body down. The diggers crowd it like dogs. You pick him up again, faster than you should.", weight: 14 },
+      },
+    },
+    {
+      at: 3000,
+      who: 'the hermit',
+      ambient: () => Zara.chime(0.04),
+      lines: [
+        "Who is it that comes to me and to my bad sleep?",
+        "— A living and a dead man. Give me something to eat.",
+        "But bid your companion, too, eat and drink; he is wearier than you are.",
+        "— My companion is dead; I should hardly persuade him.",
+      ],
+      expected: 'set',
+      responses: {
+        face: { text: "You face him but do not stop. He sighs and shuts his door.", weight: 4 },
+        walk: { text: "You pass without answering. The hermit's lamp goes out behind you.", weight: 6 },
+        set: { text: "You set the body down and eat the hermit's bread. He says: he who feeds the hungry refreshes his own soul.", weight: -10, quote: { id:'p8-hermit', text:"He who feeds the hungry refreshes his own soul.", source:"Prologue §8" } },
+      },
+    },
+  ];
+
+  const FOREST_ENCOUNTERS = [
+    {
+      at: 2200,
+      who: 'wolves in the underbrush',
+      ambient: () => Zara.gasp(0.08),
+      lines: [
+        "(Yellow eyes blink among the trees.)",
+        "(They smell the blood on the corpse you carry.)",
+        "(They are waiting to see what you do.)",
+      ],
+      expected: 'walk',
+      responses: {
+        face: { text: "You face them. They scatter at the man who looks them in the eye — but the body cools faster, exposed.", weight: 6 },
+        walk: { text: "You walk on without breaking stride. The eyes fall behind you.", weight: -4 },
+        set: { text: "You set him down. The wolves circle. You shoulder him again, hands shaking.", weight: 16 },
+      },
+    },
+    {
+      at: 3100,
+      who: 'a hermit at a fire',
+      ambient: () => Zara.chime(0.04),
+      lines: [
+        "Who is it that comes to me and to my bad sleep?",
+        "— A living and a dead man. Give me something to eat.",
+        "Eat and be off. But bid your companion, too, eat and drink; he is wearier than you are.",
+      ],
+      expected: 'set',
+      responses: {
+        face: { text: "You meet his eyes but do not stop. He returns to his fire.", weight: 4 },
+        walk: { text: "You pass the fire without a word. Its warmth lasts only a step.", weight: 7 },
+        set: { text: "You set the body down at his fire. He gives you bread and water. He who feeds the hungry refreshes his own soul.", weight: -10, quote: { id:'p8-hermit', text:"He who feeds the hungry refreshes his own soul.", source:"Prologue §8" } },
+      },
+    },
+  ];
+
+  // The jester appears immediately on the road, before the fork — common to both paths.
+  const COMMON_OPENER = {
+    at: 800,
+    who: 'the jester',
+    ambient: () => Zara.laugh(0.10),
+    lines: [
+      "Go away from this town, Zarathustra. There are too many here who hate you.",
+      "You are hated by the good and the just; they call you their enemy and despiser.",
+      "It was your good fortune that you were laughed at. But go — or tomorrow I shall leap over you, one living over one dead.",
+    ],
+    expected: 'walk',
+    responses: {
+      face: { text: "You turn to face him. He laughs and leaps away across the rooftops.", weight: 5 },
+      walk: { text: "You walk on. The jester's laughter dwindles behind you.", weight: -3, quote: { id:'p8-jester', text:"Tomorrow I shall leap over you — one living over one dead.", source:"Prologue §8" } },
+      set: { text: "You set the body down to listen. The jester bows mockingly to it. You pick him back up, sick at heart.", weight: 12 },
+    },
+  };
+
+  // Active encounters resolved at runtime once branch is chosen.
+  let activeEncounters = [COMMON_OPENER]; // jester always
+
+  // ============ DRAWING ============
+  function dawnTint(c1, c2, c3, c4) {
+    // shifts colors as dawn rises
+    const d = state.dawn;
+    function mix(a, b, k) {
+      const aa = parseInt(a.slice(1), 16), bb = parseInt(b.slice(1), 16);
+      const ar = (aa>>16)&255, ag = (aa>>8)&255, ab = aa&255;
+      const br = (bb>>16)&255, bg = (bb>>8)&255, bb_ = bb&255;
+      const r = Math.round(ar + (br - ar) * k);
+      const g = Math.round(ag + (bg - ag) * k);
+      const b_ = Math.round(ab + (bb_ - ab) * k);
+      return `rgb(${r},${g},${b_})`;
+    }
+    return [mix(c1, '#5a3826', d), mix(c2, '#9a5a2a', d), mix(c3, '#cf9a4a', d), mix(c4, '#e0c298', d * 0.85)];
+  }
+
+  function drawBackground() {
+    const cols = dawnTint('#050408', '#0b0910', '#060506', '#040308');
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, cols[0]);
+    g.addColorStop(0.6, cols[1]);
+    g.addColorStop(1, cols[2]);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // stars fade with dawn
+    const starAlpha = 0.5 * (1 - state.dawn);
+    if (starAlpha > 0.02) {
+      ctx.fillStyle = `rgba(234,228,210,${starAlpha})`;
+      const seed = 73;
+      for (let i = 0; i < 80; i++) {
+        const sx = ((i * 53.7 + seed) * 1) % W;
+        const sy = ((i * 27.1) % (H * 0.45));
+        const tw = 0.3 + 0.7 * Math.abs(Math.sin(state.t * 0.001 + i * 0.5));
+        ctx.globalAlpha = (0.4 + 0.5 * tw) * (1 - state.dawn);
+        ctx.fillRect(sx, sy, 1.2, 1.2);
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    // moon (fades)
+    if (state.dawn < 0.85) {
+      const mx = W * 0.82, my = H * 0.16, mr = Math.min(W, H) * 0.03;
+      const mg = ctx.createRadialGradient(mx, my, 1, mx, my, mr * 4);
+      mg.addColorStop(0, `rgba(234,228,210,${0.85 * (1 - state.dawn)})`);
+      mg.addColorStop(0.4, `rgba(234,228,210,${0.2 * (1 - state.dawn)})`);
+      mg.addColorStop(1, 'rgba(234,228,210,0)');
+      ctx.fillStyle = mg;
+      ctx.beginPath(); ctx.arc(mx, my, mr * 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = `rgba(230,223,200,${1 - state.dawn})`;
+      ctx.beginPath(); ctx.arc(mx, my, mr, 0, Math.PI * 2); ctx.fill();
+    }
+
+    // dawn glow on the eastern (right) horizon
+    if (state.dawn > 0.05) {
+      const eg = ctx.createRadialGradient(W * 0.95, H * 0.7, 4, W * 0.95, H * 0.7, W * 0.6);
+      eg.addColorStop(0, `rgba(255,180,100,${0.45 * state.dawn})`);
+      eg.addColorStop(0.4, `rgba(255,140,70,${0.25 * state.dawn})`);
+      eg.addColorStop(1, 'rgba(255,140,70,0)');
+      ctx.fillStyle = eg;
+      ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  function drawParallax() {
+    const horizon = H * 0.72;
+
+    ctx.fillStyle = '#0b0a11';
+    const farOffset = state.x * 0.1;
+    ctx.beginPath();
+    ctx.moveTo(0, horizon);
+    for (let x = 0; x <= W; x += 40) {
+      const wx = x + farOffset;
+      const h = horizon - (Math.sin(wx * 0.004) * 30 + Math.sin(wx * 0.011) * 12 + 18);
+      ctx.lineTo(x, h);
+    }
+    ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath(); ctx.fill();
+
+    const midOffset = state.x * 0.4;
+    // up to fork: town silhouettes; after fork, depends on branch
+    ctx.fillStyle = '#0a080c';
+    for (let cx = -200; cx <= TOTAL + 400; cx += 80) {
+      const screenX = cx - midOffset;
+      if (screenX < -160 || screenX > W + 160) continue;
+      let isVillage = false, isForest = false;
+      if (cx < FORK_AT - 100) {
+        // pre-fork: town
+        isVillage = true;
+      } else if (state.branch === 'village') {
+        isVillage = (cx < 3300);
+        isForest = !isVillage;
+      } else if (state.branch === 'forest') {
+        isForest = true;
+      } else {
+        // pre-choice (just after fork): mixed
+        isVillage = (cx < FORK_AT + 200);
+        isForest = !isVillage;
+      }
+      if (isVillage) {
+        const seed = Math.sin(cx * 0.037) * 1000;
+        const bh = 70 + (Math.abs(seed) % 70);
+        const bw = 55 + (Math.abs(seed * 0.3) % 30);
+        ctx.fillRect(screenX, horizon - bh, bw, bh);
+        if ((cx % 320) < 80) {
+          ctx.fillRect(screenX + bw*0.35, horizon - bh - 40, bw*0.3, 40);
+        }
+      } else if (isForest) {
+        const th = 60 + Math.abs(Math.sin(cx * 0.021)) * 50;
+        ctx.beginPath();
+        ctx.moveTo(screenX, horizon);
+        ctx.lineTo(screenX + 22, horizon - th);
+        ctx.lineTo(screenX + 44, horizon);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    ctx.fillStyle = '#04030a';
+    ctx.fillRect(0, horizon, W, H - horizon);
+
+    // path cobbles or dirt
+    ctx.strokeStyle = 'rgba(138,134,120,0.08)';
+    ctx.lineWidth = 1;
+    const nearOffset = (state.x * 1) % 40;
+    for (let x = -nearOffset; x < W; x += 40) {
+      ctx.beginPath();
+      ctx.moveTo(x, horizon + 6);
+      ctx.lineTo(x + 22, horizon + 6);
+      ctx.stroke();
+      ctx.strokeRect(x, horizon + 10, 30, 10);
+    }
+
+    const fg = ctx.createLinearGradient(0, horizon - 20, 0, H);
+    fg.addColorStop(0, 'rgba(20,18,26,0)');
+    fg.addColorStop(0.3, `rgba(20,18,26,${0.2 - state.dawn * 0.1})`);
+    fg.addColorStop(1, `rgba(20,18,26,${0.55 - state.dawn * 0.25})`);
+    ctx.fillStyle = fg;
+    ctx.fillRect(0, horizon - 20, W, H - horizon + 20);
+  }
+
+  function drawForkPost() {
+    if (state.branch || state.x < FORK_AT - 800) return;
+    const horizon = H * 0.72;
+    const screenX = W * 0.5 + (FORK_AT - state.x) * 0.9;
+    if (screenX < -50 || screenX > W + 50) return;
+    ctx.save();
+    ctx.translate(screenX, horizon);
+    ctx.fillStyle = '#1a1410';
+    ctx.fillRect(-2, -50, 4, 50);
+    // signs
+    ctx.fillRect(-22, -48, 20, 6);
+    ctx.fillRect(2, -36, 20, 6);
+    ctx.fillStyle = 'rgba(212,160,23,0.6)';
+    ctx.font = '8px serif';
+    ctx.fillText('village', -20, -43);
+    ctx.fillText('forest', 4, -31);
+    ctx.restore();
+  }
+
+  function drawHollowTree() {
+    if (state.x < TOTAL - 600) return;
+    const horizon = H * 0.72;
+    const relative = TOTAL - state.x;
+    const sx = W * 0.5 + relative * 0.9;
+    if (sx < -100 || sx > W + 100) return;
+    ctx.save();
+    ctx.translate(sx, horizon);
+    // trunk
+    ctx.fillStyle = '#1a120c';
+    ctx.fillRect(-22, -120, 44, 120);
+    // hollow opening
+    ctx.fillStyle = '#06040a';
+    ctx.beginPath();
+    ctx.ellipse(0, -60, 12, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // canopy
+    ctx.fillStyle = '#0d0a08';
+    ctx.beginPath();
+    ctx.ellipse(0, -130, 50, 40, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // glow inside the hollow as a destination beacon
+    if (state.dawn < 0.85) {
+      const gg = ctx.createRadialGradient(0, -60, 1, 0, -60, 30);
+      gg.addColorStop(0, `rgba(212,160,23,${0.3 * (1 - state.dawn)})`);
+      gg.addColorStop(1, 'rgba(212,160,23,0)');
+      ctx.fillStyle = gg;
+      ctx.beginPath(); ctx.arc(0, -60, 30, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawEncounterFigures() {
+    const horizon = H * 0.72;
+    activeEncounters.forEach((enc, i) => {
+      if (enc.done) return;
+      const relative = enc.at - state.x;
+      if (relative > W * 0.8 || relative < -120) return;
+      const sx = W * 0.5 + relative * 0.9;
+      drawEncounterSilhouette(enc, sx, horizon);
+      // halo if within trigger distance
+      if (Math.abs(relative) < 90) {
+        const a = 1 - Math.abs(relative) / 90;
+        const gg = ctx.createRadialGradient(sx, horizon - 30, 4, sx, horizon - 30, 60);
+        gg.addColorStop(0, `rgba(212,160,23,${0.18 * a})`);
+        gg.addColorStop(1, 'rgba(212,160,23,0)');
+        ctx.fillStyle = gg;
+        ctx.beginPath(); ctx.arc(sx, horizon - 30, 60, 0, Math.PI * 2); ctx.fill();
+      }
+    });
+  }
+
+  function drawEncounterSilhouette(enc, sx, horizon) {
+    ctx.save();
+    ctx.translate(sx, horizon);
+    if (enc.who === 'the jester') {
+      ctx.fillStyle = '#13101a';
+      ctx.fillRect(-4, -28, 8, 28);
+      ctx.beginPath(); ctx.arc(0, -33, 4, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#9e3a2c';
+      ctx.beginPath();
+      ctx.moveTo(-4, -37); ctx.lineTo(4, -37); ctx.lineTo(0, -48); ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = '#d4a017';
+      ctx.beginPath(); ctx.arc(0, -48, 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#13101a';
+      ctx.fillRect(-4, 0, 3, 10); ctx.fillRect(1, 0, 3, 10);
+    } else if (enc.who === 'the gravediggers') {
+      for (let g = 0; g < 2; g++) {
+        const ox = g === 0 ? -18 : 18;
+        ctx.fillStyle = '#0c0a10';
+        ctx.fillRect(ox - 4, -30, 8, 30);
+        ctx.beginPath(); ctx.arc(ox, -35, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(ox - 4, 0, 3, 10); ctx.fillRect(ox + 1, 0, 3, 10);
+        ctx.fillStyle = '#2a1a0d';
+        ctx.fillRect(ox + (g === 0 ? -10 : 8) - 1, -46, 2, 18);
+        const flicker = 0.8 + Math.random() * 0.4;
+        const fg = ctx.createRadialGradient(ox + (g === 0 ? -10 : 8), -50, 1, ox + (g === 0 ? -10 : 8), -50, 18 * flicker);
+        fg.addColorStop(0, 'rgba(240,170,70,0.9)');
+        fg.addColorStop(1, 'rgba(240,170,70,0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(ox + (g === 0 ? -10 : 8), -50, 18, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f0b450';
+        ctx.beginPath(); ctx.arc(ox + (g === 0 ? -10 : 8), -50, 2.5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.fillStyle = '#14101a';
+      ctx.fillRect(-50, -80, 8, 80);
+      ctx.fillRect(42, -80, 8, 80);
+    } else if (enc.who === 'the hermit' || enc.who === 'a hermit at a fire') {
+      // hermit's house or fire
+      if (enc.who === 'the hermit') {
+        ctx.fillStyle = '#0e0b10';
+        ctx.fillRect(-40, -60, 80, 60);
+        ctx.beginPath();
+        ctx.moveTo(-48, -60); ctx.lineTo(0, -85); ctx.lineTo(48, -60); ctx.closePath();
+        ctx.fill();
+        const wg = ctx.createRadialGradient(0, -35, 2, 0, -35, 30);
+        wg.addColorStop(0, 'rgba(240,170,70,0.7)');
+        wg.addColorStop(1, 'rgba(240,170,70,0)');
+        ctx.fillStyle = wg;
+        ctx.beginPath(); ctx.arc(0, -35, 30, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#f0b450';
+        ctx.fillRect(-7, -42, 14, 14);
+        ctx.fillStyle = '#1a1410';
+        ctx.fillRect(-8, -35, 16, 1); ctx.fillRect(-1, -42, 2, 14);
+      } else {
+        // fire
+        const flicker = 0.8 + Math.random() * 0.4;
+        const fg = ctx.createRadialGradient(0, -8, 2, 0, -8, 30 * flicker);
+        fg.addColorStop(0, 'rgba(240,170,70,0.9)');
+        fg.addColorStop(1, 'rgba(240,170,70,0)');
+        ctx.fillStyle = fg;
+        ctx.beginPath(); ctx.arc(0, -8, 30, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#3a2810';
+        ctx.fillRect(-12, -2, 24, 4);
+        // hermit beside fire
+        ctx.fillStyle = '#0c0a10';
+        ctx.fillRect(18, -28, 6, 28);
+        ctx.beginPath(); ctx.arc(21, -32, 4, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (enc.who === 'wolves in the underbrush') {
+      // pairs of yellow eyes in dark underbrush
+      ctx.fillStyle = '#0a0508';
+      ctx.beginPath();
+      ctx.ellipse(0, -8, 50, 18, 0, 0, Math.PI * 2);
+      ctx.fill();
+      const eyes = [[-22,-12],[-14,-10],[10,-14],[24,-9],[-2,-16]];
+      for (const [ex, ey] of eyes) {
+        ctx.fillStyle = '#d4a017';
+        ctx.beginPath(); ctx.arc(ex, ey, 1.6, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(ex + 4, ey, 1.6, 0, Math.PI * 2); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawZarathustra() {
+    const horizon = H * 0.72;
+    const zx = W * 0.35;
+    const zy = horizon;
+    const bob = Math.sin(state.bob) * 1.5;
+    const lean = (state.facing > 0 ? 0.08 : -0.08) + Math.sin(state.bob) * 0.02;
+
+    ctx.save();
+    ctx.translate(zx, zy + (state.setDown ? -2 : bob));
+    ctx.scale(state.facing, 1);
+    ctx.fillStyle = '#17130e';
+
+    const legPhase = state.bob;
+    const leg1 = Math.sin(legPhase);
+    const leg2 = Math.sin(legPhase + Math.PI);
+
+    // legs
+    ctx.save();
+    ctx.rotate(state.setDown ? -0.4 : leg2 * 0.3);
+    ctx.fillRect(-2, 0, 3.5, 14);
+    ctx.restore();
+    ctx.save();
+    ctx.rotate(state.setDown ? 0.4 : leg1 * 0.3);
+    ctx.fillRect(-0.5, 0, 3.5, 14);
+    ctx.restore();
+
+    // torso
+    ctx.save();
+    ctx.rotate(state.setDown ? 0.4 : lean);
+    ctx.fillRect(-3, -22, 6, 22);
+    ctx.beginPath(); ctx.arc(0, -27, 4.5, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // corpse — on shoulder if not setDown, else on ground in front
+    if (!state.setDown) {
+      ctx.save();
+      ctx.rotate(-0.1 + Math.sin(legPhase) * 0.03);
+      ctx.translate(-4, -22);
+      ctx.fillStyle = '#0c0a08';
+      ctx.fillRect(-20, -6, 40, 8);
+      ctx.beginPath(); ctx.arc(-22, -2, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(18, -3, 16, 3); ctx.fillRect(18, 0, 18, 3);
+      ctx.strokeStyle = '#0c0a08'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-6, 2); ctx.lineTo(0, 10); ctx.stroke();
+      ctx.restore();
+    } else {
+      // on ground in front of him
+      ctx.save();
+      ctx.translate(20, -2);
+      ctx.fillStyle = '#0c0a08';
+      ctx.fillRect(-16, -2, 32, 6);
+      ctx.beginPath(); ctx.arc(-18, 0, 3.5, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  function drawVignette() {
+    const g = ctx.createRadialGradient(W/2, H*0.65, Math.min(W,H)*0.25, W/2, H*0.55, Math.max(W,H)*0.8);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, `rgba(0,0,0,${0.7 - state.dawn * 0.4})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  // ============ FRAME ============
+  let last = performance.now();
+  function frame(now) {
+    const dt = now - last; last = now;
+    state.t += dt;
+
+    // walking + stamina
+    if (state.phase === 'walking') {
+      if (state.walking && state.stamina > 0 && !state.setDown) {
+        const target = 110 * (state.stamina < 25 ? 0.55 : 1);
+        state.v += (target - state.v) * Math.min(dt / 260, 1);
+        // stamina drain
+        state.stamina = Math.max(0, state.stamina - dt / 350);
+      } else {
+        state.v += (0 - state.v) * Math.min(dt / 220, 1);
+      }
+      // recover when set down
+      if (state.setDown) {
+        state.stamina = Math.min(100, state.stamina + dt / 80);
+      }
+    } else {
+      state.v += (0 - state.v) * Math.min(dt / 220, 1);
+      if (state.setDown && state.phase !== 'ending') {
+        state.stamina = Math.min(100, state.stamina + dt / 80);
+      }
+    }
+    state.x += state.v * dt / 1000;
+    state.bob += (Math.abs(state.v) / 30) * dt / 1000;
+
+    // footsteps
+    if (state.v > 20 && state.t - state.lastFoot > 1200 / (state.v / 40)) {
+      Zara.footstep(0.04);
+      state.lastFoot = state.t;
+    }
+
+    // dawn clock — paused during encounters & branch screen
+    if (state.started && !state.dawnPaused && state.phase !== 'ending') {
+      state.dawn = Math.min(1, state.dawn + dt / DAWN_TOTAL_MS);
+    }
+
+    // branch trigger
+    if (state.phase === 'walking' && !state.branchOffered && state.x >= FORK_AT - 30) {
+      offerBranch();
+    }
+
+    // encounter trigger — by proximity AND stop (low velocity)
+    if (state.phase === 'walking') {
+      for (const enc of activeEncounters) {
+        if (!enc.done && !enc.active) {
+          const dx = state.x - enc.at;
+          // require player to be near, and either nearly stopped OR hold S
+          if (Math.abs(dx) < 70 && (state.v < 25 || state.setDown)) {
+            triggerEncounter(enc);
+            break;
+          }
+          // if user blasts past without stopping, mark as missed
+          if (dx > 90 && !enc.done) {
+            enc.done = true;
+            enc.missed = true;
+          }
+        }
+      }
+    }
+
+    // dawn check
+    if (state.dawn >= 1 && state.phase !== 'ending') {
+      // reached dawn before tree
+      state.deathByExposure = true;
+      endJourney();
+    }
+    // reach end
+    if (state.x >= TOTAL && state.phase === 'walking') {
+      endJourney();
+    }
+
+    // HUD
+    document.getElementById('stamFill').style.width = state.stamina + '%';
+    document.getElementById('stamVal').textContent = Math.round(state.stamina);
+    document.getElementById('dawnFill').style.width = (state.dawn * 100) + '%';
+    document.getElementById('dawnVal').textContent =
+      state.dawn < 0.25 ? 'night' :
+      state.dawn < 0.55 ? 'late night' :
+      state.dawn < 0.8 ? 'first light' :
+      'dawn';
+
+    // stamina bar color
+    const sf = document.getElementById('stamFill');
+    if (state.stamina < 25) sf.style.background = 'var(--blood)';
+    else if (state.stamina < 55) sf.style.background = '#c89030';
+    else sf.style.background = 'var(--accent)';
+
+    // render
+    ctx.clearRect(0, 0, W, H);
+    drawBackground();
+    drawParallax();
+    drawForkPost();
+    drawHollowTree();
+    drawEncounterFigures();
+    drawZarathustra();
+    drawVignette();
+
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ============ UI HELPERS ============
+  const beginEl = document.getElementById('begin');
+  const startBtn = document.getElementById('startBtn');
+  const hintEl = document.getElementById('hint');
+  const captionEl = document.getElementById('caption');
+  const encounterEl = document.getElementById('encounter');
+  const branchEl = document.getElementById('branch');
+  const wayLeft = document.getElementById('wayLeft');
+  const wayRight = document.getElementById('wayRight');
+  const endingEl = document.getElementById('ending');
+  const endTitleEl = document.getElementById('endTitle');
+  const endLineEl = document.getElementById('endLine');
+  const endSourceEl = document.getElementById('endSource');
+  const gFace = document.getElementById('gFace');
+  const gWalk = document.getElementById('gWalk');
+  const gSet  = document.getElementById('gSet');
+
+  function showCaption(text, ms) {
+    captionEl.innerHTML = text;
+    captionEl.classList.add('visible');
+    if (ms) setTimeout(() => captionEl.classList.remove('visible'), ms);
+  }
+
+  // ============ BRANCH ============
+  function offerBranch() {
+    state.branchOffered = true;
+    state.phase = 'branch';
+    state.dawnPaused = true;
+    state.walking = false;
+    branchEl.classList.add('visible');
+    hintEl.classList.add('dim');
+    showCaption("Two ways open. Both reach the tree, neither in the same darkness.", 4000);
+  }
+  function chooseBranch(which) {
+    if (state.branch) return;
+    state.branch = which;
+    branchEl.classList.remove('visible');
+    hintEl.classList.remove('dim');
+    state.phase = 'walking';
+    state.dawnPaused = false;
+    activeEncounters = [COMMON_OPENER.done ? null : COMMON_OPENER, ...(which === 'village' ? VILLAGE_ENCOUNTERS : FOREST_ENCOUNTERS)].filter(Boolean);
+    showCaption(which === 'village'
+      ? 'You take the lane through the village. The taverns are still awake.'
+      : 'You step into the forest. The lanes give way to roots and silence.', 4000);
+  }
+  wayLeft.addEventListener('click', () => chooseBranch('village'));
+  wayRight.addEventListener('click', () => chooseBranch('forest'));
+
+  // ============ ENCOUNTER ============
+  function triggerEncounter(enc) {
+    enc.active = true;
+    state.phase = 'encounter';
+    state.encounter = enc;
+    state.encounterStep = 0;
+    state.dawnPaused = true;
+    state.walking = false;
+    if (enc.ambient) enc.ambient();
+
+    encounterEl.querySelector('.who').textContent = enc.who;
+    encounterEl.classList.add('visible');
+    hintEl.classList.add('dim');
+
+    // hide gestures until lines done
+    showGestures(false);
+
+    typeNextLine();
+  }
+
+  function typeNextLine() {
+    const enc = state.encounter;
+    const lineEl = encounterEl.querySelector('.line');
+    if (state.encounterStep >= enc.lines.length) {
+      // gestures appear now
+      showGestures(true);
+      return;
+    }
+    const txt = enc.lines[state.encounterStep];
+    state.encounterStep++;
+    state.activeWriter = Zara.typewrite(lineEl, txt, { cps: 40, onDone: () => {
+      // auto-advance after a beat unless last line
+      if (state.encounterStep < enc.lines.length) {
+        setTimeout(typeNextLine, 1400);
+      } else {
+        setTimeout(() => showGestures(true), 700);
+      }
+    }});
+  }
+
+  function showGestures(on) {
+    encounterEl.querySelector('.gestures').style.display = on ? '' : 'none';
+    state.gesturesUp = on;
+    [gFace, gWalk, gSet].forEach(g => g.classList.remove('hot'));
+  }
+
+  function highlightGesture(kind) {
+    [gFace, gWalk, gSet].forEach(g => g.classList.remove('hot'));
+    if (!state.gesturesUp) return;
+    if (kind === 'face') gFace.classList.add('hot');
+    else if (kind === 'walk') gWalk.classList.add('hot');
+    else if (kind === 'set') gSet.classList.add('hot');
+  }
+
+  function commitGesture(kind) {
+    if (!state.gesturesUp || state.phase !== 'encounter') return;
+    const enc = state.encounter;
+    state.gesturesUp = false;
+    showGestures(false);
+    state.pickedGestures.push({ enc: enc.who, kind });
+    const r = enc.responses[kind];
+    if (r) {
+      if (r.quote) Zara.addQuote(r.quote.id, r.quote.text, r.quote.source);
+      // weight affects stamina (positive cost, negative bonus)
+      const cost = r.weight || 0;
+      state.stamina = Math.max(0, Math.min(100, state.stamina - cost));
+      showCaption(r.text, 4500);
+    }
+    enc.done = true;
+    enc.active = false;
+    state.encounter = null;
+
+    setTimeout(() => {
+      encounterEl.classList.remove('visible');
+      hintEl.classList.remove('dim');
+      state.phase = 'walking';
+      state.dawnPaused = false;
+    }, 900);
+  }
+
+  // ============ INPUT ============
+  const keys = {};
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      if (!state.started) { startBtn.click(); return; }
+    }
+
+    // branch shortcuts
+    if (state.phase === 'branch') {
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') chooseBranch('village');
+      if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') chooseBranch('forest');
+      return;
+    }
+
+    // encounter input — gestures
+    if (state.phase === 'encounter') {
+      if (state.activeWriter && !state.activeWriter.isDone()) {
+        if (e.key === ' ' || e.key === 'Enter') {
+          state.activeWriter.complete();
+        }
+        return;
+      }
+      if (!state.gesturesUp) return;
+      if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+        highlightGesture('face'); setTimeout(() => commitGesture('face'), 220);
+      } else if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+        highlightGesture('walk'); setTimeout(() => commitGesture('walk'), 220);
+      } else if (e.key === 's' || e.key === 'S') {
+        highlightGesture('set'); setTimeout(() => commitGesture('set'), 220);
+      }
+      return;
+    }
+
+    // walking input
+    if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+      keys.fwd = true;
+      if (state.phase === 'walking') {
+        state.walking = true; state.facing = 1;
+        // can't walk while body is set down
+        if (state.setDown) {
+          state.setDown = false;
+          showCaption('You shoulder him again.', 1800);
+        }
+      }
+    }
+    if (e.key === 'a' || e.key === 'A' || e.key === 'ArrowLeft') {
+      // Turn back briefly (no actual back-walk); face left
+      state.facing = -1;
+    }
+    if (e.key === 's' || e.key === 'S') {
+      if (state.phase === 'walking' || state.phase === 'idle') {
+        state.setDown = !state.setDown;
+        state.walking = false;
+        showCaption(state.setDown ? 'You set the body down. Stamina returns.' : 'You shoulder him again.', 1800);
+      }
+    }
+  });
+  document.addEventListener('keyup', (e) => {
+    if (e.key === 'd' || e.key === 'D' || e.key === 'ArrowRight') {
+      keys.fwd = false;
+      state.walking = false;
+    }
+  });
+
+  // ============ START / END ============
+  startBtn.addEventListener('click', () => {
+    state.started = true;
+    state.phase = 'walking';
+    beginEl.classList.add('hidden');
+    setTimeout(() => { beginEl.style.display = 'none'; }, 1200);
+    Zara.audio();
+    Zara.playWind(0.08);
+    setTimeout(() => {
+      showCaption("Dark is the night, dark are Zarathustra\u2019s ways.", 4500);
+    }, 1400);
+  });
+
+  function endJourney() {
+    if (state.phase === 'ending') return;
+    state.phase = 'ending';
+    state.walking = false;
+    state.v = 0;
+    state.dawnPaused = true;
+    Zara.stopWind();
+
+    Zara.addQuote('p8-dark-ways',
+      "Dark is the night, dark are Zarathustra's ways.",
+      "Prologue §7");
+
+    let title, line, source;
+    if (state.deathByExposure) {
+      title = "Dawn caught you on the road.";
+      line = "&ldquo;The sun stood high. Zarathustra still bore the dead one. There was no tree, only light.&rdquo;";
+      source = '— what you carry away from §8';
+    } else if (state.branch === 'forest') {
+      title = "He laid the body in a hollow tree.";
+      line = "&ldquo;Dark is the night, dark are Zarathustra\u2019s ways. Come, cold, stiff companion! I shall carry you where I may bury you with my own hands.&rdquo;";
+      source = "Prologue §7 / §8";
+    } else if (state.branch === 'village') {
+      title = "He laid the body where the cobbles end.";
+      line = "&ldquo;Living companions I need, who follow me because they want to follow themselves &mdash; and to the place where I want to go.&rdquo;";
+      source = "Prologue §9";
+      Zara.addQuote('p9-companions',
+        "Living companions I need, who follow me because they want to follow themselves.",
+        "Prologue §9");
+    } else {
+      title = "He laid the body down.";
+      line = "&ldquo;Dark is the night, dark are Zarathustra\u2019s ways.&rdquo;";
+      source = "Prologue §7";
+    }
+
+    showCaption("Dawn is near. The walker is laid to rest.", 5000);
+
+    setTimeout(() => {
+      endTitleEl.textContent = title;
+      endLineEl.innerHTML = line;
+      endSourceEl.textContent = source;
+      endingEl.classList.add('visible');
+    }, 3000);
+  }
+})();
+</script>
+</body>
+</html>

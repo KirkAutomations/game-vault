@@ -1,0 +1,2467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Efficiency Is Everything - The Game</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Space+Mono&display=swap');
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --neon-green: #39ff14;
+  --neon-blue: #00f0ff;
+  --neon-pink: #ff006e;
+  --neon-yellow: #ffe600;
+  --neon-orange: #ff6a00;
+  --dark-bg: #0a0a1a;
+  --card-bg: #12122a;
+  --card-hover: #1a1a3a;
+}
+
+body {
+  font-family: 'Rajdhani', sans-serif;
+  background: var(--dark-bg);
+  color: #fff;
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Animated background grid */
+.bg-grid {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-image:
+    linear-gradient(rgba(57,255,20,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(57,255,20,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  animation: gridMove 20s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+@keyframes gridMove {
+  0% { transform: translate(0, 0); }
+  100% { transform: translate(50px, 50px); }
+}
+
+/* Floating particles */
+.particles {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.particle {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  background: var(--neon-green);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: floatUp linear infinite;
+}
+
+@keyframes floatUp {
+  0% { transform: translateY(100vh) scale(0); opacity: 0; }
+  10% { opacity: 0.5; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(-10vh) scale(1); opacity: 0; }
+}
+
+/* SCREENS */
+.screen {
+  display: none;
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  padding: 20px;
+}
+.screen.active { display: block; }
+
+/* HUB SCREEN */
+#hub-screen {
+  padding: 30px 20px;
+}
+
+.hub-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.hub-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 2.8em;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-blue));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  text-shadow: none;
+  margin-bottom: 5px;
+  letter-spacing: 2px;
+}
+
+.hub-subtitle {
+  font-size: 1.2em;
+  color: rgba(255,255,255,0.6);
+  font-weight: 300;
+}
+
+/* Stats bar */
+.stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  margin-bottom: 40px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  background: var(--card-bg);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-radius: 12px;
+  padding: 12px 24px;
+  text-align: center;
+  min-width: 140px;
+}
+
+.stat-label {
+  font-size: 0.75em;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.stat-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.8em;
+  font-weight: 700;
+  color: var(--neon-green);
+}
+
+.stat-value.money { color: var(--neon-yellow); }
+.stat-value.time { color: var(--neon-blue); }
+
+/* Savings Ticker */
+.savings-ticker {
+  background: linear-gradient(90deg, rgba(57,255,20,0.1), rgba(0,240,255,0.1));
+  border: 1px solid rgba(57,255,20,0.3);
+  border-radius: 12px;
+  padding: 15px 25px;
+  text-align: center;
+  margin-bottom: 40px;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.savings-ticker .label {
+  font-size: 0.8em;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  color: rgba(255,255,255,0.5);
+  margin-bottom: 5px;
+}
+
+.savings-ticker .amount {
+  font-family: 'Orbitron', monospace;
+  font-size: 2em;
+  font-weight: 700;
+  color: var(--neon-yellow);
+}
+
+.savings-ticker .detail {
+  font-size: 0.85em;
+  color: rgba(255,255,255,0.4);
+  margin-top: 3px;
+}
+
+/* Game grid */
+.game-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.game-card {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--neon-green);
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.game-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(57,255,20,0.3);
+  box-shadow: 0 10px 40px rgba(57,255,20,0.1);
+}
+
+.game-card:hover::before {
+  transform: scaleX(1);
+}
+
+.game-icon {
+  font-size: 2.5em;
+  margin-bottom: 12px;
+}
+
+.game-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.1em;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--neon-green);
+}
+
+.game-desc {
+  font-size: 0.85em;
+  color: rgba(255,255,255,0.5);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.game-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.game-tag {
+  font-size: 0.7em;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(57,255,20,0.1);
+  color: var(--neon-green);
+  border: 1px solid rgba(57,255,20,0.2);
+}
+
+.game-tag.money { background: rgba(255,230,0,0.1); color: var(--neon-yellow); border-color: rgba(255,230,0,0.2); }
+.game-tag.time { background: rgba(0,240,255,0.1); color: var(--neon-blue); border-color: rgba(0,240,255,0.2); }
+.game-tag.life { background: rgba(255,0,110,0.1); color: var(--neon-pink); border-color: rgba(255,0,110,0.2); }
+
+.game-score {
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8em;
+  color: rgba(255,255,255,0.3);
+}
+
+/* GAME SCREEN - shared layout */
+#game-screen {
+  display: none;
+  padding: 20px;
+}
+#game-screen.active { display: block; }
+
+.game-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 10px 15px;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.back-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 0.9em;
+  transition: all 0.2s;
+}
+.back-btn:hover { border-color: var(--neon-green); color: var(--neon-green); }
+
+.game-title-bar {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2em;
+  color: var(--neon-green);
+}
+
+.game-hud {
+  display: flex;
+  gap: 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 0.85em;
+}
+
+.hud-item { color: rgba(255,255,255,0.6); }
+.hud-item span { color: var(--neon-yellow); font-weight: 700; }
+
+/* Game container */
+.game-container {
+  max-width: 900px;
+  margin: 0 auto;
+  min-height: 500px;
+}
+
+/* Shared game UI elements */
+.question-box {
+  background: var(--card-bg);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-radius: 16px;
+  padding: 30px;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.question-text {
+  font-size: 1.5em;
+  font-weight: 600;
+  margin-bottom: 10px;
+  line-height: 1.4;
+}
+
+.question-sub {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.95em;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.option-btn {
+  background: var(--card-bg);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 18px 15px;
+  color: #fff;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1.1em;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.option-btn:hover {
+  border-color: var(--neon-blue);
+  background: rgba(0,240,255,0.05);
+}
+
+.option-btn.correct {
+  border-color: var(--neon-green) !important;
+  background: rgba(57,255,20,0.15) !important;
+  color: var(--neon-green);
+}
+
+.option-btn.wrong {
+  border-color: var(--neon-pink) !important;
+  background: rgba(255,0,110,0.15) !important;
+  color: var(--neon-pink);
+}
+
+.option-btn:disabled { cursor: default; opacity: 0.85; }
+
+/* Feedback panel */
+.feedback-panel {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 20px 25px;
+  margin-top: 15px;
+  border: 1px solid rgba(57,255,20,0.2);
+  display: none;
+}
+
+.feedback-panel.show { display: block; animation: slideUp 0.3s ease; }
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.feedback-panel .tip-label {
+  font-size: 0.75em;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--neon-green);
+  margin-bottom: 5px;
+}
+
+.feedback-panel .tip-text {
+  color: rgba(255,255,255,0.7);
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.feedback-panel .savings-note {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  font-family: 'Space Mono', monospace;
+  font-size: 0.8em;
+  color: var(--neon-yellow);
+}
+
+.next-btn {
+  background: linear-gradient(135deg, var(--neon-green), #00cc44);
+  border: none;
+  color: #000;
+  padding: 12px 40px;
+  border-radius: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 1em;
+  font-weight: 700;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: all 0.2s;
+}
+
+.next-btn:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(57,255,20,0.3); }
+
+/* Timer bar */
+.timer-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 3px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.timer-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--neon-green), var(--neon-blue));
+  border-radius: 3px;
+  transition: width 0.1s linear;
+  width: 100%;
+}
+
+.timer-fill.danger { background: linear-gradient(90deg, var(--neon-orange), var(--neon-pink)); }
+
+/* Drag and drop for sorting games */
+.sort-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.sort-item {
+  background: var(--card-bg);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 15px 20px;
+  cursor: grab;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1em;
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.sort-item:hover { border-color: var(--neon-blue); }
+.sort-item.dragging { opacity: 0.5; border-color: var(--neon-green); }
+.sort-item .handle { color: rgba(255,255,255,0.3); font-size: 1.2em; }
+
+/* Progress / Combo */
+.combo-display {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.combo-text {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.4em;
+  color: var(--neon-orange);
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.combo-text.show { opacity: 1; animation: comboPop 0.3s ease; }
+
+@keyframes comboPop {
+  0% { transform: scale(0.5); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+/* Slot machine styles */
+.slot-machine {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.slot-reel {
+  width: 120px;
+  height: 140px;
+  background: var(--card-bg);
+  border: 2px solid rgba(57,255,20,0.3);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1em;
+  font-weight: 700;
+  overflow: hidden;
+  position: relative;
+}
+
+.slot-reel .food-item {
+  text-align: center;
+  padding: 10px;
+}
+
+.slot-reel .food-name { font-size: 0.9em; color: #fff; }
+.slot-reel .food-stat { font-size: 0.75em; color: var(--neon-green); margin-top: 3px; }
+
+/* Catch game canvas */
+#catch-canvas {
+  width: 100%;
+  max-width: 800px;
+  height: 450px;
+  background: var(--card-bg);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-radius: 12px;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Matching game */
+.match-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.match-card {
+  aspect-ratio: 1;
+  background: var(--card-bg);
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  text-align: center;
+  padding: 8px;
+  transition: all 0.3s;
+  color: transparent;
+  position: relative;
+}
+
+.match-card::before {
+  content: '?';
+  color: rgba(255,255,255,0.3);
+  font-size: 2em;
+  position: absolute;
+}
+
+.match-card.flipped {
+  border-color: var(--neon-blue);
+  color: #fff;
+  background: rgba(0,240,255,0.08);
+}
+
+.match-card.flipped::before { display: none; }
+
+.match-card.matched {
+  border-color: var(--neon-green);
+  color: var(--neon-green);
+  background: rgba(57,255,20,0.08);
+  cursor: default;
+}
+
+.match-card.matched::before { display: none; }
+
+/* Tycoon game */
+.tycoon-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 20px;
+}
+
+.tycoon-main { }
+
+.tycoon-sidebar {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.tycoon-budget {
+  text-align: center;
+  margin-bottom: 15px;
+}
+
+.tycoon-budget .label { font-size: 0.75em; text-transform: uppercase; letter-spacing: 2px; color: rgba(255,255,255,0.4); }
+.tycoon-budget .amount { font-family: 'Orbitron', monospace; font-size: 2em; color: var(--neon-yellow); }
+
+.tycoon-cart {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.cart-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  font-size: 0.85em;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.shop-item {
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 15px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.shop-item:hover { border-color: var(--neon-green); }
+.shop-item .name { font-weight: 600; margin-bottom: 5px; }
+.shop-item .price { color: var(--neon-yellow); font-family: 'Space Mono', monospace; font-size: 0.85em; }
+.shop-item .stats { color: rgba(255,255,255,0.4); font-size: 0.75em; margin-top: 5px; }
+
+/* Speed run game */
+.speed-prompt {
+  font-family: 'Orbitron', monospace;
+  font-size: 3em;
+  text-align: center;
+  color: var(--neon-green);
+  margin: 40px 0;
+  min-height: 80px;
+}
+
+.speed-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.speed-btn {
+  padding: 20px 50px;
+  font-size: 1.5em;
+  font-family: 'Orbitron', monospace;
+  font-weight: 700;
+  border: 2px solid;
+  border-radius: 15px;
+  cursor: pointer;
+  background: var(--card-bg);
+  transition: all 0.15s;
+}
+
+.speed-btn.higher { border-color: var(--neon-green); color: var(--neon-green); }
+.speed-btn.lower { border-color: var(--neon-pink); color: var(--neon-pink); }
+.speed-btn:hover { transform: scale(1.08); }
+
+/* Results screen */
+.results-box {
+  background: var(--card-bg);
+  border: 2px solid var(--neon-green);
+  border-radius: 16px;
+  padding: 40px;
+  text-align: center;
+  max-width: 600px;
+  margin: 40px auto;
+}
+
+.results-box h2 {
+  font-family: 'Orbitron', monospace;
+  font-size: 2em;
+  color: var(--neon-green);
+  margin-bottom: 10px;
+}
+
+.results-box .score {
+  font-family: 'Orbitron', monospace;
+  font-size: 3em;
+  color: var(--neon-yellow);
+  margin: 20px 0;
+}
+
+.results-box .breakdown {
+  text-align: left;
+  margin: 20px 0;
+  padding: 15px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 10px;
+}
+
+.results-box .breakdown div {
+  display: flex;
+  justify-content: space-between;
+  padding: 5px 0;
+  color: rgba(255,255,255,0.6);
+  font-size: 0.9em;
+}
+
+.results-box .breakdown div span:last-child { color: var(--neon-green); font-weight: 600; }
+
+.play-again-btn {
+  background: linear-gradient(135deg, var(--neon-blue), #0088ff);
+  border: none;
+  color: #fff;
+  padding: 12px 35px;
+  border-radius: 10px;
+  font-family: 'Orbitron', monospace;
+  font-size: 0.9em;
+  font-weight: 700;
+  cursor: pointer;
+  margin: 10px 5px;
+  transition: all 0.2s;
+}
+
+.play-again-btn:hover { transform: scale(1.05); }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hub-title { font-size: 1.8em; }
+  .game-grid { grid-template-columns: 1fr; }
+  .options-grid { grid-template-columns: 1fr; }
+  .tycoon-layout { grid-template-columns: 1fr; }
+  .shop-grid { grid-template-columns: repeat(2, 1fr); }
+  .match-grid { grid-template-columns: repeat(3, 1fr); }
+  .stats-bar { gap: 10px; }
+  .stat-item { min-width: 100px; padding: 8px 15px; }
+  .speed-prompt { font-size: 2em; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--dark-bg); }
+::-webkit-scrollbar-thumb { background: rgba(57,255,20,0.3); border-radius: 3px; }
+
+/* Conveyor belt game */
+.conveyor-area {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  background: var(--card-bg);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.conveyor-belt {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: rgba(255,255,255,0.1);
+}
+
+.conveyor-item {
+  position: absolute;
+  bottom: 80px;
+  padding: 12px 18px;
+  background: var(--card-bg);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  text-align: center;
+  min-width: 100px;
+}
+
+.conveyor-item:hover { border-color: var(--neon-green); }
+.conveyor-item .item-name { font-weight: 600; font-size: 0.9em; }
+.conveyor-item .item-val { font-size: 0.75em; color: var(--neon-green); }
+
+.drop-zones {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  height: 55px;
+}
+
+.drop-zone {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255,255,255,0.15);
+  font-size: 0.85em;
+  color: rgba(255,255,255,0.3);
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.drop-zone.good { border-color: rgba(57,255,20,0.3); }
+.drop-zone.bad { border-color: rgba(255,0,110,0.3); }
+.drop-zone.highlight { background: rgba(57,255,20,0.1); }
+
+/* Whack-a-waste */
+.whack-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.whack-hole {
+  aspect-ratio: 1;
+  background: var(--card-bg);
+  border: 2px solid rgba(255,255,255,0.08);
+  border-radius: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85em;
+  text-align: center;
+  padding: 10px;
+  transition: all 0.15s;
+  min-height: 110px;
+}
+
+.whack-hole.active {
+  border-color: var(--neon-pink);
+  background: rgba(255,0,110,0.08);
+  animation: whackPulse 0.5s ease infinite;
+}
+
+.whack-hole.good-active {
+  border-color: var(--neon-green);
+  background: rgba(57,255,20,0.08);
+}
+
+@keyframes whackPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.whack-hole .waste-icon { font-size: 2em; }
+.whack-hole .waste-label { font-size: 0.75em; color: rgba(255,255,255,0.5); margin-top: 3px; }
+
+/* Builder game */
+.builder-plate {
+  width: 300px;
+  min-height: 200px;
+  background: var(--card-bg);
+  border: 2px solid rgba(57,255,20,0.2);
+  border-radius: 50%;
+  margin: 0 auto 20px;
+  padding: 30px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.plate-food {
+  padding: 5px 12px;
+  background: rgba(57,255,20,0.1);
+  border: 1px solid rgba(57,255,20,0.3);
+  border-radius: 20px;
+  font-size: 0.8em;
+  color: var(--neon-green);
+}
+
+.builder-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin: 15px 0;
+}
+
+.builder-stat {
+  text-align: center;
+  padding: 10px;
+  background: var(--card-bg);
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.builder-stat .bs-label { font-size: 0.65em; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,0.4); }
+.builder-stat .bs-val { font-family: 'Orbitron', monospace; font-size: 1.1em; color: var(--neon-green); }
+.builder-stat .bs-val.over { color: var(--neon-pink); }
+
+/* Leaderboard-style ranking game */
+.rank-list {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.rank-slot {
+  display: flex;
+  align-items: center;
+  padding: 12px 15px;
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 10px;
+  margin-bottom: 8px;
+  gap: 15px;
+}
+
+.rank-num {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.2em;
+  color: var(--neon-green);
+  min-width: 30px;
+}
+
+.rank-slot select {
+  flex: 1;
+  background: rgba(0,0,0,0.3);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 1em;
+}
+
+/* Intro screen */
+#intro-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.intro-content {
+  max-width: 600px;
+}
+
+.intro-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 3.5em;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--neon-green), var(--neon-blue), var(--neon-pink));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 15px;
+  line-height: 1.2;
+}
+
+.intro-tagline {
+  font-size: 1.3em;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 30px;
+  font-weight: 300;
+}
+
+.intro-pitch {
+  background: var(--card-bg);
+  border: 1px solid rgba(57,255,20,0.2);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 30px;
+  text-align: left;
+}
+
+.intro-pitch p {
+  color: rgba(255,255,255,0.5);
+  font-size: 0.95em;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+.intro-pitch .highlight {
+  color: var(--neon-yellow);
+  font-weight: 600;
+}
+
+.start-btn {
+  background: linear-gradient(135deg, var(--neon-green), #00cc44);
+  border: none;
+  color: #000;
+  padding: 18px 60px;
+  border-radius: 15px;
+  font-family: 'Orbitron', monospace;
+  font-size: 1.3em;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all 0.3s;
+  letter-spacing: 2px;
+}
+
+.start-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 0 40px rgba(57,255,20,0.4);
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+<div class="particles" id="particles"></div>
+
+<!-- INTRO SCREEN -->
+<div class="screen active" id="intro-screen">
+  <div class="intro-content">
+    <div class="intro-title">EFFICIENCY<br>IS EVERYTHING</div>
+    <div class="intro-tagline">The Game That Pays For Itself</div>
+    <div class="intro-pitch">
+      <p>Every game you play teaches you real-world hacks from <span class="highlight">efficiencyiseverything.com</span> — backed by data, not opinions.</p>
+      <p>By the time you finish, you'll know how to <span class="highlight">save $2,000+/year on food</span>, <span class="highlight">reclaim 600+ hours/year</span>, and optimize everything in between.</p>
+      <p>This isn't just a game. <span class="highlight">It's a cheat code for real life.</span></p>
+    </div>
+    <button class="start-btn" onclick="startGame()">PLAY NOW</button>
+  </div>
+</div>
+
+<!-- HUB SCREEN -->
+<div class="screen" id="hub-screen">
+  <div class="hub-header">
+    <div class="hub-title">EFFICIENCY HQ</div>
+    <div class="hub-subtitle">Choose Your Optimization Mission</div>
+  </div>
+
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-label">Total Score</div>
+      <div class="stat-value" id="total-score">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">$ Saved (Yearly)</div>
+      <div class="stat-value money" id="money-saved">$0</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Hours Saved (Yearly)</div>
+      <div class="stat-value time" id="time-saved">0</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-label">Games Beaten</div>
+      <div class="stat-value" id="games-beaten">0/10</div>
+    </div>
+  </div>
+
+  <div class="savings-ticker">
+    <div class="label">Projected Real-World Savings From What You've Learned</div>
+    <div class="amount" id="ticker-amount">$0 / year</div>
+    <div class="detail" id="ticker-detail">Play games to unlock savings knowledge!</div>
+  </div>
+
+  <div class="game-grid" id="game-grid"></div>
+</div>
+
+<!-- GAME SCREEN -->
+<div class="screen" id="game-screen">
+  <div class="game-header">
+    <button class="back-btn" onclick="goToHub()">< Back</button>
+    <div class="game-title-bar" id="game-title-bar"></div>
+    <div class="game-hud">
+      <div class="hud-item">Score: <span id="hud-score">0</span></div>
+      <div class="hud-item">Round: <span id="hud-round">1</span></div>
+    </div>
+  </div>
+  <div class="game-container" id="game-container"></div>
+</div>
+
+<script>
+// ============================================================
+// GLOBAL STATE
+// ============================================================
+const State = {
+  totalScore: 0,
+  moneySaved: 0,
+  timeSaved: 0,
+  gamesBeaten: new Set(),
+  currentGame: null,
+  gameScore: 0,
+  gameRound: 0,
+  combo: 0,
+  maxCombo: 0
+};
+
+function save() {
+  try {
+    localStorage.setItem('eie_state', JSON.stringify({
+      totalScore: State.totalScore,
+      moneySaved: State.moneySaved,
+      timeSaved: State.timeSaved,
+      gamesBeaten: [...State.gamesBeaten]
+    }));
+  } catch(e) {}
+}
+
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem('eie_state'));
+    if (d) {
+      State.totalScore = d.totalScore || 0;
+      State.moneySaved = d.moneySaved || 0;
+      State.timeSaved = d.timeSaved || 0;
+      State.gamesBeaten = new Set(d.gamesBeaten || []);
+    }
+  } catch(e) {}
+}
+
+// ============================================================
+// DATA - Real data from efficiencyiseverything.com
+// ============================================================
+const FOODS = [
+  { name: "Flour", calPerDol: 4464, protPerDol: 80, price: "$1.68/5lb" },
+  { name: "White Bread", calPerDol: 3333, protPerDol: 103, price: "$0.78/loaf" },
+  { name: "Sugar", calPerDol: 2854, protPerDol: 0, price: "$2.98/4lb" },
+  { name: "Rice", calPerDol: 2320, protPerDol: 42, price: "$6.53/10lb" },
+  { name: "Plain Oats", calPerDol: 2148, protPerDol: 72, price: "$7.89/10lb" },
+  { name: "Ramen", calPerDol: 1949, protPerDol: 45, price: "$2.34/12pk" },
+  { name: "Angel Hair Pasta", calPerDol: 1600, protPerDol: 56, price: "$1.00/lb" },
+  { name: "Peanut Butter", calPerDol: 1487, protPerDol: 52, price: "$10.99/4lb" },
+  { name: "Whole Wheat Pasta", calPerDol: 1470, protPerDol: 56, price: "$1.00/lb" },
+  { name: "Pearled Barley", calPerDol: 1429, protPerDol: 40, price: "$0.98/lb" },
+  { name: "Lentils", calPerDol: 929, protPerDol: 73, price: "$1.12/lb" },
+  { name: "Eggs (Costco)", calPerDol: 802, protPerDol: 70, price: "$3.59/24ct" },
+  { name: "Pinto Beans", calPerDol: 880, protPerDol: 80, price: "$9.12/10lb" },
+  { name: "Chicken Breast", calPerDol: 239, protPerDol: 38, price: "$2.09/lb" },
+  { name: "0.5% Milk", calPerDol: 350, protPerDol: 56, price: "$2.29/gal" },
+  { name: "Greek Yogurt", calPerDol: 161, protPerDol: 28, price: "$3.48/32oz" },
+  { name: "Tilapia", calPerDol: 167, protPerDol: 30, price: "$6.98/2lb" },
+  { name: "Salmon", calPerDol: 85, protPerDol: 18, price: "$1.42 (canned)" },
+  { name: "Little Caesar's Pizza", calPerDol: 423, protPerDol: 20, price: "$5.00" },
+  { name: "Olive Oil", calPerDol: 1100, protPerDol: 0, price: "$8/750ml" },
+  { name: "Bananas", calPerDol: 500, protPerDol: 6, price: "$0.22/each" },
+  { name: "Potatoes", calPerDol: 780, protPerDol: 20, price: "$3.50/5lb" },
+  { name: "Canned Tuna", calPerDol: 300, protPerDol: 55, price: "$1.00/can" },
+  { name: "Turkey (Sale)", calPerDol: 600, protPerDol: 78, price: "$1.08/lb" }
+];
+
+const CAFFEINE = [
+  { name: "Caffeine Pills", mgPerDol: 5000, desc: "200mg pills, bulk" },
+  { name: "Instant Coffee", mgPerDol: 1200, desc: "Cheap & fast" },
+  { name: "Drip Coffee (home)", mgPerDol: 800, desc: "Standard brew" },
+  { name: "Black Tea", mgPerDol: 400, desc: "40mg per bag" },
+  { name: "Energy Drinks", mgPerDol: 80, desc: "Monster/Red Bull" },
+  { name: "Starbucks Latte", mgPerDol: 30, desc: "Expensive caffeine" },
+  { name: "Espresso (cafe)", mgPerDol: 50, desc: "Quick but pricey" },
+  { name: "Green Tea", mgPerDol: 200, desc: "25mg per bag" }
+];
+
+const ALCOHOL = [
+  { name: "Heaven Hill", drinksPerDol: 3.24, type: "bourbon" },
+  { name: "5 O'Clock Vodka", drinksPerDol: 2.99, type: "vodka" },
+  { name: "Burnetts", drinksPerDol: 2.22, type: "vodka" },
+  { name: "Franzia Box Wine", drinksPerDol: 1.50, type: "wine" },
+  { name: "Bud Light 30pk", drinksPerDol: 1.20, type: "beer" },
+  { name: "Craft Beer 6pk", drinksPerDol: 0.40, type: "beer" },
+  { name: "Baileys", drinksPerDol: 0.28, type: "liqueur" },
+  { name: "UV Blue Cocktail", drinksPerDol: 0.09, type: "cocktail" }
+];
+
+const TIME_HACKS = [
+  { hack: "Biphasic Sleep", hoursSaved: 624, desc: "20-min nap + shorter night = 12hrs/week saved" },
+  { hack: "2x Video Speed", hoursSaved: 200, desc: "Watch everything at 2x. Your brain adapts in days." },
+  { hack: "Shower Optimization", hoursSaved: 50, desc: "Mark your handle position. Save 300+ hours over lifetime." },
+  { hack: "Batch Meal Prep", hoursSaved: 150, desc: "Cook once on Sunday, eat all week" },
+  { hack: "Morning Spaghetti Diagram", hoursSaved: 100, desc: "Map your routine, eliminate wasted movement" },
+  { hack: "Packed Lunch System", hoursSaved: 80, desc: "Never wait in line or decide what to eat" },
+  { hack: "5K Training (Minimal)", hoursSaved: 40, desc: "Run 3x/week 20min, not 6x 45min" },
+  { hack: "Pareto Appearance", hoursSaved: 100, desc: "80% of looks from 20% of effort" }
+];
+
+const TASTE_FACTORS = [
+  { factor: "Cold Temperature", why: "Lowers ethanol vapor pressure — less alcohol smell/burn" },
+  { factor: "Citrus (Lemon/Lime)", why: "Vitamin C — your body craves it, makes anything taste better" },
+  { factor: "Salt", why: "Sodium needed for blood pressure — enhances all flavors" },
+  { factor: "Sugar", why: "Rapid energy signal — brain's favorite reward" }
+];
+
+const COOKING_CHEATS = [
+  { cheat: "MSG", desc: "Umami bomb. Safe despite myths. Enhances savory flavor 10x." },
+  { cheat: "Acid (Vinegar/Citrus)", desc: "Brightens everything. Add at end of cooking." },
+  { cheat: "Salt Early", desc: "Season while cooking, not after. Flavors penetrate deeper." },
+  { cheat: "Fat = Flavor", desc: "Olive oil, butter, etc. Carries flavor molecules to taste buds." },
+  { cheat: "High Heat Sear", desc: "Maillard reaction = complex flavors. Don't crowd the pan." }
+];
+
+// ============================================================
+// 10 GAMES DEFINITION
+// ============================================================
+const GAMES = [
+  {
+    id: "calorie-blitz",
+    name: "Calorie Blitz",
+    icon: "⚡",
+    desc: "Speed round! Guess which food gives more calories per dollar. Beat the clock!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$800/yr on groceries",
+    moneySave: 800,
+    timeSave: 0
+  },
+  {
+    id: "protein-showdown",
+    name: "Protein Showdown",
+    icon: "💪",
+    desc: "Higher or Lower — rank foods by protein per dollar. Build the ultimate cheap muscle diet!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$600/yr on protein",
+    moneySave: 600,
+    timeSave: 0
+  },
+  {
+    id: "meal-builder",
+    name: "Meal Architect",
+    icon: "🍽️",
+    desc: "Build a complete meal for under $1.50 that hits protein, calorie, and nutrition targets!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$1,200/yr on meals",
+    moneySave: 1200,
+    timeSave: 0
+  },
+  {
+    id: "time-heist",
+    name: "Time Heist",
+    icon: "⏰",
+    desc: "Match time-saving hacks to their hours saved. Steal back your life!",
+    tag: "time",
+    tagLabel: "SAVE TIME",
+    savings: "600+ hrs/yr",
+    moneySave: 0,
+    timeSave: 600
+  },
+  {
+    id: "caffeine-rush",
+    name: "Caffeine Rush",
+    icon: "☕",
+    desc: "Sort caffeine sources by cost efficiency. Stop overpaying for your energy!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$500/yr on caffeine",
+    moneySave: 500,
+    timeSave: 0
+  },
+  {
+    id: "waste-whacker",
+    name: "Waste Whacker",
+    icon: "🔨",
+    desc: "Whack the money-wasters! Tap inefficient spending before it escapes. Don't hit the deals!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$400/yr less waste",
+    moneySave: 400,
+    timeSave: 0
+  },
+  {
+    id: "speed-optimizer",
+    name: "Speed Optimizer",
+    icon: "🚀",
+    desc: "Rapid-fire true/false about efficiency hacks. How fast can you optimize?",
+    tag: "life",
+    tagLabel: "LIFE HACK",
+    savings: "200+ hrs/yr",
+    moneySave: 200,
+    timeSave: 200
+  },
+  {
+    id: "grocery-tycoon",
+    name: "Grocery Tycoon",
+    icon: "🛒",
+    desc: "You have $10 for the week. Buy groceries to maximize calories AND protein. Beat the optimizer!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$1,000/yr smarter shopping",
+    moneySave: 1000,
+    timeSave: 0
+  },
+  {
+    id: "drink-dealer",
+    name: "Drink Dealer",
+    icon: "🍺",
+    desc: "Sort drinks by cost-efficiency. The 4 taste factors mini-game unlocks flavor science!",
+    tag: "money",
+    tagLabel: "SAVE $$$",
+    savings: "$300/yr on drinks",
+    moneySave: 300,
+    timeSave: 0
+  },
+  {
+    id: "cheat-code-kitchen",
+    name: "Cheat Code Kitchen",
+    icon: "🧪",
+    desc: "Memory match: pair cooking techniques with their science. Unlock the 5 cheat codes!",
+    tag: "life",
+    tagLabel: "LIFE HACK",
+    savings: "Better food, same cost",
+    moneySave: 100,
+    timeSave: 50
+  }
+];
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  load();
+  createParticles();
+}
+
+function createParticles() {
+  const cont = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDuration = (8 + Math.random() * 15) + 's';
+    p.style.animationDelay = Math.random() * 10 + 's';
+    p.style.background = ['#39ff14','#00f0ff','#ff006e','#ffe600'][Math.floor(Math.random()*4)];
+    cont.appendChild(p);
+  }
+}
+
+function startGame() {
+  showScreen('hub-screen');
+  renderHub();
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  window.scrollTo(0, 0);
+}
+
+function updateHubStats() {
+  document.getElementById('total-score').textContent = State.totalScore.toLocaleString();
+  document.getElementById('money-saved').textContent = '$' + State.moneySaved.toLocaleString();
+  document.getElementById('time-saved').textContent = State.timeSaved;
+  document.getElementById('games-beaten').textContent = State.gamesBeaten.size + '/10';
+  document.getElementById('ticker-amount').textContent = '$' + State.moneySaved.toLocaleString() + ' / year';
+
+  const tips = [
+    "Play games to unlock savings knowledge!",
+    "You now know more about food costs than 95% of people!",
+    "That's a vacation funded by smart eating!",
+    "Time is money — and you're banking both!",
+    "You're becoming an optimization machine!"
+  ];
+  const idx = Math.min(Math.floor(State.gamesBeaten.size / 2), tips.length - 1);
+  document.getElementById('ticker-detail').textContent = tips[idx];
+}
+
+function renderHub() {
+  updateHubStats();
+  const grid = document.getElementById('game-grid');
+  grid.innerHTML = '';
+  GAMES.forEach(g => {
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.onclick = () => launchGame(g.id);
+    const beaten = State.gamesBeaten.has(g.id);
+    card.innerHTML = `
+      <div class="game-icon">${g.icon}</div>
+      <div class="game-name">${g.name}</div>
+      <div class="game-desc">${g.desc}</div>
+      <div class="game-meta">
+        <span class="game-tag ${g.tag}">${g.tagLabel}</span>
+        <span class="game-score">${beaten ? '✓ BEATEN' : g.savings}</span>
+      </div>
+    `;
+    if (beaten) card.style.borderColor = 'rgba(57,255,20,0.3)';
+    grid.appendChild(card);
+  });
+}
+
+function goToHub() {
+  showScreen('hub-screen');
+  renderHub();
+}
+
+// ============================================================
+// GAME LAUNCHER
+// ============================================================
+function launchGame(id) {
+  State.currentGame = id;
+  State.gameScore = 0;
+  State.gameRound = 0;
+  State.combo = 0;
+  State.maxCombo = 0;
+  showScreen('game-screen');
+  const g = GAMES.find(x => x.id === id);
+  document.getElementById('game-title-bar').textContent = g.name;
+  updateHUD();
+
+  switch(id) {
+    case 'calorie-blitz': startCalorieBlitz(); break;
+    case 'protein-showdown': startProteinShowdown(); break;
+    case 'meal-builder': startMealBuilder(); break;
+    case 'time-heist': startTimeHeist(); break;
+    case 'caffeine-rush': startCaffeineRush(); break;
+    case 'waste-whacker': startWasteWhacker(); break;
+    case 'speed-optimizer': startSpeedOptimizer(); break;
+    case 'grocery-tycoon': startGroceryTycoon(); break;
+    case 'drink-dealer': startDrinkDealer(); break;
+    case 'cheat-code-kitchen': startCheatCodeKitchen(); break;
+  }
+}
+
+function updateHUD() {
+  document.getElementById('hud-score').textContent = State.gameScore;
+  document.getElementById('hud-round').textContent = State.gameRound;
+}
+
+function endGame(bonusMsg) {
+  const g = GAMES.find(x => x.id === State.currentGame);
+  const beaten = State.gameScore >= 50;
+  if (beaten && !State.gamesBeaten.has(State.currentGame)) {
+    State.gamesBeaten.add(State.currentGame);
+    State.moneySaved += g.moneySave;
+    State.timeSaved += g.timeSave;
+  }
+  State.totalScore += State.gameScore;
+  save();
+
+  const cont = document.getElementById('game-container');
+  cont.innerHTML = `
+    <div class="results-box">
+      <h2>${beaten ? 'MISSION COMPLETE!' : 'GOOD TRY!'}</h2>
+      <div class="score">${State.gameScore} pts</div>
+      <div class="breakdown">
+        <div><span>Max Combo</span><span>${State.maxCombo}x</span></div>
+        <div><span>Rounds Played</span><span>${State.gameRound}</span></div>
+        ${beaten ? `<div><span>Real Savings Unlocked</span><span style="color:#ffe600">${g.savings}</span></div>` : ''}
+        ${bonusMsg ? `<div><span>Bonus</span><span>${bonusMsg}</span></div>` : ''}
+      </div>
+      ${beaten ? `<p style="color:rgba(255,255,255,0.5);font-size:0.85em;margin:15px 0;">By learning this, you can save <strong style="color:#ffe600">${g.savings}</strong> in real life. That knowledge is yours forever.</p>` : '<p style="color:rgba(255,255,255,0.5);font-size:0.85em;margin:15px 0;">Score 50+ to unlock real-world savings knowledge!</p>'}
+      <button class="play-again-btn" onclick="launchGame('${State.currentGame}')">Play Again</button>
+      <button class="next-btn" onclick="goToHub()" style="background:linear-gradient(135deg,var(--neon-blue),#0088ff);color:#fff;">Back to HQ</button>
+    </div>
+  `;
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function pick(arr, n) { return shuffle(arr).slice(0, n); }
+
+// ============================================================
+// GAME 1: CALORIE BLITZ
+// ============================================================
+function startCalorieBlitz() {
+  const rounds = 10;
+  let pairs = [];
+  for (let i = 0; i < rounds; i++) {
+    const p = pick(FOODS.filter(f => f.calPerDol > 0), 2);
+    pairs.push(p);
+  }
+  let timer = 100;
+  let timerInterval;
+
+  function renderRound() {
+    State.gameRound++;
+    if (State.gameRound > rounds) { clearInterval(timerInterval); endGame(); return; }
+    updateHUD();
+    const [a, b] = pairs[State.gameRound - 1];
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+      <div class="combo-display"><div class="combo-text ${State.combo >= 2 ? 'show' : ''}" id="combo">${State.combo}x COMBO!</div></div>
+      <div class="question-box">
+        <div class="question-text">Which gives more CALORIES per dollar?</div>
+        <div class="question-sub">Round ${State.gameRound} of ${rounds}</div>
+      </div>
+      <div class="options-grid">
+        <button class="option-btn" id="opt-a" onclick="cbAnswer(0)">${a.name}<br><small style="color:rgba(255,255,255,0.3)">${a.price}</small></button>
+        <button class="option-btn" id="opt-b" onclick="cbAnswer(1)">${b.name}<br><small style="color:rgba(255,255,255,0.3)">${b.price}</small></button>
+      </div>
+      <div class="feedback-panel" id="feedback"></div>
+    `;
+
+    if (!timerInterval) {
+      timerInterval = setInterval(() => {
+        timer -= 0.5;
+        const fill = document.getElementById('timer-fill');
+        if (fill) {
+          fill.style.width = timer + '%';
+          if (timer < 30) fill.classList.add('danger');
+        }
+        if (timer <= 0) { clearInterval(timerInterval); endGame('Time\'s up!'); }
+      }, 50);
+    }
+  }
+
+  window.cbAnswer = function(choice) {
+    const [a, b] = pairs[State.gameRound - 1];
+    const correct = a.calPerDol >= b.calPerDol ? 0 : 1;
+    const isCorrect = choice === correct;
+    const winner = correct === 0 ? a : b;
+    const loser = correct === 0 ? b : a;
+
+    document.getElementById('opt-a').disabled = true;
+    document.getElementById('opt-b').disabled = true;
+
+    if (isCorrect) {
+      State.combo++;
+      if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+      const pts = 10 * Math.min(State.combo, 5);
+      State.gameScore += pts;
+      timer = Math.min(timer + 5, 100);
+      document.getElementById(choice === 0 ? 'opt-a' : 'opt-b').classList.add('correct');
+    } else {
+      State.combo = 0;
+      timer = Math.max(timer - 10, 0);
+      document.getElementById(choice === 0 ? 'opt-a' : 'opt-b').classList.add('wrong');
+      document.getElementById(choice === 0 ? 'opt-b' : 'opt-a').classList.add('correct');
+    }
+
+    const fb = document.getElementById('feedback');
+    fb.classList.add('show');
+    fb.innerHTML = `
+      <div class="tip-label">${isCorrect ? '✓ Correct!' : '✗ Not Quite!'}</div>
+      <div class="tip-text">${winner.name}: <strong>${winner.calPerDol.toLocaleString()} cal/$</strong> vs ${loser.name}: <strong>${loser.calPerDol.toLocaleString()} cal/$</strong></div>
+      <div class="savings-note">💡 Buying ${winner.name} over ${loser.name} saves you ${Math.round((1 - loser.calPerDol/winner.calPerDol) * -100)}% more energy per dollar!</div>
+    `;
+
+    updateHUD();
+    setTimeout(renderRound, 1800);
+  };
+
+  renderRound();
+}
+
+// ============================================================
+// GAME 2: PROTEIN SHOWDOWN (Higher/Lower)
+// ============================================================
+function startProteinShowdown() {
+  const foods = shuffle(FOODS.filter(f => f.protPerDol > 0)).slice(0, 12);
+  let currentIdx = 0;
+
+  function renderRound() {
+    State.gameRound++;
+    if (currentIdx >= foods.length - 1) { endGame(); return; }
+    updateHUD();
+    const current = foods[currentIdx];
+    const next = foods[currentIdx + 1];
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="combo-display"><div class="combo-text ${State.combo >= 2 ? 'show' : ''}">${State.combo}x COMBO!</div></div>
+      <div class="question-box">
+        <div class="question-text" style="font-size:1.2em">${current.name}</div>
+        <div style="font-family:'Orbitron',monospace;font-size:2.5em;color:var(--neon-green);margin:15px 0">${current.protPerDol}g protein/$</div>
+      </div>
+      <div class="question-box" style="border-color:rgba(0,240,255,0.2)">
+        <div class="question-sub">Does this have HIGHER or LOWER protein per dollar?</div>
+        <div class="question-text" style="font-size:1.5em;color:var(--neon-blue)">${next.name}</div>
+        <div style="font-size:1em;color:rgba(255,255,255,0.3)">${next.price}</div>
+      </div>
+      <div class="speed-buttons" style="margin-top:20px">
+        <button class="speed-btn higher" onclick="psAnswer('higher')">↑ HIGHER</button>
+        <button class="speed-btn lower" onclick="psAnswer('lower')">↓ LOWER</button>
+      </div>
+      <div class="feedback-panel" id="feedback"></div>
+    `;
+  }
+
+  window.psAnswer = function(guess) {
+    const current = foods[currentIdx];
+    const next = foods[currentIdx + 1];
+    const actual = next.protPerDol >= current.protPerDol ? 'higher' : 'lower';
+    const isCorrect = guess === actual || next.protPerDol === current.protPerDol;
+
+    if (isCorrect) {
+      State.combo++;
+      if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+      State.gameScore += 10 * Math.min(State.combo, 5);
+    } else {
+      State.combo = 0;
+    }
+
+    const fb = document.getElementById('feedback');
+    fb.classList.add('show');
+    fb.innerHTML = `
+      <div class="tip-label">${isCorrect ? '✓ Correct!' : '✗ Wrong!'}</div>
+      <div class="tip-text">${next.name} has <strong>${next.protPerDol}g protein per dollar</strong> — that's ${actual} than ${current.name}'s ${current.protPerDol}g.</div>
+      <div class="savings-note">💡 ${next.protPerDol > 40 ? next.name + ' is a top-tier cheap protein source!' : 'Look for foods with 40g+ protein/$ to save big on fitness goals.'}</div>
+    `;
+
+    document.querySelectorAll('.speed-btn').forEach(b => b.disabled = true);
+    updateHUD();
+    currentIdx++;
+    setTimeout(renderRound, 2000);
+  };
+
+  renderRound();
+}
+
+// ============================================================
+// GAME 3: MEAL ARCHITECT
+// ============================================================
+function startMealBuilder() {
+  const available = shuffle(FOODS).slice(0, 12);
+  let plate = [];
+  const BUDGET = 1.50;
+  const CAL_TARGET = 600;
+  const PROT_TARGET = 30;
+
+  function getPlateStats() {
+    let cost = 0, cal = 0, prot = 0;
+    plate.forEach(f => {
+      const serving = f.calPerDol > 1000 ? 0.15 : f.calPerDol > 500 ? 0.30 : 0.50;
+      cost += serving;
+      cal += f.calPerDol * serving;
+      prot += f.protPerDol * serving;
+    });
+    return { cost: +cost.toFixed(2), cal: Math.round(cal), prot: Math.round(prot) };
+  }
+
+  function render() {
+    const stats = getPlateStats();
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">Build a Meal for Under $1.50</div>
+        <div class="question-sub">Hit ${CAL_TARGET}+ calories AND ${PROT_TARGET}g+ protein to win!</div>
+      </div>
+      <div class="builder-stats">
+        <div class="builder-stat"><div class="bs-label">Budget</div><div class="bs-val ${stats.cost > BUDGET ? 'over' : ''}">\$${stats.cost} / \$${BUDGET.toFixed(2)}</div></div>
+        <div class="builder-stat"><div class="bs-label">Calories</div><div class="bs-val ${stats.cal >= CAL_TARGET ? '' : ''}">${stats.cal}</div></div>
+        <div class="builder-stat"><div class="bs-label">Protein</div><div class="bs-val">${stats.prot}g</div></div>
+        <div class="builder-stat"><div class="bs-label">Items</div><div class="bs-val">${plate.length}/5</div></div>
+      </div>
+      <div class="builder-plate" id="plate-visual">
+        ${plate.length === 0 ? '<span style="color:rgba(255,255,255,0.2)">Tap foods to add</span>' : plate.map((f, i) => `<span class="plate-food" onclick="removeFromPlate(${i})" style="cursor:pointer" title="Click to remove">${f.name}</span>`).join('')}
+      </div>
+      <div class="shop-grid">
+        ${available.map((f, i) => `
+          <div class="shop-item" onclick="addToPlate(${i})" ${plate.length >= 5 ? 'style="opacity:0.4;pointer-events:none"' : ''}>
+            <div class="name">${f.name}</div>
+            <div class="price">${f.price}</div>
+            <div class="stats">${f.calPerDol} cal/$ · ${f.protPerDol}g prot/$</div>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;margin-top:20px">
+        <button class="next-btn" onclick="submitMeal()">SERVE MEAL</button>
+      </div>
+    `;
+  }
+
+  window.addToPlate = function(i) {
+    if (plate.length >= 5) return;
+    plate.push(available[i]);
+    render();
+  };
+
+  window.removeFromPlate = function(i) {
+    plate.splice(i, 1);
+    render();
+  };
+
+  window.submitMeal = function() {
+    const stats = getPlateStats();
+    State.gameRound++;
+    let score = 0;
+    let msgs = [];
+
+    if (stats.cost <= BUDGET) { score += 20; msgs.push('Under budget! +20'); }
+    else { msgs.push('Over budget!'); }
+    if (stats.cal >= CAL_TARGET) { score += 20; msgs.push(`${stats.cal} calories! +20`); }
+    else { msgs.push(`Only ${stats.cal} cal (need ${CAL_TARGET})`); }
+    if (stats.prot >= PROT_TARGET) { score += 20; msgs.push(`${stats.prot}g protein! +20`); }
+    else { msgs.push(`Only ${stats.prot}g protein (need ${PROT_TARGET}g)`); }
+
+    // Bonus for efficiency
+    if (stats.cost <= 1.00 && stats.cal >= CAL_TARGET && stats.prot >= PROT_TARGET) {
+      score += 30;
+      msgs.push('ULTRA EFFICIENT! Under $1! +30');
+    }
+    if (plate.length <= 3 && stats.cal >= CAL_TARGET) {
+      score += 10;
+      msgs.push('Minimalist meal! +10');
+    }
+
+    State.gameScore += score;
+    updateHUD();
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="results-box">
+        <h2>${score >= 50 ? 'CHEF OPTIMIZER!' : 'NEEDS WORK'}</h2>
+        <div class="score">+${score} pts</div>
+        <div class="breakdown">
+          ${msgs.map(m => `<div><span>${m}</span></div>`).join('')}
+        </div>
+        <p style="color:rgba(255,255,255,0.5);font-size:0.85em;margin:15px 0;">
+          💡 The key insight: Lentils + Rice + Chicken = a complete meal under $1.50 with 40g+ protein.
+          Most Americans spend $10-15/meal when $1.50 is possible with smart choices.
+        </p>
+        <button class="next-btn" onclick="plate=[];startMealBuilder()">Try Another Meal</button>
+        <button class="play-again-btn" onclick="endGame()">Finish</button>
+      </div>
+    `;
+  };
+
+  State.gameRound = 0;
+  render();
+}
+
+// ============================================================
+// GAME 4: TIME HEIST (Memory Match)
+// ============================================================
+function startTimeHeist() {
+  const hacks = shuffle(TIME_HACKS);
+  const cards = [];
+  hacks.forEach(h => {
+    cards.push({ type: 'hack', text: h.hack, match: h.hack });
+    cards.push({ type: 'hours', text: h.hoursSaved + ' hrs/yr', match: h.hack, desc: h.desc });
+  });
+  const shuffled = shuffle(cards);
+  let flipped = [];
+  let matched = new Set();
+  let moves = 0;
+
+  function render() {
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">Match Each Hack to Its Hours Saved</div>
+        <div class="question-sub">Moves: ${moves} | Matched: ${matched.size}/${hacks.length}</div>
+      </div>
+      <div class="match-grid" style="grid-template-columns: repeat(4, 1fr)">
+        ${shuffled.map((c, i) => {
+          const isFlipped = flipped.includes(i) || matched.has(c.match + c.type);
+          const isMatched = matched.has(c.match + c.type);
+          return `<div class="match-card ${isFlipped ? 'flipped' : ''} ${isMatched ? 'matched' : ''}"
+            onclick="thFlip(${i})" style="min-height:80px;font-size:0.8em">
+            ${isFlipped || isMatched ? c.text : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="feedback-panel ${flipped.length === 2 ? 'show' : ''}" id="feedback"></div>
+    `;
+  }
+
+  window.thFlip = function(i) {
+    if (flipped.length >= 2) return;
+    if (flipped.includes(i)) return;
+    if (matched.has(shuffled[i].match + shuffled[i].type)) return;
+
+    flipped.push(i);
+    render();
+
+    if (flipped.length === 2) {
+      moves++;
+      const a = shuffled[flipped[0]];
+      const b = shuffled[flipped[1]];
+
+      if (a.match === b.match && a.type !== b.type) {
+        // Match!
+        matched.add(a.match + a.type);
+        matched.add(b.match + b.type);
+        State.combo++;
+        if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+        State.gameScore += 10 * Math.min(State.combo, 5);
+        State.gameRound++;
+        updateHUD();
+
+        const hack = hacks.find(h => h.hack === a.match);
+        const fb = document.getElementById('feedback');
+        if (fb) {
+          fb.classList.add('show');
+          fb.innerHTML = `
+            <div class="tip-label">✓ Matched!</div>
+            <div class="tip-text"><strong>${hack.hack}:</strong> ${hack.desc}</div>
+            <div class="savings-note">💡 That's ${hack.hoursSaved} hours per year — ${Math.round(hack.hoursSaved/24)} full days you get back!</div>
+          `;
+        }
+
+        setTimeout(() => {
+          flipped = [];
+          if (matched.size === hacks.length * 2) { endGame(`${moves} moves`); }
+          else render();
+        }, 2000);
+      } else {
+        State.combo = 0;
+        setTimeout(() => { flipped = []; render(); }, 1000);
+      }
+    }
+  };
+
+  render();
+}
+
+// ============================================================
+// GAME 5: CAFFEINE RUSH (Sorting)
+// ============================================================
+function startCaffeineRush() {
+  let items = shuffle(CAFFEINE);
+  let dragIdx = null;
+
+  function render() {
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">Sort by Caffeine Per Dollar</div>
+        <div class="question-sub">Drag to rank from MOST efficient (top) to LEAST efficient (bottom)</div>
+      </div>
+      <div class="sort-container" id="sort-list">
+        ${items.map((c, i) => `
+          <div class="sort-item" draggable="true" data-idx="${i}"
+            ondragstart="crDragStart(event,${i})" ondragover="crDragOver(event)" ondrop="crDrop(event,${i})">
+            <span>${c.name} <small style="color:rgba(255,255,255,0.3)">— ${c.desc}</small></span>
+            <span class="handle">⠿</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;margin-top:20px">
+        <button class="next-btn" onclick="crSubmit()">CHECK ORDER</button>
+      </div>
+    `;
+  }
+
+  window.crDragStart = function(e, i) { dragIdx = i; e.dataTransfer.effectAllowed = 'move'; };
+  window.crDragOver = function(e) { e.preventDefault(); };
+  window.crDrop = function(e, i) {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === i) return;
+    const item = items.splice(dragIdx, 1)[0];
+    items.splice(i, 0, item);
+    dragIdx = null;
+    render();
+  };
+
+  window.crSubmit = function() {
+    State.gameRound++;
+    const correct = [...CAFFEINE].sort((a, b) => b.mgPerDol - a.mgPerDol);
+    let score = 0;
+    let details = [];
+
+    items.forEach((item, i) => {
+      const correctIdx = correct.findIndex(c => c.name === item.name);
+      const diff = Math.abs(i - correctIdx);
+      if (diff === 0) { score += 15; details.push(`${item.name}: Perfect! +15`); }
+      else if (diff === 1) { score += 8; details.push(`${item.name}: Close! +8`); }
+      else { details.push(`${item.name}: Off by ${diff}`); }
+    });
+
+    State.gameScore += score;
+    updateHUD();
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="results-box">
+        <h2>+${score} Points!</h2>
+        <div class="breakdown">
+          ${details.map(d => `<div><span>${d}</span></div>`).join('')}
+        </div>
+        <div style="margin:20px 0;text-align:left;padding:15px;background:rgba(0,0,0,0.2);border-radius:10px">
+          <div style="color:var(--neon-green);font-weight:600;margin-bottom:10px">Correct Ranking:</div>
+          ${correct.map((c, i) => `<div style="color:rgba(255,255,255,0.6);padding:3px 0">${i+1}. ${c.name} — <span style="color:var(--neon-yellow)">${c.mgPerDol} mg/$</span></div>`).join('')}
+        </div>
+        <p style="color:rgba(255,255,255,0.5);font-size:0.85em;margin:15px 0;">
+          💡 Caffeine pills cost roughly 100x less per mg than Starbucks. Even switching to home drip saves $500+/year.
+        </p>
+        <button class="play-again-btn" onclick="startCaffeineRush()">Sort Again</button>
+        <button class="next-btn" onclick="endGame()" style="background:linear-gradient(135deg,var(--neon-blue),#0088ff);color:#fff;">Finish</button>
+      </div>
+    `;
+  };
+
+  render();
+}
+
+// ============================================================
+// GAME 6: WASTE WHACKER
+// ============================================================
+function startWasteWhacker() {
+  const wastes = [
+    { name: "Starbucks Daily", icon: "☕", cost: "$5/day", isWaste: true },
+    { name: "Bottled Water", icon: "💧", cost: "$3/day", isWaste: true },
+    { name: "Fast Food Lunch", icon: "🍔", cost: "$12/meal", isWaste: true },
+    { name: "Energy Drinks", icon: "⚡", cost: "$4/can", isWaste: true },
+    { name: "Uber Eats Fees", icon: "📱", cost: "$8/order", isWaste: true },
+    { name: "Premium Protein", icon: "💊", cost: "$2/serving", isWaste: true },
+    { name: "Name Brand Cereal", icon: "🥣", cost: "2x generic", isWaste: true },
+    { name: "Pre-Cut Veggies", icon: "🥕", cost: "3x whole", isWaste: true },
+    { name: "Lentils", icon: "🫘", cost: "$1.12/lb", isWaste: false },
+    { name: "Rice (bulk)", icon: "🍚", cost: "$6.53/10lb", isWaste: false },
+    { name: "Eggs (Costco)", icon: "🥚", cost: "$3.59/24", isWaste: false },
+    { name: "Oats (bulk)", icon: "🥣", cost: "$7.89/10lb", isWaste: false },
+    { name: "Tap Water", icon: "🚰", cost: "Free", isWaste: false },
+    { name: "Home Coffee", icon: "☕", cost: "$0.10/cup", isWaste: false }
+  ];
+
+  let lives = 3;
+  let timeLeft = 30;
+  let active = [];
+  let gameTimer;
+  let spawnTimer;
+
+  function render() {
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">Whack the MONEY WASTERS!</div>
+        <div class="question-sub">Tap wasteful spending. DON'T tap the good deals! Lives: ${'❤️'.repeat(lives)} | Time: <span id="ww-time">${timeLeft}s</span></div>
+      </div>
+      <div class="whack-grid" id="whack-grid">
+        ${Array(9).fill(0).map((_, i) => `<div class="whack-hole" id="hole-${i}" onclick="whack(${i})"></div>`).join('')}
+      </div>
+      <div class="feedback-panel" id="feedback"></div>
+    `;
+
+    gameTimer = setInterval(() => {
+      timeLeft--;
+      const el = document.getElementById('ww-time');
+      if (el) el.textContent = timeLeft + 's';
+      if (timeLeft <= 0 || lives <= 0) {
+        clearInterval(gameTimer);
+        clearInterval(spawnTimer);
+        endGame(`${lives} lives remaining`);
+      }
+    }, 1000);
+
+    spawnTimer = setInterval(spawnItem, 1200);
+  }
+
+  function spawnItem() {
+    // Clear old active items
+    active.forEach(a => {
+      const hole = document.getElementById('hole-' + a.hole);
+      if (hole) { hole.className = 'whack-hole'; hole.innerHTML = ''; }
+    });
+    active = [];
+
+    // Spawn 1-3 items
+    const count = Math.min(1 + Math.floor(State.gameScore / 30), 3);
+    const holes = shuffle([0,1,2,3,4,5,6,7,8]).slice(0, count);
+
+    holes.forEach(h => {
+      const item = wastes[Math.floor(Math.random() * wastes.length)];
+      const hole = document.getElementById('hole-' + h);
+      if (hole) {
+        hole.className = 'whack-hole ' + (item.isWaste ? 'active' : 'good-active');
+        hole.innerHTML = `<div class="waste-icon">${item.icon}</div><div class="waste-label">${item.name}<br>${item.cost}</div>`;
+        active.push({ hole: h, item });
+      }
+    });
+
+    setTimeout(() => {
+      active.forEach(a => {
+        const hole = document.getElementById('hole-' + a.hole);
+        if (hole && hole.classList.contains('active')) {
+          hole.className = 'whack-hole';
+          hole.innerHTML = '';
+        }
+        if (hole && hole.classList.contains('good-active')) {
+          hole.className = 'whack-hole';
+          hole.innerHTML = '';
+        }
+      });
+      active = [];
+    }, 1000);
+  }
+
+  window.whack = function(h) {
+    const a = active.find(x => x.hole === h);
+    if (!a) return;
+
+    const hole = document.getElementById('hole-' + h);
+    if (!hole) return;
+
+    if (a.item.isWaste) {
+      State.combo++;
+      if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+      State.gameScore += 5 * Math.min(State.combo, 5);
+      State.gameRound++;
+      hole.style.background = 'rgba(57,255,20,0.2)';
+      hole.innerHTML = '<div style="color:var(--neon-green);font-size:1.5em">💥</div>';
+    } else {
+      State.combo = 0;
+      lives--;
+      State.gameScore = Math.max(0, State.gameScore - 10);
+      hole.style.background = 'rgba(255,0,110,0.2)';
+      hole.innerHTML = '<div style="color:var(--neon-pink);font-size:1em">That\'s a DEAL!</div>';
+    }
+    updateHUD();
+    active = active.filter(x => x.hole !== h);
+  };
+
+  render();
+}
+
+// ============================================================
+// GAME 7: SPEED OPTIMIZER (True/False Rapid Fire)
+// ============================================================
+function startSpeedOptimizer() {
+  const questions = shuffle([
+    { q: "Flour has over 4,000 calories per dollar", a: true, tip: "Flour: 4,464 cal/$ — the king of cheap calories." },
+    { q: "Starbucks is the most efficient caffeine source", a: false, tip: "Caffeine pills give 5,000mg/$ vs Starbucks' 30mg/$. That's 166x more efficient." },
+    { q: "Biphasic sleep can save 12 hours per week", a: true, tip: "A 20-min nap lets you sleep less at night. 12 hrs/week = 624 hrs/year." },
+    { q: "Lentils have more protein per dollar than chicken", a: true, tip: "Lentils: 73g prot/$ vs Chicken: 38g prot/$. Nearly double!" },
+    { q: "Eating at home is about the same cost as fast food", a: false, tip: "Home cooking is 2-10x cheaper per calorie than any fast food." },
+    { q: "Watching videos at 2x speed cuts your viewing time in half", a: true, tip: "Your brain adapts in days. That's 200+ hours/year for average viewers." },
+    { q: "Greek Yogurt is a top-tier protein per dollar food", a: false, tip: "Greek Yogurt: only 28g prot/$. Eggs, lentils, and beans all beat it." },
+    { q: "Rice has more calories per dollar than ramen", a: true, tip: "Rice: 2,320 cal/$ vs Ramen: 1,949 cal/$. Bulk rice wins." },
+    { q: "Cold temperature makes alcohol taste worse", a: false, tip: "Cold lowers ethanol vapor pressure — LESS alcohol smell = better taste." },
+    { q: "MSG is dangerous and should be avoided", a: false, tip: "MSG is safe (confirmed by science). It's an umami flavor bomb for pennies." },
+    { q: "Salt, sugar, citrus, and cold are the 4 taste factors", a: true, tip: "These 4 factors explain most of what makes food/drinks taste good." },
+    { q: "Morning routines can be optimized with spaghetti diagrams", a: true, tip: "Map your movement. Eliminate backtracking. Save 100+ hours/year." },
+    { q: "Salmon is one of the cheapest protein sources", a: false, tip: "Salmon: only 18g prot/$. Great nutrition, but expensive per gram of protein." },
+    { q: "You can run a 5K with just 3 sessions per week", a: true, tip: "20 min, 3x/week. More isn't better for beginners — it's just more time." },
+    { q: "Peanut butter has more calories per dollar than eggs", a: true, tip: "PB: 1,487 cal/$ vs Eggs: 802 cal/$. PB is an energy powerhouse." }
+  ]);
+
+  let idx = 0;
+  let timer = 8;
+  let timerInt;
+
+  function renderQ() {
+    if (idx >= questions.length) { endGame(); return; }
+    State.gameRound = idx + 1;
+    updateHUD();
+    timer = 8;
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="timer-bar"><div class="timer-fill" id="timer-fill"></div></div>
+      <div class="combo-display"><div class="combo-text ${State.combo >= 2 ? 'show' : ''}">${State.combo}x COMBO!</div></div>
+      <div class="question-box">
+        <div class="question-sub">Round ${idx + 1} of ${questions.length}</div>
+        <div class="question-text">"${questions[idx].q}"</div>
+      </div>
+      <div class="speed-buttons">
+        <button class="speed-btn higher" style="border-color:var(--neon-green);color:var(--neon-green)" onclick="soAnswer(true)">TRUE</button>
+        <button class="speed-btn lower" style="border-color:var(--neon-pink);color:var(--neon-pink)" onclick="soAnswer(false)">FALSE</button>
+      </div>
+      <div class="feedback-panel" id="feedback"></div>
+    `;
+
+    clearInterval(timerInt);
+    timerInt = setInterval(() => {
+      timer -= 0.1;
+      const fill = document.getElementById('timer-fill');
+      if (fill) {
+        fill.style.width = (timer / 8 * 100) + '%';
+        if (timer < 3) fill.classList.add('danger');
+      }
+      if (timer <= 0) {
+        clearInterval(timerInt);
+        State.combo = 0;
+        idx++;
+        setTimeout(renderQ, 500);
+      }
+    }, 100);
+  }
+
+  window.soAnswer = function(ans) {
+    clearInterval(timerInt);
+    const q = questions[idx];
+    const isCorrect = ans === q.a;
+
+    if (isCorrect) {
+      State.combo++;
+      if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+      const timeBonus = Math.round(timer * 2);
+      State.gameScore += 5 + timeBonus + (State.combo * 2);
+    } else {
+      State.combo = 0;
+    }
+
+    document.querySelectorAll('.speed-btn').forEach(b => b.disabled = true);
+    const fb = document.getElementById('feedback');
+    fb.classList.add('show');
+    fb.innerHTML = `
+      <div class="tip-label">${isCorrect ? '✓ Correct!' : '✗ Nope!'} ${isCorrect ? '(+' + (5 + Math.round(timer * 2) + State.combo * 2) + ' pts)' : ''}</div>
+      <div class="tip-text">${q.tip}</div>
+    `;
+    updateHUD();
+    idx++;
+    setTimeout(renderQ, 2200);
+  };
+
+  renderQ();
+}
+
+// ============================================================
+// GAME 8: GROCERY TYCOON
+// ============================================================
+function startGroceryTycoon() {
+  let budget = 10.00;
+  let cart = [];
+  const shopItems = FOODS.map(f => {
+    // Calculate a per-serving price
+    const servingCost = f.calPerDol > 1500 ? 0.30 : f.calPerDol > 800 ? 0.50 : f.calPerDol > 300 ? 0.80 : 1.20;
+    const servingCal = Math.round(f.calPerDol * servingCost);
+    const servingProt = Math.round(f.protPerDol * servingCost);
+    return { ...f, servCost: servingCost, servCal: servingCal, servProt: servingProt };
+  });
+
+  function getCartTotals() {
+    let cost = 0, cal = 0, prot = 0;
+    cart.forEach(c => { cost += c.servCost; cal += c.servCal; prot += c.servProt; });
+    return { cost: +cost.toFixed(2), cal, prot };
+  }
+
+  function render() {
+    const totals = getCartTotals();
+    const remaining = +(budget - totals.cost).toFixed(2);
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">$10 Weekly Grocery Challenge</div>
+        <div class="question-sub">Maximize TOTAL calories and protein for the week. Each item = 1 serving/day for 7 days.</div>
+      </div>
+      <div class="tycoon-layout">
+        <div class="tycoon-main">
+          <div class="shop-grid">
+            ${shopItems.map((f, i) => `
+              <div class="shop-item" onclick="gtBuy(${i})" ${remaining < f.servCost ? 'style="opacity:0.3;pointer-events:none"' : ''}>
+                <div class="name">${f.name}</div>
+                <div class="price">$${f.servCost.toFixed(2)}/serv</div>
+                <div class="stats">${f.servCal} cal · ${f.servProt}g prot</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+        <div class="tycoon-sidebar">
+          <div class="tycoon-budget">
+            <div class="label">Remaining Budget</div>
+            <div class="amount" style="${remaining < 2 ? 'color:var(--neon-pink)' : ''}">$${remaining.toFixed(2)}</div>
+          </div>
+          <div style="margin-bottom:10px">
+            <div style="display:flex;justify-content:space-between;font-size:0.85em;color:rgba(255,255,255,0.5)">
+              <span>Weekly Calories</span><span style="color:var(--neon-green)">${(totals.cal * 7).toLocaleString()}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85em;color:rgba(255,255,255,0.5)">
+              <span>Weekly Protein</span><span style="color:var(--neon-blue)">${(totals.prot * 7)}g</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:0.85em;color:rgba(255,255,255,0.5)">
+              <span>Daily Calories</span><span style="color:var(--neon-yellow)">${totals.cal.toLocaleString()}</span>
+            </div>
+          </div>
+          <div class="tycoon-cart">
+            ${cart.length === 0 ? '<div style="color:rgba(255,255,255,0.2);text-align:center;padding:20px">Cart empty</div>' :
+              cart.map((c, i) => `<div class="cart-item"><span>${c.name}</span><span style="cursor:pointer;color:var(--neon-pink)" onclick="gtRemove(${i})">✕ $${c.servCost.toFixed(2)}</span></div>`).join('')}
+          </div>
+          <button class="next-btn" style="width:100%;margin-top:15px" onclick="gtCheckout()">CHECKOUT</button>
+        </div>
+      </div>
+    `;
+  }
+
+  window.gtBuy = function(i) {
+    const totals = getCartTotals();
+    if (totals.cost + shopItems[i].servCost > budget) return;
+    cart.push(shopItems[i]);
+    render();
+  };
+
+  window.gtRemove = function(i) {
+    cart.splice(i, 1);
+    render();
+  };
+
+  window.gtCheckout = function() {
+    const totals = getCartTotals();
+    State.gameRound++;
+    let score = 0;
+    const dailyCal = totals.cal;
+    const dailyProt = totals.prot;
+
+    // Score based on optimization
+    if (dailyCal >= 2000) score += 30;
+    else if (dailyCal >= 1500) score += 20;
+    else if (dailyCal >= 1000) score += 10;
+
+    if (dailyProt >= 50) score += 30;
+    else if (dailyProt >= 30) score += 20;
+    else if (dailyProt >= 15) score += 10;
+
+    // Efficiency bonus
+    const calPerDollar = totals.cost > 0 ? Math.round(dailyCal / totals.cost) : 0;
+    if (calPerDollar >= 2000) score += 20;
+    else if (calPerDollar >= 1500) score += 10;
+
+    // Budget bonus
+    if (totals.cost <= 7) score += 20;
+    else if (totals.cost <= 9) score += 10;
+
+    State.gameScore += score;
+    updateHUD();
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="results-box">
+        <h2>RECEIPT</h2>
+        <div class="score">+${score} pts</div>
+        <div class="breakdown">
+          <div><span>Spent</span><span>$${totals.cost.toFixed(2)} / $10.00</span></div>
+          <div><span>Daily Calories</span><span>${dailyCal.toLocaleString()}</span></div>
+          <div><span>Daily Protein</span><span>${dailyProt}g</span></div>
+          <div><span>Cal/Dollar</span><span>${calPerDollar.toLocaleString()}</span></div>
+          <div><span>Weekly Cost</span><span>$${(totals.cost).toFixed(2)} (that's $${(totals.cost * 52).toFixed(0)}/year!)</span></div>
+        </div>
+        <p style="color:rgba(255,255,255,0.5);font-size:0.85em;margin:15px 0;">
+          💡 The average American spends $75+/week on groceries. With these choices, $10/week feeds you over ${dailyCal} calories daily.
+          That's a potential savings of $3,000+/year!
+        </p>
+        <button class="play-again-btn" onclick="cart=[];startGroceryTycoon()">Shop Again</button>
+        <button class="next-btn" onclick="endGame()" style="background:linear-gradient(135deg,var(--neon-blue),#0088ff);color:#fff;">Finish</button>
+      </div>
+    `;
+  };
+
+  render();
+}
+
+// ============================================================
+// GAME 9: DRINK DEALER
+// ============================================================
+function startDrinkDealer() {
+  let phase = 1; // Phase 1: Sort drinks, Phase 2: Taste factors quiz
+
+  function startPhase1() {
+    let items = shuffle(ALCOHOL);
+
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">Phase 1: Sort Drinks by Efficiency</div>
+        <div class="question-sub">Rank from MOST drinks per dollar (top) to LEAST (bottom)</div>
+      </div>
+      <div class="sort-container" id="drink-sort">
+        ${items.map((d, i) => `
+          <div class="sort-item" draggable="true" data-idx="${i}"
+            ondragstart="ddDragStart(event,${i})" ondragover="ddDragOver(event)" ondrop="ddDrop(event,${i})">
+            <span>${d.name} <small style="color:rgba(255,255,255,0.3)">(${d.type})</small></span>
+            <span class="handle">⠿</span>
+          </div>
+        `).join('')}
+      </div>
+      <div style="text-align:center;margin-top:20px">
+        <button class="next-btn" onclick="ddCheck()">CHECK ORDER</button>
+      </div>
+    `;
+
+    let dragIdx = null;
+    window.ddDragStart = function(e, i) { dragIdx = i; };
+    window.ddDragOver = function(e) { e.preventDefault(); };
+    window.ddDrop = function(e, i) {
+      e.preventDefault();
+      if (dragIdx === null || dragIdx === i) return;
+      const item = items.splice(dragIdx, 1)[0];
+      items.splice(i, 0, item);
+      dragIdx = null;
+      startPhase1.__items = items;
+      // Re-render the list
+      const list = document.getElementById('drink-sort');
+      list.innerHTML = items.map((d, i) => `
+        <div class="sort-item" draggable="true" data-idx="${i}"
+          ondragstart="ddDragStart(event,${i})" ondragover="ddDragOver(event)" ondrop="ddDrop(event,${i})">
+          <span>${d.name} <small style="color:rgba(255,255,255,0.3)">(${d.type})</small></span>
+          <span class="handle">⠿</span>
+        </div>
+      `).join('');
+    };
+
+    window.ddCheck = function() {
+      const correct = [...ALCOHOL].sort((a, b) => b.drinksPerDol - a.drinksPerDol);
+      let score = 0;
+      items.forEach((item, i) => {
+        const ci = correct.findIndex(c => c.name === item.name);
+        if (Math.abs(i - ci) === 0) score += 10;
+        else if (Math.abs(i - ci) === 1) score += 5;
+      });
+      State.gameScore += score;
+      State.gameRound++;
+      updateHUD();
+      startPhase2(correct);
+    };
+
+    startPhase1.__items = items;
+  }
+
+  function startPhase2(correctOrder) {
+    const tfQuestions = shuffle([
+      { q: "Which factor reduces the perception of alcohol burn?", options: ["Cold Temperature", "Salt", "Sugar", "High Temperature"], correct: 0 },
+      { q: "Why does citrus improve drink taste?", options: ["Vitamin C — body craves it", "It masks alcohol color", "It adds carbonation", "It reduces calories"], correct: 0 },
+      { q: "Why does salt enhance drink flavor?", options: ["Sodium is needed for blood pressure", "It kills bacteria", "It adds sweetness", "It reduces alcohol content"], correct: 0 },
+      { q: "What does cold temperature do to ethanol?", options: ["Lowers vapor pressure (less smell)", "Increases alcohol content", "Makes it carbonated", "Removes impurities"], correct: 0 }
+    ]);
+
+    let qIdx = 0;
+
+    function renderQ() {
+      if (qIdx >= tfQuestions.length) {
+        endGame(`Taste Science Mastered!`);
+        return;
+      }
+      const q = tfQuestions[qIdx];
+      const opts = shuffle(q.options.map((o, i) => ({ text: o, isCorrect: i === q.correct })));
+
+      const cont = document.getElementById('game-container');
+      cont.innerHTML = `
+        <div class="question-box">
+          <div class="question-sub">Phase 2: The 4 Taste Factors — Question ${qIdx + 1}/4</div>
+          <div class="question-text">${q.q}</div>
+        </div>
+        <div class="options-grid">
+          ${opts.map((o, i) => `<button class="option-btn" id="tf-${i}" onclick="tfAnswer(${i}, ${o.isCorrect})">${o.text}</button>`).join('')}
+        </div>
+        <div class="feedback-panel" id="feedback"></div>
+      `;
+    }
+
+    window.tfAnswer = function(i, isCorrect) {
+      document.querySelectorAll('.option-btn').forEach(b => b.disabled = true);
+      if (isCorrect) {
+        document.getElementById('tf-' + i).classList.add('correct');
+        State.gameScore += 15;
+        State.combo++;
+        if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+      } else {
+        document.getElementById('tf-' + i).classList.add('wrong');
+        State.combo = 0;
+      }
+      State.gameRound++;
+      updateHUD();
+
+      const factor = TASTE_FACTORS[qIdx];
+      const fb = document.getElementById('feedback');
+      fb.classList.add('show');
+      fb.innerHTML = `
+        <div class="tip-label">${isCorrect ? '✓ Correct!' : '✗ Wrong!'}</div>
+        <div class="tip-text"><strong>${factor.factor}:</strong> ${factor.why}</div>
+        <div class="savings-note">💡 Apply all 4 factors to any drink to maximize enjoyment for minimum cost!</div>
+      `;
+
+      qIdx++;
+      setTimeout(renderQ, 2200);
+    };
+
+    renderQ();
+  }
+
+  startPhase1();
+}
+
+// ============================================================
+// GAME 10: CHEAT CODE KITCHEN (Memory Match)
+// ============================================================
+function startCheatCodeKitchen() {
+  const pairs = COOKING_CHEATS.map(c => [
+    { type: 'cheat', text: c.cheat, match: c.cheat },
+    { type: 'desc', text: c.desc, match: c.cheat }
+  ]).flat();
+
+  const shuffled = shuffle(pairs);
+  let flipped = [];
+  let matched = new Set();
+  let moves = 0;
+
+  function render() {
+    const cont = document.getElementById('game-container');
+    cont.innerHTML = `
+      <div class="question-box">
+        <div class="question-text">The 5 Cooking Cheat Codes</div>
+        <div class="question-sub">Match each technique to its science. Moves: ${moves} | Matched: ${matched.size / 2}/${COOKING_CHEATS.length}</div>
+      </div>
+      <div class="match-grid" style="grid-template-columns: repeat(5, 1fr)">
+        ${shuffled.map((c, i) => {
+          const isFlipped = flipped.includes(i) || matched.has(c.match + c.type);
+          const isMatched = matched.has(c.match + c.type);
+          return `<div class="match-card ${isFlipped ? 'flipped' : ''} ${isMatched ? 'matched' : ''}"
+            onclick="ckFlip(${i})" style="min-height:90px;font-size:0.75em;aspect-ratio:auto">
+            ${isFlipped || isMatched ? c.text : ''}
+          </div>`;
+        }).join('')}
+      </div>
+      <div class="feedback-panel" id="feedback"></div>
+    `;
+  }
+
+  window.ckFlip = function(i) {
+    if (flipped.length >= 2) return;
+    if (flipped.includes(i)) return;
+    if (matched.has(shuffled[i].match + shuffled[i].type)) return;
+
+    flipped.push(i);
+    render();
+
+    if (flipped.length === 2) {
+      moves++;
+      const a = shuffled[flipped[0]];
+      const b = shuffled[flipped[1]];
+
+      if (a.match === b.match && a.type !== b.type) {
+        matched.add(a.match + a.type);
+        matched.add(b.match + b.type);
+        State.combo++;
+        if (State.combo > State.maxCombo) State.maxCombo = State.combo;
+        State.gameScore += 15;
+        State.gameRound++;
+        updateHUD();
+
+        const cheat = COOKING_CHEATS.find(c => c.cheat === a.match);
+        const fb = document.getElementById('feedback');
+        if (fb) {
+          fb.classList.add('show');
+          fb.innerHTML = `
+            <div class="tip-label">✓ CHEAT CODE UNLOCKED!</div>
+            <div class="tip-text"><strong>${cheat.cheat}:</strong> ${cheat.desc}</div>
+            <div class="savings-note">💡 Use this cheat code to make cheap food taste expensive!</div>
+          `;
+        }
+
+        setTimeout(() => {
+          flipped = [];
+          if (matched.size === COOKING_CHEATS.length * 2) {
+            endGame(`${moves} moves — Kitchen Master!`);
+          } else render();
+        }, 2200);
+      } else {
+        State.combo = 0;
+        setTimeout(() => { flipped = []; render(); }, 1000);
+      }
+    }
+  };
+
+  render();
+}
+
+// ============================================================
+// BOOT
+// ============================================================
+init();
+</script>
+</body>
+</html>

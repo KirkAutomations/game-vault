@@ -1,0 +1,1397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Seedling v2 - A Garden Game for Little Ones</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none}
+html,body{overflow:hidden;height:100%;font-family:'Segoe UI','Arial Rounded MT Bold',Arial,sans-serif;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:default}
+
+/* ===== WORLD ===== */
+#world{position:fixed;inset:0;overflow:hidden}
+.sky{position:absolute;inset:0;transition:background 3s}
+.sky-day{background:linear-gradient(180deg,#87CEEB 0%,#B3E5FC 50%,#E1F5FE 70%)}
+.sky-sunset{background:linear-gradient(180deg,#FF8A65 0%,#FFB74D 30%,#FFE0B2 60%,#E1F5FE 80%)}
+.sky-night{background:linear-gradient(180deg,#1A237E 0%,#283593 40%,#3949AB 70%)}
+.sky-rain{background:linear-gradient(180deg,#78909C 0%,#90A4AE 40%,#B0BEC5 70%)}
+
+.sun{position:absolute;top:40px;right:80px;width:90px;height:90px;background:#FFD54F;border-radius:50%;box-shadow:0 0 60px #FFD54F;animation:sunPulse 4s ease-in-out infinite;z-index:1;transition:all 2s}
+@keyframes sunPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+.sun.hidden{opacity:0;transform:translateY(200px)!important}
+
+.moon{position:absolute;top:50px;left:80px;width:70px;height:70px;background:#E0E0E0;border-radius:50%;box-shadow:0 0 30px rgba(255,255,255,0.4);z-index:1;opacity:0;transition:opacity 2s}
+.moon.show{opacity:1}
+.moon::after{content:'';position:absolute;top:-5px;left:15px;width:60px;height:60px;background:#283593;border-radius:50%}
+
+.stars-sky{position:absolute;inset:0;z-index:0;opacity:0;transition:opacity 2s}
+.stars-sky.show{opacity:1}
+.star-dot{position:absolute;width:3px;height:3px;background:white;border-radius:50%;animation:twinkle 2s ease-in-out infinite}
+@keyframes twinkle{0%,100%{opacity:0.3}50%{opacity:1}}
+
+.cloud{position:absolute;background:white;border-radius:100px;opacity:0.85;z-index:2}
+.cloud::before,.cloud::after{content:'';position:absolute;background:white;border-radius:50%}
+.cloud::before{width:60%;height:140%;top:-50%;left:15%}
+.cloud::after{width:45%;height:120%;top:-30%;right:15%}
+.c1{top:60px;width:140px;height:45px;animation:drift 30s linear infinite;left:-200px}
+.c2{top:120px;width:180px;height:55px;animation:drift 40s linear infinite 8s;left:-200px}
+.c3{top:40px;width:110px;height:38px;animation:drift 35s linear infinite 15s;left:-200px}
+@keyframes drift{to{transform:translateX(calc(100vw + 400px))}}
+
+/* Rain */
+.rain-layer{position:absolute;inset:0;z-index:3;pointer-events:none;display:none}
+.rain-layer.active{display:block}
+.raindrop{position:absolute;width:2px;height:18px;background:linear-gradient(transparent,rgba(100,181,246,0.7));animation:rainFall linear infinite}
+@keyframes rainFall{0%{transform:translateY(-20px)}100%{transform:translateY(100vh)}}
+
+/* Ground */
+.ground{position:absolute;bottom:0;left:0;right:0;height:40%;background:linear-gradient(180deg,#81C784 0%,#66BB6A 15%,#5D4037 50%,#4E342E 100%);border-radius:40px 40px 0 0;z-index:3}
+.grass{position:absolute;top:-12px;left:0;right:0;height:30px;z-index:4;overflow:hidden}
+.grass-blade{position:absolute;bottom:0;width:8px;background:#4CAF50;border-radius:50% 50% 0 0;transform-origin:bottom center;animation:sway 3s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(5deg)}}
+
+/* Pond */
+.pond{position:absolute;bottom:32%;left:6%;width:80px;height:35px;background:radial-gradient(ellipse,#4FC3F7,#0288D1);border-radius:50%;z-index:5;opacity:0.8;animation:pondRipple 3s ease-in-out infinite}
+@keyframes pondRipple{0%,100%{transform:scaleX(1)}50%{transform:scaleX(1.05)}}
+.pond-deco{position:absolute;z-index:6;pointer-events:none}
+
+/* Fence */
+.fence{position:absolute;bottom:38%;left:0;right:0;height:25px;z-index:5;display:flex;justify-content:center;gap:20px;pointer-events:none}
+.fence-post{width:6px;height:25px;background:#8D6E63;border-radius:2px}
+.fence-rail{position:absolute;top:5px;width:80%;height:3px;background:#A1887F;left:10%}
+.fence-rail2{position:absolute;top:16px;width:80%;height:3px;background:#A1887F;left:10%}
+
+/* ===== GARDEN PLOTS ===== */
+.garden{position:absolute;bottom:14%;left:50%;transform:translateX(-50%);display:flex;gap:14px;z-index:10;flex-wrap:wrap;justify-content:center;max-width:95vw}
+
+.plot{width:100px;height:100px;background:#5D4037;border-radius:18px;border:4px solid #4E342E;display:flex;align-items:center;justify-content:center;font-size:3.2em;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s,border-color 0.3s;position:relative;box-shadow:0 4px 12px rgba(0,0,0,0.2),inset 0 -4px 8px rgba(0,0,0,0.15)}
+.plot:hover,.plot:active{transform:scale(1.08);box-shadow:0 6px 20px rgba(0,0,0,0.3)}
+.plot.empty{background:#795548}
+.plot.empty::after{content:'';width:36px;height:36px;border:4px dashed #A1887F;border-radius:50%;animation:pulseDash 2s ease-in-out infinite}
+@keyframes pulseDash{0%,100%{opacity:0.4;transform:scale(0.9)}50%{opacity:1;transform:scale(1.1)}}
+.plot.wet{border-color:#4FC3F7!important;box-shadow:0 4px 12px rgba(79,195,247,0.4),inset 0 -4px 8px rgba(0,0,0,0.15)!important}
+
+.plot .plant{animation:growIn 0.6s cubic-bezier(0.34,1.56,0.64,1);display:flex;flex-direction:column;align-items:center;line-height:1}
+@keyframes growIn{from{transform:scale(0) translateY(20px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+.plot .ready{animation:bounce 0.8s ease-in-out infinite}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* Growth progress dots */
+.growth-dots{position:absolute;bottom:4px;display:flex;gap:3px}
+.growth-dot{width:8px;height:8px;border-radius:50%;background:#A1887F;transition:background 0.3s}
+.growth-dot.filled{background:#4CAF50}
+
+/* Particle effects */
+.water-drop{position:absolute;font-size:1.3em;animation:dropFall 0.6s ease-in forwards;pointer-events:none;z-index:20}
+@keyframes dropFall{0%{opacity:1;transform:translateY(-30px) scale(1)}100%{opacity:0;transform:translateY(20px) scale(0.5)}}
+.sparkle{position:absolute;pointer-events:none;z-index:50;animation:sparklePop 0.8s ease-out forwards}
+@keyframes sparklePop{0%{transform:scale(0) rotate(0deg);opacity:1}50%{transform:scale(1.5) rotate(180deg);opacity:1}100%{transform:scale(0) rotate(360deg);opacity:0}}
+.coin-fly{position:fixed;font-size:2.5em;z-index:100;pointer-events:none;animation:coinUp 1s ease-out forwards}
+@keyframes coinUp{0%{opacity:1;transform:translateY(0) scale(1)}60%{opacity:1;transform:translateY(-80px) scale(1.3)}100%{opacity:0;transform:translateY(-120px) scale(0.8)}}
+.float-text{position:fixed;font-size:1.8em;font-weight:bold;z-index:100;pointer-events:none;animation:floatUp 1.5s ease-out forwards;text-shadow:2px 2px 0 white}
+@keyframes floatUp{0%{opacity:1;transform:translateY(0)}100%{opacity:0;transform:translateY(-60px)}}
+
+/* ===== TOP BAR ===== */
+.top-bar{position:fixed;top:0;left:0;right:0;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;z-index:50;background:rgba(255,255,255,0.35);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);flex-wrap:wrap;gap:4px}
+.stat-pill{display:flex;align-items:center;gap:4px;background:rgba(255,255,255,0.6);padding:4px 10px;border-radius:20px;font-weight:bold;font-size:1.1em}
+.stat-pill.coins{color:#E65100}
+.stat-pill.level{color:#6A1B9A}
+.stat-pill.basket{color:#5D4037}
+.stat-pill .label{font-size:0.7em;color:#888;margin-left:2px}
+
+.xp-bar-wrap{position:fixed;top:48px;left:15px;right:15px;height:8px;background:rgba(0,0,0,0.1);border-radius:4px;z-index:50;overflow:hidden}
+.xp-bar{height:100%;background:linear-gradient(90deg,#AB47BC,#7B1FA2);border-radius:4px;transition:width 0.5s ease;width:0%}
+
+/* Weather indicator */
+.weather-icon{position:fixed;top:8px;left:50%;transform:translateX(-50%);font-size:1.8em;z-index:51;filter:drop-shadow(1px 2px 2px rgba(0,0,0,0.2));transition:all 0.5s}
+
+/* ===== TOOL TRAY ===== */
+.tool-tray{position:fixed;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:8px;padding:8px 8px 16px;background:rgba(255,255,255,0.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);z-index:50}
+.tool-btn{width:70px;height:70px;border-radius:20px;border:4px solid transparent;background:white;font-size:2.2em;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;box-shadow:0 3px 10px rgba(0,0,0,0.12);position:relative;flex-direction:column}
+.tool-btn:hover,.tool-btn:active{transform:scale(1.1)}
+.tool-btn.selected{border-color:#FF6F00;background:#FFF8E1;box-shadow:0 0 18px rgba(255,111,0,0.4);transform:scale(1.1)}
+.tool-btn .tool-label{font-size:0.28em;font-weight:bold;color:#5D4037;text-transform:uppercase;letter-spacing:0.5px;margin-top:-2px}
+.tool-btn .tool-badge{position:absolute;top:-6px;right:-6px;background:#E53935;color:white;min-width:22px;height:22px;border-radius:11px;font-size:0.32em;font-weight:bold;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.tool-btn.locked{opacity:0.35;filter:grayscale(1);pointer-events:none}
+.tool-btn .seed-preview{position:absolute;top:-4px;left:-4px;font-size:0.4em;background:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,0.2)}
+
+/* ===== STAND ===== */
+.stand{position:absolute;bottom:38%;right:6%;z-index:8;text-align:center;cursor:pointer;transition:transform 0.2s;font-size:3em;filter:drop-shadow(2px 4px 6px rgba(0,0,0,0.2))}
+.stand:hover{transform:scale(1.08)}
+.stand-label{font-size:0.28em;background:#FFE082;color:#5D4037;padding:3px 10px;border-radius:8px;font-weight:bold;display:block;margin-top:-4px}
+.stand .badge{position:absolute;top:-10px;right:-10px;background:#E53935;color:white;width:26px;height:26px;border-radius:50%;font-size:0.32em;font-weight:bold;display:none;align-items:center;justify-content:center;animation:badgePop 0.5s ease}
+@keyframes badgePop{from{transform:scale(0)}to{transform:scale(1)}}
+
+/* ===== VISITOR (animal customer) ===== */
+.visitor{position:absolute;bottom:39%;left:8%;z-index:9;font-size:3.5em;transition:all 0.8s cubic-bezier(0.34,1.56,0.64,1);opacity:0;transform:translateX(-60px) scale(0.5)}
+.visitor.show{opacity:1;transform:translateX(0) scale(1)}
+.visitor .speech{position:absolute;top:-50px;left:50%;transform:translateX(-50%);background:white;padding:6px 14px;border-radius:16px;font-size:0.35em;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.15);font-weight:bold;color:#333}
+.visitor .speech::after{content:'';position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);border-left:8px solid transparent;border-right:8px solid transparent;border-top:8px solid white}
+
+/* ===== OVERLAYS ===== */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;justify-content:center;align-items:center}
+.overlay.active{display:flex}
+.modal{background:white;border-radius:28px;padding:25px;max-width:520px;width:92%;text-align:center;box-shadow:0 15px 50px rgba(0,0,0,0.3);animation:popIn 0.4s cubic-bezier(0.34,1.56,0.64,1);max-height:90vh;overflow-y:auto}
+@keyframes popIn{from{transform:scale(0.6);opacity:0}to{transform:scale(1);opacity:1}}
+.modal h2{font-size:1.5em;color:#E65100;margin-bottom:8px}
+.modal .prompt-text{font-size:1.2em;color:#333;margin:8px 0}
+
+/* Mini-game items display */
+.game-items{font-size:3em;letter-spacing:6px;margin:10px 0;line-height:1.4;min-height:1.4em}
+
+/* Answer buttons */
+.answer-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:12px 0}
+.ans-btn{min-width:64px;height:64px;border-radius:50%;border:4px solid #FFE082;background:#FFF8E1;font-size:1.8em;font-weight:bold;color:#E65100;cursor:pointer;transition:all 0.15s;box-shadow:0 3px 8px rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;padding:0 8px}
+.ans-btn:hover,.ans-btn:active{transform:scale(1.12);background:#FFE082;border-color:#FF8F00}
+.ans-btn.correct-pop{animation:correctPop 0.5s ease;background:#A5D6A7;border-color:#4CAF50}
+@keyframes correctPop{0%{transform:scale(1)}40%{transform:scale(1.3)}100%{transform:scale(1)}}
+.ans-btn.wrong-shake{animation:wrongShake 0.4s ease;background:#FFCDD2;border-color:#E53935}
+@keyframes wrongShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+
+/* Emoji answer buttons (for color/shape matching) */
+.ans-btn.emoji-btn{width:80px;height:80px;font-size:2.5em;border-radius:18px}
+
+.result-msg{font-size:1.4em;font-weight:bold;min-height:1.5em;margin:8px 0}
+.close-btn{width:46px;height:46px;border-radius:50%;border:none;background:#EF5350;color:white;font-size:1.6em;cursor:pointer;margin-top:8px;box-shadow:0 3px 8px rgba(0,0,0,0.2);transition:transform 0.15s}
+.close-btn:hover{transform:scale(1.1)}
+
+/* ===== SHOP ===== */
+.shop-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:12px 0}
+.shop-item{background:#FFF8E1;border:3px solid #FFE082;border-radius:16px;padding:10px;cursor:pointer;transition:all 0.2s;text-align:center}
+.shop-item:hover,.shop-item:active{transform:scale(1.05);border-color:#FF8F00}
+.shop-item .item-emoji{font-size:2.2em}
+.shop-item .item-name{font-weight:bold;color:#5D4037;font-size:0.9em}
+.shop-item .item-cost{color:#E65100;font-size:0.85em;font-weight:bold}
+.shop-item.owned{border-color:#4CAF50;background:#E8F5E9}
+.shop-item.cant-afford{opacity:0.4}
+
+/* ===== BADGE WALL ===== */
+.badge-wall{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.badge-item{text-align:center;padding:8px;border-radius:12px;background:#F5F5F5;transition:all 0.3s}
+.badge-item.earned{background:#FFF8E1;animation:badgeShine 2s ease infinite}
+.badge-item.locked{filter:grayscale(1);opacity:0.3}
+@keyframes badgeShine{0%,100%{box-shadow:none}50%{box-shadow:0 0 12px rgba(255,193,7,0.5)}}
+.badge-item .b-emoji{font-size:2em}
+.badge-item .b-name{font-size:0.6em;font-weight:bold;color:#5D4037;margin-top:2px}
+
+/* ===== TUTORIAL ===== */
+.tut-hand{position:fixed;font-size:3em;z-index:300;pointer-events:none;animation:tapHint 1.5s ease-in-out infinite;filter:drop-shadow(2px 4px 4px rgba(0,0,0,0.3))}
+@keyframes tapHint{0%,100%{transform:translate(0,0) scale(1);opacity:1}30%{transform:translate(0,10px) scale(0.9);opacity:0.8}50%{transform:translate(0,10px) scale(0.9);opacity:0.8}70%{transform:translate(0,0) scale(1);opacity:1}}
+
+/* Decorations */
+.butterfly{position:absolute;font-size:1.8em;z-index:6;pointer-events:none}
+.bf1{top:25%;left:15%;animation:flutter1 8s ease-in-out infinite}
+.bf2{top:18%;left:65%;animation:flutter2 10s ease-in-out infinite 2s}
+@keyframes flutter1{0%{transform:translate(0,0)}25%{transform:translate(60px,-30px)}50%{transform:translate(20px,-50px)}75%{transform:translate(-40px,-20px)}100%{transform:translate(0,0)}}
+@keyframes flutter2{0%{transform:translate(0,0)}30%{transform:translate(-50px,-20px)}60%{transform:translate(-20px,30px)}100%{transform:translate(0,0)}}
+.flower-deco{position:absolute;font-size:2em;z-index:5;pointer-events:none}
+.rainbow{display:none;position:absolute;top:12%;left:50%;transform:translateX(-50%);width:280px;height:140px;border-radius:140px 140px 0 0;background:conic-gradient(from 180deg at 50% 100%,red,orange,yellow,green,blue,indigo,violet,transparent 50%);opacity:0.35;z-index:1}
+.rainbow.show{display:block;animation:rainbowIn 2s ease forwards}
+@keyframes rainbowIn{from{opacity:0;transform:translateX(-50%) scale(0.5)}to{opacity:0.35;transform:translateX(-50%) scale(1)}}
+
+/* Celebration */
+.celebration{position:fixed;inset:0;z-index:500;pointer-events:none;display:none}
+.celebration.active{display:block}
+.confetti{position:absolute;animation:confettiFall linear forwards}
+@keyframes confettiFall{0%{transform:translateY(-20px) rotate(0deg);opacity:1}100%{transform:translateY(100vh) rotate(720deg);opacity:0}}
+
+/* ===== LEVEL UP MODAL ===== */
+.level-up-content{padding:20px}
+.level-up-content .big-level{font-size:4em;animation:levelPulse 0.8s ease-in-out infinite alternate}
+@keyframes levelPulse{from{transform:scale(1)}to{transform:scale(1.15)}}
+.new-unlock{background:#E8F5E9;border-radius:12px;padding:10px;margin:8px 0;font-size:1.1em}
+
+/* Day/Night button */
+.time-btn{position:fixed;top:60px;right:15px;z-index:51;width:44px;height:44px;border-radius:50%;border:3px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.3);font-size:1.4em;cursor:pointer;backdrop-filter:blur(4px);transition:all 0.2s;display:flex;align-items:center;justify-content:center}
+.time-btn:hover{transform:scale(1.1);background:rgba(255,255,255,0.5)}
+
+/* ===== RESPONSIVE ===== */
+@media(max-width:600px){
+  .plot{width:80px;height:80px;font-size:2.6em}
+  .garden{gap:10px;bottom:12%}
+  .tool-btn{width:58px;height:58px;font-size:1.8em}
+  .sun{width:70px;height:70px;top:50px;right:25px}
+  .stand{font-size:2.5em;right:4%}
+  .visitor{font-size:2.8em;left:5%}
+  .stat-pill{font-size:0.95em;padding:3px 8px}
+  .ans-btn{min-width:56px;height:56px;font-size:1.5em}
+  .ans-btn.emoji-btn{width:66px;height:66px;font-size:2em}
+  .modal{padding:18px}
+  .game-items{font-size:2.5em;letter-spacing:4px}
+}
+@media(max-width:400px){
+  .plot{width:68px;height:68px;font-size:2.2em}
+  .tool-btn{width:50px;height:50px;font-size:1.5em}
+  .stand{font-size:2em;bottom:39%}
+  .visitor{font-size:2.2em}
+}
+</style>
+</head>
+<body>
+
+<div id="world">
+  <div class="sky sky-day" id="sky"></div>
+  <div class="sun" id="sun"></div>
+  <div class="moon" id="moon"></div>
+  <div class="stars-sky" id="starsSky"></div>
+  <div class="rainbow" id="rainbow"></div>
+  <div class="cloud c1"></div>
+  <div class="cloud c2"></div>
+  <div class="cloud c3"></div>
+  <div class="rain-layer" id="rain-layer"></div>
+
+  <div class="butterfly bf1">🦋</div>
+  <div class="butterfly bf2">🐝</div>
+  <div class="flower-deco" style="bottom:38%;left:3%">🌻</div>
+  <div class="flower-deco" style="bottom:39%;left:10%">🌷</div>
+  <div class="flower-deco" style="bottom:38%;right:22%">🌸</div>
+
+  <div class="ground">
+    <div class="grass" id="grass"></div>
+  </div>
+
+  <div class="pond">
+    <div class="pond-deco" style="top:-10px;left:5px;font-size:1.2em">🐸</div>
+  </div>
+  <div class="fence"><div class="fence-rail"></div><div class="fence-rail2"></div></div>
+
+  <div class="garden" id="garden"></div>
+
+  <!-- Visitor -->
+  <div class="visitor" id="visitor">
+    <span id="visitor-emoji">🐰</span>
+    <div class="speech" id="visitor-speech" style="display:none"></div>
+  </div>
+
+  <!-- Stand -->
+  <div class="stand" id="stand" onclick="openMiniGame()">
+    🏪
+    <span class="stand-label">SELL!</span>
+    <div class="badge" id="basket-badge"></div>
+  </div>
+</div>
+
+<!-- Top Bar -->
+<div class="top-bar">
+  <div class="stat-pill coins">🪙 <span id="coins">0</span></div>
+  <div class="stat-pill level">⭐ <span id="level-display">1</span><span class="label">Lv</span></div>
+  <div class="stat-pill basket">🧺 <span id="basket-count">0</span></div>
+</div>
+<div class="xp-bar-wrap"><div class="xp-bar" id="xp-bar"></div></div>
+<div class="weather-icon" id="weather-icon">☀️</div>
+
+<!-- Day/Night toggle -->
+<button class="time-btn" id="time-btn" onclick="advanceTime()">🌙</button>
+
+<!-- Tool Tray -->
+<div class="tool-tray" id="tool-tray">
+  <div class="tool-btn selected" data-tool="seed" onclick="selectTool('seed')">
+    🌱
+    <span class="tool-label">Plant</span>
+    <span class="seed-preview" id="seed-preview">🍎</span>
+  </div>
+  <div class="tool-btn" data-tool="water" onclick="selectTool('water')">
+    💧
+    <span class="tool-label">Water</span>
+  </div>
+  <div class="tool-btn" data-tool="pick" onclick="selectTool('pick')">
+    ✋
+    <span class="tool-label">Pick</span>
+  </div>
+  <div class="tool-btn" data-tool="pet" onclick="selectTool('pet')">
+    🤗
+    <span class="tool-label">Share</span>
+  </div>
+  <div class="tool-btn" data-tool="shop" onclick="openShop()">
+    🛒
+    <span class="tool-label">Shop</span>
+  </div>
+  <div class="tool-btn" data-tool="badges" onclick="openBadges()">
+    🏆
+    <span class="tool-label">Badges</span>
+  </div>
+</div>
+
+<!-- Mini-game overlay -->
+<div class="overlay" id="game-overlay">
+  <div class="modal" id="game-modal">
+    <h2 id="game-title">🧺 Time to Sell!</h2>
+    <div class="game-items" id="game-items"></div>
+    <p class="prompt-text" id="game-prompt"></p>
+    <div class="answer-row" id="game-answers"></div>
+    <div class="result-msg" id="game-result"></div>
+    <button class="close-btn" onclick="closeGame()">✕</button>
+  </div>
+</div>
+
+<!-- Shop overlay -->
+<div class="overlay" id="shop-overlay">
+  <div class="modal">
+    <h2>🛒 Garden Shop</h2>
+    <p class="prompt-text">Spend your coins!</p>
+    <div class="shop-grid" id="shop-grid"></div>
+    <button class="close-btn" onclick="closeShop()">✕</button>
+  </div>
+</div>
+
+<!-- Badge overlay -->
+<div class="overlay" id="badge-overlay">
+  <div class="modal">
+    <h2>🏆 My Badges</h2>
+    <div class="badge-wall" id="badge-wall"></div>
+    <button class="close-btn" onclick="closeBadges()">✕</button>
+  </div>
+</div>
+
+<!-- Level Up overlay -->
+<div class="overlay" id="levelup-overlay">
+  <div class="modal level-up-content" id="levelup-content"></div>
+</div>
+
+<!-- Celebration -->
+<div class="celebration" id="celebration"></div>
+
+<!-- Tutorial hand -->
+<div class="tut-hand" id="tut-hand" style="display:none">👆</div>
+
+<script>
+// ==================== AUDIO ====================
+let audioCtx;
+function ensureAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)()}
+function playTone(freq,dur,type,vol){
+  try{ensureAudio();const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.type=type||'sine';o.frequency.value=freq;g.gain.value=vol||0.12;g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(audioCtx.currentTime+dur)}catch(e){}
+}
+function sfxPlant(){playTone(400,0.15,'sine');setTimeout(()=>playTone(520,0.15,'sine'),80)}
+function sfxWater(){playTone(600,0.25,'sine',0.08);setTimeout(()=>playTone(500,0.2,'sine',0.06),100)}
+function sfxGrow(){playTone(500,0.15);setTimeout(()=>playTone(650,0.15),100);setTimeout(()=>playTone(800,0.2),200)}
+function sfxPick(){playTone(700,0.1);setTimeout(()=>playTone(900,0.15),60)}
+function sfxCoin(){playTone(800,0.08,'square',0.06);setTimeout(()=>playTone(1200,0.12,'square',0.06),80)}
+function sfxCorrect(){playTone(523,0.12);setTimeout(()=>playTone(659,0.12),100);setTimeout(()=>playTone(784,0.2),200)}
+function sfxWrong(){playTone(300,0.12,'square',0.06);setTimeout(()=>playTone(250,0.15,'square',0.06),120)}
+function sfxStar(){[523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.18,'sine',0.1),i*100))}
+function sfxBuy(){playTone(440,0.1);setTimeout(()=>playTone(550,0.15),80)}
+function sfxLevelUp(){[523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>playTone(f,0.25,'sine',0.12),i*120))}
+function sfxVisitor(){playTone(660,0.1,'sine',0.08);setTimeout(()=>playTone(880,0.15,'sine',0.08),100)}
+function sfxShare(){[400,500,600,800].forEach((f,i)=>setTimeout(()=>playTone(f,0.15,'sine',0.1),i*80))}
+function sfxRain(){for(let i=0;i<5;i++)setTimeout(()=>playTone(200+Math.random()*300,0.3,'sine',0.03),i*60)}
+function sfxNight(){playTone(330,0.4,'sine',0.08);setTimeout(()=>playTone(262,0.5,'sine',0.06),200)}
+
+// ==================== GAME STATE ====================
+const G = {
+  coins: 0,
+  xp: 0,
+  level: 1,
+  basket: {},
+  tool: 'seed',
+  plots: [],
+  numPlots: 4,
+  seedTypes: ['apple'],
+  totalSold: 0,
+  totalShared: 0,
+  gamesPlayed: 0,
+  correctAnswers: 0,
+  wrongAnswers: 0,
+  tutStep: 0,
+  tutDone: false,
+  timeOfDay: 'day', // day, sunset, night
+  weather: 'sunny', // sunny, cloudy, rainy
+  dayCount: 1,
+  visitorActive: false,
+  visitorType: null,
+  earnedBadges: new Set(),
+  comboCount: 0, // correct answers in a row
+  highestCombo: 0,
+  // Adaptive difficulty
+  diffLevel: 0, // 0=fresh 2yr, 1=mid, 2=smart 3yr
+  recentCorrect: 0,
+  recentTotal: 0,
+};
+
+// XP needed per level
+const XP_PER_LEVEL = [0, 8, 18, 32, 50, 75, 105, 140, 180, 225, 280, 340, 410, 490, 580, 680];
+
+const PLANTS = {
+  apple:      {seed:'🌱',grow1:'🌿',grow2:'🪴',ready:'🍎',name:'Apple',     waters:2,emoji:'🍎',coinValue:2,color:'red',xp:2},
+  strawberry: {seed:'🌱',grow1:'🌿',grow2:'☘️',ready:'🍓',name:'Strawberry',waters:1,emoji:'🍓',coinValue:1,color:'red',xp:1},
+  carrot:     {seed:'🌱',grow1:'🌿',grow2:'🥕',ready:'🥕',name:'Carrot',    waters:1,emoji:'🥕',coinValue:1,color:'orange',xp:1},
+  orange:     {seed:'🌱',grow1:'🌿',grow2:'🪴',ready:'🍊',name:'Orange',    waters:2,emoji:'🍊',coinValue:3,color:'orange',xp:3},
+  blueberry:  {seed:'🌱',grow1:'🌿',grow2:'☘️',ready:'🫐',name:'Blueberry', waters:2,emoji:'🫐',coinValue:2,color:'blue',xp:2},
+  sunflower:  {seed:'🌱',grow1:'🌿',grow2:'🌻',ready:'🌻',name:'Sunflower', waters:2,emoji:'🌻',coinValue:2,color:'yellow',xp:2},
+  watermelon: {seed:'🌱',grow1:'🌿',grow2:'🪴',ready:'🍉',name:'Watermelon',waters:3,emoji:'🍉',coinValue:4,color:'green',xp:4},
+  grape:      {seed:'🌱',grow1:'🌿',grow2:'☘️',ready:'🍇',name:'Grape',     waters:2,emoji:'🍇',coinValue:3,color:'purple',xp:3},
+  corn:       {seed:'🌱',grow1:'🌿',grow2:'🌽',ready:'🌽',name:'Corn',      waters:2,emoji:'🌽',coinValue:2,color:'yellow',xp:2},
+  tomato:     {seed:'🌱',grow1:'🌿',grow2:'🪴',ready:'🍅',name:'Tomato',    waters:2,emoji:'🍅',coinValue:2,color:'red',xp:2},
+};
+
+const VISITORS = [
+  {emoji:'🐰',name:'Bunny',likes:['carrot','strawberry'],says:'I love crunchy food!'},
+  {emoji:'🐻',name:'Bear',likes:['blueberry','grape','apple'],says:'Got any berries?'},
+  {emoji:'🐦',name:'Bird',likes:['sunflower','corn'],says:'Chirp! Seeds please!'},
+  {emoji:'🐱',name:'Kitty',likes:['strawberry','apple'],says:'Something sweet!'},
+  {emoji:'🐸',name:'Frog',likes:['watermelon','blueberry'],says:'Ribbit! Juicy stuff!'},
+  {emoji:'🐶',name:'Puppy',likes:null,says:'I eat anything!'},
+  {emoji:'🦊',name:'Fox',likes:['grape','orange'],says:'Fancy fruit please!'},
+  {emoji:'🐿️',name:'Squirrel',likes:['corn','orange','apple'],says:'Nutty or crunchy!'},
+  {emoji:'🦉',name:'Owl',likes:['blueberry','grape'],says:'Something purple!'},
+  {emoji:'🐢',name:'Turtle',likes:['tomato','carrot','watermelon'],says:'Slow food is best!'},
+];
+
+const COLORS = {
+  red: {name:'Red', hex:'#E53935', emoji:'🔴'},
+  orange: {name:'Orange', hex:'#FF9800', emoji:'🟠'},
+  yellow: {name:'Yellow', hex:'#FDD835', emoji:'🟡'},
+  green: {name:'Green', hex:'#43A047', emoji:'🟢'},
+  blue: {name:'Blue', hex:'#1E88E5', emoji:'🔵'},
+  purple: {name:'Purple', hex:'#8E24AA', emoji:'🟣'},
+};
+
+const SHAPES = [
+  {name:'Circle', emoji:'⭕'}, {name:'Star', emoji:'⭐'}, {name:'Heart', emoji:'❤️'},
+  {name:'Moon', emoji:'🌙'}, {name:'Sun', emoji:'☀️'}, {name:'Flower', emoji:'🌸'},
+];
+
+const SHOP_ITEMS = [
+  {id:'strawberry_seed',name:'Strawberry Seeds',emoji:'🍓',cost:3,type:'seed',unlocks:'strawberry',reqLevel:1},
+  {id:'carrot_seed',name:'Carrot Seeds',emoji:'🥕',cost:4,type:'seed',unlocks:'carrot',reqLevel:2},
+  {id:'blueberry_seed',name:'Blueberry Seeds',emoji:'🫐',cost:6,type:'seed',unlocks:'blueberry',reqLevel:3},
+  {id:'orange_seed',name:'Orange Seeds',emoji:'🍊',cost:8,type:'seed',unlocks:'orange',reqLevel:4},
+  {id:'sunflower_seed',name:'Sunflower Seeds',emoji:'🌻',cost:8,type:'seed',unlocks:'sunflower',reqLevel:4},
+  {id:'tomato_seed',name:'Tomato Seeds',emoji:'🍅',cost:10,type:'seed',unlocks:'tomato',reqLevel:5},
+  {id:'corn_seed',name:'Corn Seeds',emoji:'🌽',cost:10,type:'seed',unlocks:'corn',reqLevel:6},
+  {id:'grape_seed',name:'Grape Seeds',emoji:'🍇',cost:14,type:'seed',unlocks:'grape',reqLevel:7},
+  {id:'watermelon_seed',name:'Watermelon Seeds',emoji:'🍉',cost:18,type:'seed',unlocks:'watermelon',reqLevel:8},
+  {id:'extra_plot1',name:'Garden Plot',emoji:'⬛',cost:5,type:'plot',reqLevel:2},
+  {id:'extra_plot2',name:'Garden Plot',emoji:'⬛',cost:8,type:'plot',reqLevel:3},
+  {id:'extra_plot3',name:'Garden Plot',emoji:'⬛',cost:12,type:'plot',reqLevel:5},
+  {id:'extra_plot4',name:'Garden Plot',emoji:'⬛',cost:16,type:'plot',reqLevel:7},
+  {id:'sprinkler',name:'Sprinkler',emoji:'🚿',cost:20,type:'upgrade',reqLevel:6,desc:'Auto-waters 1 plant at night!'},
+  {id:'scarecrow',name:'Scarecrow',emoji:'🤠',cost:12,type:'upgrade',reqLevel:4,desc:'Protects from crows!'},
+  {id:'birdhouse',name:'Birdhouse',emoji:'🏠',cost:15,type:'upgrade',reqLevel:5,desc:'More bird visitors!'},
+];
+
+const BADGES = [
+  {id:'first_plant',name:'First Seed',emoji:'🌱',desc:'Plant your first seed',check:()=>G.totalSold>0||Object.values(G.basket).reduce((s,n)=>s+n,0)>0||G.plots.some(p=>p.state!=='empty')},
+  {id:'first_sale',name:'First Sale',emoji:'🪙',desc:'Sell something',check:()=>G.totalSold>=1},
+  {id:'ten_sold',name:'Merchant',emoji:'🏪',desc:'Sell 10 items',check:()=>G.totalSold>=10},
+  {id:'fifty_sold',name:'Tycoon',emoji:'💰',desc:'Sell 50 items',check:()=>G.totalSold>=50},
+  {id:'share_first',name:'Kind Heart',emoji:'💝',desc:'Share with a visitor',check:()=>G.totalShared>=1},
+  {id:'share_ten',name:'Generous',emoji:'🤗',desc:'Share 10 times',check:()=>G.totalShared>=10},
+  {id:'math_star',name:'Math Star',emoji:'🧮',desc:'Get 10 answers right',check:()=>G.correctAnswers>=10},
+  {id:'math_pro',name:'Math Whiz',emoji:'🎓',desc:'Get 50 answers right',check:()=>G.correctAnswers>=50},
+  {id:'combo3',name:'Hot Streak',emoji:'🔥',desc:'3 correct in a row',check:()=>G.highestCombo>=3},
+  {id:'combo5',name:'Unstoppable',emoji:'⚡',desc:'5 correct in a row',check:()=>G.highestCombo>=5},
+  {id:'level5',name:'Growing Up',emoji:'🌟',desc:'Reach level 5',check:()=>G.level>=5},
+  {id:'level10',name:'Garden Pro',emoji:'👑',desc:'Reach level 10',check:()=>G.level>=10},
+  {id:'rainbow',name:'Rainbow',emoji:'🌈',desc:'Grow all colors',check:()=>{const c=new Set();Object.keys(G.basket).forEach(k=>c.add(PLANTS[k].color));G.plots.forEach(p=>{if(p.type)c.add(PLANTS[p.type].color)});return c.size>=5}},
+  {id:'night_owl',name:'Night Owl',emoji:'🦉',desc:'Play at night',check:()=>G.timeOfDay==='night'},
+  {id:'rainy_day',name:'Rain Dance',emoji:'🌧️',desc:'Garden in the rain',check:()=>G.weather==='rainy'},
+  {id:'rich',name:'Rich',emoji:'💎',desc:'Have 50 coins',check:()=>G.coins>=50},
+];
+
+let currentSeedType = 'apple';
+let ownedShopItems = new Set();
+let gameSession = {};
+let visitorTimer = null;
+let gameInProgress = false;
+let saveTimer = null;
+
+// ==================== INIT ====================
+function init() {
+  loadGame();
+  for (let i = G.plots.length; i < G.numPlots; i++) {
+    G.plots.push({state:'empty',type:null,waterings:0,totalWaters:0});
+  }
+  // Grass
+  const grass = document.getElementById('grass');
+  for(let i=0;i<50;i++){
+    const b=document.createElement('div');
+    b.className='grass-blade';
+    b.style.left=(i/50*100)+'%';
+    b.style.height=(16+Math.random()*12)+'px';
+    b.style.animationDelay=(Math.random()*2)+'s';
+    b.style.background=['#4CAF50','#66BB6A','#43A047','#388E3C'][Math.floor(Math.random()*4)];
+    grass.appendChild(b);
+  }
+  // Night stars
+  const ss = document.getElementById('starsSky');
+  for(let i=0;i<40;i++){
+    const s=document.createElement('div');
+    s.className='star-dot';
+    s.style.left=Math.random()*100+'%';
+    s.style.top=Math.random()*50+'%';
+    s.style.animationDelay=Math.random()*3+'s';
+    ss.appendChild(s);
+  }
+  // Rain drops
+  const rl = document.getElementById('rain-layer');
+  for(let i=0;i<60;i++){
+    const r=document.createElement('div');
+    r.className='raindrop';
+    r.style.left=Math.random()*100+'%';
+    r.style.animationDuration=(0.4+Math.random()*0.4)+'s';
+    r.style.animationDelay=Math.random()*2+'s';
+    rl.appendChild(r);
+  }
+  applyTimeOfDay();
+  applyWeather();
+  renderPlots();
+  updateUI();
+  if(!G.tutDone) startTutorial();
+  scheduleVisitor();
+  autoSave();
+}
+
+// ==================== SAVE / LOAD ====================
+function saveGame(){
+  try{
+    const d={coins:G.coins,xp:G.xp,level:G.level,basket:G.basket,plots:G.plots,numPlots:G.numPlots,
+      seedTypes:G.seedTypes,totalSold:G.totalSold,totalShared:G.totalShared,gamesPlayed:G.gamesPlayed,
+      correctAnswers:G.correctAnswers,wrongAnswers:G.wrongAnswers,tutDone:G.tutDone,dayCount:G.dayCount,
+      earnedBadges:[...G.earnedBadges],diffLevel:G.diffLevel,highestCombo:G.highestCombo,
+      ownedShopItems:[...ownedShopItems],currentSeedType};
+    localStorage.setItem('seedling_v2',JSON.stringify(d));
+  }catch(e){}
+}
+function loadGame(){
+  try{
+    const d=JSON.parse(localStorage.getItem('seedling_v2'));
+    if(!d)return;
+    Object.assign(G,{coins:d.coins||0,xp:d.xp||0,level:d.level||1,basket:d.basket||{},
+      numPlots:d.numPlots||4,seedTypes:d.seedTypes||['apple'],totalSold:d.totalSold||0,
+      totalShared:d.totalShared||0,gamesPlayed:d.gamesPlayed||0,correctAnswers:d.correctAnswers||0,
+      wrongAnswers:d.wrongAnswers||0,tutDone:d.tutDone||false,dayCount:d.dayCount||1,
+      diffLevel:d.diffLevel||0,highestCombo:d.highestCombo||0});
+    G.plots=d.plots||[];
+    G.earnedBadges=new Set(d.earnedBadges||[]);
+    ownedShopItems=new Set(d.ownedShopItems||[]);
+    currentSeedType=d.currentSeedType||'apple';
+  }catch(e){}
+}
+function autoSave(){clearInterval(saveTimer);saveTimer=setInterval(saveGame,10000)}
+
+// ==================== RENDER ====================
+function renderPlots(){
+  const garden=document.getElementById('garden');
+  garden.innerHTML='';
+  G.plots.forEach((plot,i)=>{
+    const div=document.createElement('div');
+    div.className='plot'+(plot.state==='empty'?' empty':'')+(plot.wet?' wet':'');
+    div.dataset.index=i;
+    div.addEventListener('click',()=>onPlotTap(i));
+    div.addEventListener('touchstart',(e)=>{e.preventDefault();onPlotTap(i)},{passive:false});
+
+    if(plot.state!=='empty'){
+      const p=PLANTS[plot.type];
+      const span=document.createElement('span');
+      span.className='plant'+(plot.state==='ready'?' ready':'');
+      if(plot.state==='seed')span.textContent=p.seed;
+      else if(plot.state==='growing')span.textContent=plot.waterings>=Math.floor(p.waters/2+1)?p.grow2:p.grow1;
+      else if(plot.state==='ready')span.textContent=p.ready;
+      div.appendChild(span);
+
+      // Growth progress dots
+      if(plot.state!=='ready'&&p.waters>1){
+        const dots=document.createElement('div');
+        dots.className='growth-dots';
+        for(let w=0;w<p.waters;w++){
+          const d=document.createElement('div');
+          d.className='growth-dot'+(w<plot.waterings?' filled':'');
+          dots.appendChild(d);
+        }
+        div.appendChild(dots);
+      }
+    }
+    garden.appendChild(div);
+  });
+}
+
+function updateUI(){
+  document.getElementById('coins').textContent=G.coins;
+  document.getElementById('level-display').textContent=G.level;
+  const totalBasket=Object.values(G.basket).reduce((s,n)=>s+n,0);
+  document.getElementById('basket-count').textContent=totalBasket;
+
+  // XP bar
+  const xpNeeded=XP_PER_LEVEL[Math.min(G.level,XP_PER_LEVEL.length-1)]||999;
+  const prevXp=XP_PER_LEVEL[Math.min(G.level-1,XP_PER_LEVEL.length-1)]||0;
+  const pct=Math.min(100,((G.xp-prevXp)/(xpNeeded-prevXp))*100);
+  document.getElementById('xp-bar').style.width=pct+'%';
+
+  // Basket badge
+  const badge=document.getElementById('basket-badge');
+  if(totalBasket>0){badge.style.display='flex';badge.textContent=totalBasket}
+  else badge.style.display='none';
+
+  // Tool highlight
+  document.querySelectorAll('.tool-btn').forEach(b=>b.classList.toggle('selected',b.dataset.tool===G.tool));
+
+  // Seed preview
+  document.getElementById('seed-preview').textContent=PLANTS[currentSeedType].emoji;
+
+  // Lock share tool until level 2
+  const shareBtn=document.querySelector('[data-tool="pet"]');
+  if(shareBtn)shareBtn.classList.toggle('locked',G.level<2);
+
+  checkBadges();
+}
+
+// ==================== TIME & WEATHER ====================
+function advanceTime(){
+  if(G.timeOfDay==='day'){G.timeOfDay='sunset';sfxNight()}
+  else if(G.timeOfDay==='sunset'){
+    G.timeOfDay='night';sfxNight();
+    // Night growth boost + sprinkler
+    if(ownedShopItems.has('sprinkler')){
+      const seedPlot=G.plots.find(p=>p.state==='seed'||p.state==='growing');
+      if(seedPlot){
+        const pl=PLANTS[seedPlot.type];
+        seedPlot.waterings++;
+        if(seedPlot.waterings>=pl.waters){seedPlot.state='ready';sfxGrow()}
+        else seedPlot.state='growing';
+        spawnFloatText('🚿 Sprinkler!','#4FC3F7');
+      }
+    }
+    renderPlots();
+  }
+  else{
+    G.timeOfDay='day';
+    G.dayCount++;
+    // New weather each day
+    const r=Math.random();
+    G.weather=r<0.15?'rainy':r<0.35?'cloudy':'sunny';
+    // Rain waters all plants!
+    if(G.weather==='rainy'){
+      sfxRain();
+      G.plots.forEach(plot=>{
+        if(plot.state==='seed'||plot.state==='growing'){
+          const pl=PLANTS[plot.type];
+          plot.waterings++;
+          plot.wet=true;
+          if(plot.waterings>=pl.waters){plot.state='ready';sfxGrow()}
+          else plot.state='growing';
+        }
+      });
+      renderPlots();
+      setTimeout(()=>{G.plots.forEach(p=>p.wet=false);renderPlots()},3000);
+      spawnFloatText('🌧️ Rain waters your garden!','#1E88E5');
+    }
+    scheduleVisitor();
+  }
+  applyTimeOfDay();
+  applyWeather();
+  updateUI();
+  saveGame();
+}
+
+function applyTimeOfDay(){
+  const sky=document.getElementById('sky');
+  sky.className='sky sky-'+G.timeOfDay;
+  if(G.weather==='rainy'&&G.timeOfDay==='day')sky.className='sky sky-rain';
+  document.getElementById('sun').classList.toggle('hidden',G.timeOfDay==='night');
+  document.getElementById('moon').classList.toggle('show',G.timeOfDay==='night');
+  document.getElementById('starsSky').classList.toggle('show',G.timeOfDay==='night');
+  document.getElementById('time-btn').textContent=G.timeOfDay==='night'?'☀️':'🌙';
+}
+function applyWeather(){
+  document.getElementById('rain-layer').classList.toggle('active',G.weather==='rainy'&&G.timeOfDay!=='night');
+  const wi=document.getElementById('weather-icon');
+  if(G.weather==='rainy')wi.textContent='🌧️';
+  else if(G.weather==='cloudy')wi.textContent='⛅';
+  else wi.textContent=G.timeOfDay==='night'?'🌙':'☀️';
+}
+
+// ==================== TOOLS ====================
+function selectTool(tool){
+  if(tool==='shop'||tool==='badges')return;
+  if(tool==='pet'&&G.level<2)return;
+  if(tool==='seed'&&G.tool==='seed'&&G.seedTypes.length>1){
+    const idx=G.seedTypes.indexOf(currentSeedType);
+    currentSeedType=G.seedTypes[(idx+1)%G.seedTypes.length];
+    const p=PLANTS[currentSeedType];
+    spawnFloatText(p.emoji+' '+p.name,'#E65100');
+    sfxPlant();
+    updateUI();
+    return;
+  }
+  G.tool=tool;
+  updateUI();
+  sfxPlant();
+  hideTutorial();
+}
+
+function onPlotTap(index){
+  const plot=G.plots[index];
+
+  if(G.tool==='seed'&&plot.state==='empty'){
+    plot.state='seed';plot.type=currentSeedType;plot.waterings=0;plot.totalWaters=PLANTS[currentSeedType].waters;
+    sfxPlant();renderPlots();spawnSparkle(index,'🌱');
+    if(G.tutStep===0){G.tutStep=1;showTutorial('water','Now water it!')}
+    gainXP(1);
+    return;
+  }
+
+  if(G.tool==='water'&&(plot.state==='seed'||plot.state==='growing')){
+    const p=PLANTS[plot.type];
+    plot.waterings++;
+    sfxWater();spawnWaterDrop(index);
+    if(plot.waterings>=p.waters){
+      plot.state='ready';sfxGrow();
+      setTimeout(()=>spawnSparkle(index,'✨'),300);
+      if(G.tutStep===1){G.tutStep=2;showTutorial('pick','Tap to pick!')}
+    }else{plot.state='growing'}
+    renderPlots();gainXP(1);
+    return;
+  }
+
+  if(G.tool==='pick'&&plot.state==='ready'){
+    const p=PLANTS[plot.type];
+    G.basket[plot.type]=(G.basket[plot.type]||0)+1;
+    sfxPick();spawnSparkle(index,p.ready);
+    plot.state='empty';plot.type=null;plot.waterings=0;
+    renderPlots();updateUI();gainXP(1);
+    if(G.tutStep===2){G.tutStep=3;showTutStand()}
+    return;
+  }
+
+  // Wrong tool — wiggle
+  const el=document.querySelectorAll('.plot')[index];
+  if(el){el.style.animation='none';el.offsetHeight;el.style.animation='wrongShake 0.3s ease';setTimeout(()=>el.style.animation='',400)}
+}
+
+// ==================== VISITORS ====================
+function scheduleVisitor(){
+  clearTimeout(visitorTimer);
+  if(G.timeOfDay==='night')return;
+  const delay=15000+Math.random()*20000;
+  visitorTimer=setTimeout(()=>{
+    if(G.level<2||G.timeOfDay==='night')return;
+    showVisitor();
+  },delay);
+}
+
+function showVisitor(){
+  if(G.visitorActive||gameInProgress)return;
+  const v=VISITORS[Math.floor(Math.random()*VISITORS.length)];
+  G.visitorType=v;
+  G.visitorActive=true;
+  const el=document.getElementById('visitor');
+  document.getElementById('visitor-emoji').textContent=v.emoji;
+  const speech=document.getElementById('visitor-speech');
+  speech.textContent=v.says;
+  speech.style.display='block';
+  el.classList.add('show');
+  sfxVisitor();
+
+  // Auto-hide after 20s
+  setTimeout(()=>{
+    if(G.visitorActive)hideVisitor();
+  },20000);
+}
+
+function hideVisitor(){
+  G.visitorActive=false;G.visitorType=null;
+  const el=document.getElementById('visitor');
+  el.classList.remove('show');
+  document.getElementById('visitor-speech').style.display='none';
+  scheduleVisitor();
+}
+
+function tryShareWithVisitor(){
+  if(!G.visitorActive||!G.visitorType)return false;
+  const v=G.visitorType;
+  const totalBasket=Object.values(G.basket).reduce((s,n)=>s+n,0);
+  if(totalBasket===0)return false;
+
+  // Find something visitor likes
+  let giveType=null;
+  if(v.likes){
+    for(const t of v.likes){
+      if(G.basket[t]&&G.basket[t]>0){giveType=t;break}
+    }
+  }
+  // If puppy or no matching like, give anything
+  if(!giveType){
+    const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+    if(types.length>0)giveType=types[0];
+  }
+  if(!giveType)return false;
+
+  G.basket[giveType]--;
+  if(G.basket[giveType]<=0)delete G.basket[giveType];
+  G.totalShared++;
+
+  const p=PLANTS[giveType];
+  const liked=v.likes?v.likes.includes(giveType):true;
+  const bonus=liked?3:1;
+  G.coins+=bonus;
+
+  sfxShare();
+  spawnFloatText(liked?'❤️ Loves it! +'+bonus+'🪙':'😊 Thanks! +'+bonus+'🪙',liked?'#E91E63':'#FF9800');
+
+  // Happiness particles
+  const vel=document.getElementById('visitor');
+  const vr=vel.getBoundingClientRect();
+  for(let i=0;i<5;i++){
+    setTimeout(()=>{
+      const s=document.createElement('div');s.className='sparkle';
+      s.textContent=liked?'❤️':'😊';
+      s.style.fontSize='1.5em';
+      s.style.left=(vr.left+vr.width/2+(Math.random()-0.5)*50)+'px';
+      s.style.top=(vr.top+(Math.random()-0.5)*40)+'px';
+      document.body.appendChild(s);setTimeout(()=>s.remove(),900);
+    },i*100);
+  }
+
+  gainXP(liked?3:1);
+  setTimeout(hideVisitor,1500);
+  updateUI();
+  return true;
+}
+
+// ==================== XP & LEVELING ====================
+function gainXP(amount){
+  G.xp+=amount;
+  const needed=XP_PER_LEVEL[Math.min(G.level,XP_PER_LEVEL.length-1)]||999;
+  if(G.xp>=needed&&G.level<XP_PER_LEVEL.length-1){
+    G.level++;
+    sfxLevelUp();
+    showLevelUp();
+  }
+  updateUI();
+}
+
+function showLevelUp(){
+  const unlocks=[];
+  // Check what unlocks at this level
+  SHOP_ITEMS.forEach(item=>{
+    if(item.reqLevel===G.level&&!ownedShopItems.has(item.id)){
+      unlocks.push(item.emoji+' '+item.name+' now in shop!');
+    }
+  });
+  if(G.level===2)unlocks.push('🤗 Share tool unlocked!');
+  if(G.level===3)unlocks.push('🎨 Color games unlocked!');
+  if(G.level===5)unlocks.push('🔢 Addition games unlocked!');
+  if(G.level===7)unlocks.push('🧩 Pattern games unlocked!');
+
+  const c=document.getElementById('levelup-content');
+  c.innerHTML=`
+    <h2>🎉 LEVEL UP!</h2>
+    <div class="big-level">⭐ ${G.level} ⭐</div>
+    <p style="font-size:1.2em;color:#6A1B9A;font-weight:bold;margin:10px 0">You reached Level ${G.level}!</p>
+    ${unlocks.map(u=>'<div class="new-unlock">'+u+'</div>').join('')}
+    <button class="close-btn" style="background:#6A1B9A" onclick="closeLevelUp()">✕</button>
+  `;
+  document.getElementById('levelup-overlay').classList.add('active');
+  celebrate();
+}
+function closeLevelUp(){document.getElementById('levelup-overlay').classList.remove('active')}
+
+// ==================== MINI-GAMES ====================
+function openMiniGame(){
+  // Handle share tool + visitor
+  if(G.tool==='pet'){
+    if(tryShareWithVisitor())return;
+    // Bounce stand if nothing to share
+    const s=document.getElementById('stand');
+    s.style.animation='none';s.offsetHeight;s.style.animation='wrongShake 0.4s ease';
+    setTimeout(()=>s.style.animation='',500);
+    return;
+  }
+
+  const totalBasket=Object.values(G.basket).reduce((s,n)=>s+n,0);
+  if(totalBasket===0){
+    const s=document.getElementById('stand');
+    s.style.animation='none';s.offsetHeight;s.style.animation='wrongShake 0.4s ease';
+    setTimeout(()=>s.style.animation='',500);
+    return;
+  }
+  hideTutorial();
+  gameInProgress=true;
+
+  // Pick game type based on level and adaptive difficulty
+  const gameTypes=['counting'];
+  if(G.level>=2)gameTypes.push('counting'); // weight counting more
+  if(G.level>=3)gameTypes.push('color_match','color_match');
+  if(G.level>=3)gameTypes.push('size_compare');
+  if(G.level>=4)gameTypes.push('sorting');
+  if(G.level>=5)gameTypes.push('addition','addition');
+  if(G.level>=6)gameTypes.push('subtraction');
+  if(G.level>=7)gameTypes.push('pattern','pattern');
+  if(G.level>=8)gameTypes.push('more_less');
+
+  const gameType=gameTypes[Math.floor(Math.random()*gameTypes.length)];
+
+  switch(gameType){
+    case 'counting': setupCountingGame(); break;
+    case 'color_match': setupColorGame(); break;
+    case 'addition': setupAdditionGame(); break;
+    case 'subtraction': setupSubtractionGame(); break;
+    case 'pattern': setupPatternGame(); break;
+    case 'size_compare': setupSizeGame(); break;
+    case 'sorting': setupSortingGame(); break;
+    case 'more_less': setupMoreLessGame(); break;
+    default: setupCountingGame();
+  }
+
+  document.getElementById('game-overlay').classList.add('active');
+}
+
+// --- COUNTING ---
+function setupCountingGame(){
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const type=types[Math.floor(Math.random()*types.length)];
+  const plant=PLANTS[type];
+  const count=G.basket[type];
+  const maxShow=G.diffLevel===0?3:G.diffLevel===1?5:7;
+  const showCount=Math.min(count,1+Math.floor(Math.random()*Math.min(count,maxShow)));
+
+  gameSession={type:'counting',itemType:type,emoji:plant.emoji,count:showCount,coinValue:plant.coinValue,xpValue:plant.xp};
+
+  document.getElementById('game-title').textContent='🧺 Count & Sell!';
+  document.getElementById('game-items').textContent=(plant.emoji+' ').repeat(showCount);
+  document.getElementById('game-prompt').textContent=showCount<=3?`How many ${plant.name}s?`:`Count the ${plant.name}s!`;
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');
+  ans.innerHTML='';
+  const choices=new Set([showCount]);
+  while(choices.size<Math.min(4,maxShow)){
+    choices.add(Math.max(1,showCount+Math.floor(Math.random()*5)-2));
+  }
+  [...choices].sort((a,b)=>a-b).forEach(n=>{
+    const btn=document.createElement('button');
+    btn.className='ans-btn';btn.textContent=n;
+    btn.onclick=()=>handleAnswer(n===showCount,btn,n);
+    ans.appendChild(btn);
+  });
+}
+
+// --- COLOR MATCHING ---
+function setupColorGame(){
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const type=types[Math.floor(Math.random()*types.length)];
+  const plant=PLANTS[type];
+  const correctColor=plant.color;
+
+  gameSession={type:'color',itemType:type,emoji:plant.emoji,correctColor,coinValue:plant.coinValue,xpValue:plant.xp,count:1};
+
+  document.getElementById('game-title').textContent='🎨 Color Match!';
+  document.getElementById('game-items').textContent=plant.emoji;
+  document.getElementById('game-prompt').textContent=`What color is the ${plant.name}?`;
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');
+  ans.innerHTML='';
+  const colorKeys=Object.keys(COLORS);
+  const choices=new Set([correctColor]);
+  while(choices.size<Math.min(4,colorKeys.length)){
+    choices.add(colorKeys[Math.floor(Math.random()*colorKeys.length)]);
+  }
+  const arr=[...choices].sort(()=>Math.random()-0.5);
+  arr.forEach(c=>{
+    const btn=document.createElement('button');
+    btn.className='ans-btn emoji-btn';
+    btn.textContent=COLORS[c].emoji;
+    btn.title=COLORS[c].name;
+    btn.onclick=()=>handleAnswer(c===correctColor,btn,COLORS[c].name);
+    ans.appendChild(btn);
+  });
+}
+
+// --- ADDITION ---
+function setupAdditionGame(){
+  const a=1+Math.floor(Math.random()*(G.diffLevel===0?2:G.diffLevel===1?3:5));
+  const b=1+Math.floor(Math.random()*(G.diffLevel===0?2:G.diffLevel===1?3:4));
+  const answer=a+b;
+  // Use random fruit emojis
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const type=types[Math.floor(Math.random()*types.length)];
+  const plant=PLANTS[type];
+
+  gameSession={type:'addition',itemType:type,emoji:plant.emoji,count:1,coinValue:2,xpValue:3,answer};
+
+  document.getElementById('game-title').textContent='➕ Add Them Up!';
+  document.getElementById('game-items').innerHTML=
+    '<span style="font-size:0.8em">'+(plant.emoji+' ').repeat(a)+'</span>'+
+    '<span style="font-size:0.7em;color:#E65100"> + </span>'+
+    '<span style="font-size:0.8em">'+(plant.emoji+' ').repeat(b)+'</span>';
+  document.getElementById('game-prompt').textContent=`${a} + ${b} = ?`;
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');
+  ans.innerHTML='';
+  const choices=new Set([answer]);
+  while(choices.size<4){choices.add(Math.max(1,answer+Math.floor(Math.random()*5)-2))}
+  [...choices].sort((a,b)=>a-b).forEach(n=>{
+    const btn=document.createElement('button');btn.className='ans-btn';btn.textContent=n;
+    btn.onclick=()=>handleAnswer(n===answer,btn,n);
+    ans.appendChild(btn);
+  });
+}
+
+// --- SUBTRACTION ---
+function setupSubtractionGame(){
+  const total=3+Math.floor(Math.random()*(G.diffLevel===0?3:5));
+  const take=1+Math.floor(Math.random()*Math.min(total-1,3));
+  const answer=total-take;
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const type=types[Math.floor(Math.random()*types.length)];
+  const plant=PLANTS[type];
+
+  gameSession={type:'subtraction',itemType:type,emoji:plant.emoji,count:1,coinValue:2,xpValue:3,answer};
+
+  document.getElementById('game-title').textContent='➖ Take Away!';
+  // Show total, cross some out
+  let display='';
+  for(let i=0;i<total;i++){
+    if(i<take)display+='<span style="opacity:0.3;text-decoration:line-through">'+plant.emoji+'</span> ';
+    else display+=plant.emoji+' ';
+  }
+  document.getElementById('game-items').innerHTML=display;
+  document.getElementById('game-prompt').textContent=`${total} - ${take} = ?`;
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');ans.innerHTML='';
+  const choices=new Set([answer]);
+  while(choices.size<4){choices.add(Math.max(0,answer+Math.floor(Math.random()*5)-2))}
+  [...choices].sort((a,b)=>a-b).forEach(n=>{
+    const btn=document.createElement('button');btn.className='ans-btn';btn.textContent=n;
+    btn.onclick=()=>handleAnswer(n===answer,btn,n);
+    ans.appendChild(btn);
+  });
+}
+
+// --- PATTERN ---
+function setupPatternGame(){
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  if(types.length<2){setupCountingGame();return}
+  const t1=types[Math.floor(Math.random()*types.length)];
+  let t2=types[Math.floor(Math.random()*types.length)];
+  while(t2===t1&&types.length>1)t2=types[Math.floor(Math.random()*types.length)];
+  const p1=PLANTS[t1],p2=PLANTS[t2];
+
+  // AB pattern or AAB pattern
+  const patternLen=G.diffLevel<2?4:5;
+  const pattern=[];
+  for(let i=0;i<patternLen;i++)pattern.push(i%2===0?t1:t2);
+  const answer=pattern[patternLen-1]; // last one
+  const answerEmoji=PLANTS[answer].emoji;
+
+  gameSession={type:'pattern',count:1,coinValue:2,xpValue:4,answer:answerEmoji,itemType:t1};
+
+  document.getElementById('game-title').textContent='🧩 What Comes Next?';
+  let display='';
+  for(let i=0;i<patternLen-1;i++)display+=PLANTS[pattern[i]].emoji+' ';
+  display+='❓';
+  document.getElementById('game-items').textContent=display;
+  document.getElementById('game-prompt').textContent='Complete the pattern!';
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');ans.innerHTML='';
+  const choices=[p1.emoji,p2.emoji];
+  // Add a distractor
+  const allEmojis=Object.values(PLANTS).map(p=>p.emoji).filter(e=>e!==p1.emoji&&e!==p2.emoji);
+  if(allEmojis.length>0)choices.push(allEmojis[Math.floor(Math.random()*allEmojis.length)]);
+  choices.sort(()=>Math.random()-0.5);
+  choices.forEach(e=>{
+    const btn=document.createElement('button');btn.className='ans-btn emoji-btn';btn.textContent=e;
+    btn.onclick=()=>handleAnswer(e===answerEmoji,btn,e);
+    ans.appendChild(btn);
+  });
+}
+
+// --- SIZE COMPARE ---
+function setupSizeGame(){
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const type=types[Math.floor(Math.random()*types.length)];
+  const plant=PLANTS[type];
+
+  const isBig=Math.random()>0.5;
+  gameSession={type:'size',count:1,coinValue:1,xpValue:2,answer:isBig?'big':'small',itemType:type,emoji:plant.emoji};
+
+  document.getElementById('game-title').textContent='📏 Big or Small?';
+  const bigSize='font-size:2em';
+  const smallSize='font-size:0.7em';
+  document.getElementById('game-items').innerHTML=
+    `<span style="${bigSize}">${plant.emoji}</span>  <span style="${smallSize}">${plant.emoji}</span>`;
+  document.getElementById('game-prompt').textContent=isBig?'Tap the BIG one!':'Tap the SMALL one!';
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');ans.innerHTML='';
+  [{label:'BIG '+plant.emoji,val:'big',size:'1.8em'},{label:'small '+plant.emoji,val:'small',size:'1em'}].sort(()=>Math.random()-0.5).forEach(opt=>{
+    const btn=document.createElement('button');
+    btn.className='ans-btn';
+    btn.style.fontSize=opt.size;
+    btn.textContent=plant.emoji;
+    btn.onclick=()=>handleAnswer(opt.val===(isBig?'big':'small'),btn,opt.val);
+    ans.appendChild(btn);
+  });
+}
+
+// --- SORTING ---
+function setupSortingGame(){
+  // "Which one is different?"
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  if(types.length<2){setupCountingGame();return}
+  const main=types[Math.floor(Math.random()*types.length)];
+  let odd=types[Math.floor(Math.random()*types.length)];
+  while(odd===main&&types.length>1)odd=types[Math.floor(Math.random()*types.length)];
+  const pm=PLANTS[main],po=PLANTS[odd];
+
+  const count=G.diffLevel===0?3:4;
+  const oddPos=Math.floor(Math.random()*count);
+  const items=[];
+  for(let i=0;i<count;i++)items.push(i===oddPos?odd:main);
+
+  gameSession={type:'sorting',count:1,coinValue:2,xpValue:2,answer:oddPos,itemType:main};
+
+  document.getElementById('game-title').textContent='🔍 Which is Different?';
+  document.getElementById('game-items').textContent=items.map(t=>PLANTS[t].emoji).join('  ');
+  document.getElementById('game-prompt').textContent='Find the one that\'s different!';
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');ans.innerHTML='';
+  items.forEach((t,i)=>{
+    const btn=document.createElement('button');btn.className='ans-btn emoji-btn';btn.textContent=PLANTS[t].emoji;
+    btn.onclick=()=>handleAnswer(i===oddPos,btn,i);
+    ans.appendChild(btn);
+  });
+}
+
+// --- MORE/LESS ---
+function setupMoreLessGame(){
+  const a=1+Math.floor(Math.random()*5);
+  let b=1+Math.floor(Math.random()*5);
+  while(b===a)b=1+Math.floor(Math.random()*5);
+  const types=Object.keys(G.basket).filter(k=>G.basket[k]>0);
+  const t1=types[Math.floor(Math.random()*types.length)];
+  const p1=PLANTS[t1];
+  const answer=a>b?'left':'right';
+
+  gameSession={type:'moreless',count:1,coinValue:2,xpValue:3,answer,itemType:t1};
+
+  document.getElementById('game-title').textContent='⚖️ Which Has More?';
+  document.getElementById('game-items').innerHTML=
+    `<span>${(p1.emoji+' ').repeat(a)}</span><br><span style="font-size:0.5em">── or ──</span><br><span>${(p1.emoji+' ').repeat(b)}</span>`;
+  document.getElementById('game-prompt').textContent='Which group has MORE?';
+  document.getElementById('game-result').textContent='';
+
+  const ans=document.getElementById('game-answers');ans.innerHTML='';
+  [{label:a+' (top)',val:'left'},{label:b+' (bottom)',val:'right'}].forEach(opt=>{
+    const btn=document.createElement('button');btn.className='ans-btn';btn.textContent=opt.label;btn.style.fontSize='1.3em';
+    btn.onclick=()=>handleAnswer(opt.val===answer,btn,opt.val);
+    ans.appendChild(btn);
+  });
+}
+
+// ==================== ANSWER HANDLER ====================
+function handleAnswer(correct,btn,value){
+  G.gamesPlayed++;
+  if(correct){
+    G.correctAnswers++;G.comboCount++;
+    if(G.comboCount>G.highestCombo)G.highestCombo=G.comboCount;
+    G.recentCorrect++;G.recentTotal++;
+    sfxCorrect();
+    btn.classList.add('correct-pop');
+
+    // Reward
+    const coins=gameSession.coinValue*(gameSession.count||1);
+    const xp=gameSession.xpValue||2;
+    G.coins+=coins;
+    gainXP(xp);
+
+    // Consume from basket for counting/color/sort games
+    if(gameSession.itemType&&G.basket[gameSession.itemType]){
+      const consume=gameSession.count||1;
+      G.basket[gameSession.itemType]-=consume;
+      if(G.basket[gameSession.itemType]<=0)delete G.basket[gameSession.itemType];
+      G.totalSold+=consume;
+    }
+
+    let msg='';
+    if(G.comboCount>=5)msg='🔥🔥 AMAZING! +'+coins+'🪙';
+    else if(G.comboCount>=3)msg='⚡ Great streak! +'+coins+'🪙';
+    else msg=['🌟 Yes!','🎉 Correct!','👏 Great!','✨ Perfect!'][Math.floor(Math.random()*4)]+' +'+coins+'🪙';
+
+    document.getElementById('game-result').textContent=msg;
+    document.getElementById('game-result').style.color='#2E7D32';
+
+    // Coins fly
+    for(let i=0;i<Math.min(coins,4);i++){
+      setTimeout(()=>{sfxCoin();spawnCoinFly()},i*150);
+    }
+
+    // Combo celebration
+    if(G.comboCount===5||G.comboCount===10)setTimeout(celebrate,300);
+
+    setTimeout(()=>{closeGame();updateUI()},1200);
+
+  }else{
+    G.wrongAnswers++;G.comboCount=0;G.recentTotal++;
+    sfxWrong();
+    btn.classList.add('wrong-shake');
+    document.getElementById('game-result').textContent='Try again! 💪';
+    document.getElementById('game-result').style.color='#E53935';
+    setTimeout(()=>{btn.classList.remove('wrong-shake');document.getElementById('game-result').textContent=''},800);
+  }
+
+  // Adaptive difficulty
+  if(G.recentTotal>=8){
+    const pct=G.recentCorrect/G.recentTotal;
+    if(pct>=0.85&&G.diffLevel<2){G.diffLevel++;G.recentCorrect=0;G.recentTotal=0;spawnFloatText('📈 Getting harder!','#6A1B9A')}
+    else if(pct<0.4&&G.diffLevel>0){G.diffLevel--;G.recentCorrect=0;G.recentTotal=0;spawnFloatText('📉 Taking it easy!','#1E88E5')}
+    else if(G.recentTotal>=15){G.recentCorrect=0;G.recentTotal=0}
+  }
+
+  saveGame();
+}
+
+function closeGame(){
+  document.getElementById('game-overlay').classList.remove('active');
+  gameInProgress=false;
+  updateUI();
+}
+
+// ==================== SHOP ====================
+function openShop(){
+  const grid=document.getElementById('shop-grid');grid.innerHTML='';
+  SHOP_ITEMS.filter(item=>item.reqLevel<=G.level+1).forEach(item=>{
+    const owned=ownedShopItems.has(item.id);
+    const canAfford=G.coins>=item.cost;
+    const locked=item.reqLevel>G.level;
+    const div=document.createElement('div');
+    div.className='shop-item'+(owned?' owned':'')+((!canAfford&&!owned)||locked?' cant-afford':'');
+    div.innerHTML=`
+      <div class="item-emoji">${item.emoji}</div>
+      <div class="item-name">${item.name}${locked?' (Lv'+item.reqLevel+')':''}</div>
+      <div class="item-cost">${owned?'✅ Owned':locked?'🔒 Locked':'🪙 '+item.cost}</div>
+      ${item.desc?'<div style="font-size:0.7em;color:#888">'+item.desc+'</div>':''}
+    `;
+    if(!owned&&canAfford&&!locked){div.onclick=()=>buyShopItem(item)}
+    grid.appendChild(div);
+  });
+  document.getElementById('shop-overlay').classList.add('active');
+}
+function buyShopItem(item){
+  if(G.coins<item.cost||ownedShopItems.has(item.id))return;
+  G.coins-=item.cost;ownedShopItems.add(item.id);sfxBuy();
+  if(item.type==='seed'){G.seedTypes.push(item.unlocks);currentSeedType=item.unlocks}
+  else if(item.type==='plot'){G.numPlots++;G.plots.push({state:'empty',type:null,waterings:0});renderPlots()}
+  updateUI();openShop();saveGame();
+}
+function closeShop(){document.getElementById('shop-overlay').classList.remove('active')}
+
+// ==================== BADGES ====================
+function openBadges(){
+  const wall=document.getElementById('badge-wall');wall.innerHTML='';
+  BADGES.forEach(b=>{
+    const earned=G.earnedBadges.has(b.id);
+    const div=document.createElement('div');
+    div.className='badge-item'+(earned?' earned':' locked');
+    div.innerHTML=`<div class="b-emoji">${b.emoji}</div><div class="b-name">${earned?b.name:'???'}</div>`;
+    if(earned)div.title=b.desc;
+    wall.appendChild(div);
+  });
+  document.getElementById('badge-overlay').classList.add('active');
+}
+function closeBadges(){document.getElementById('badge-overlay').classList.remove('active')}
+function checkBadges(){
+  let newBadge=false;
+  BADGES.forEach(b=>{
+    if(!G.earnedBadges.has(b.id)&&b.check()){
+      G.earnedBadges.add(b.id);newBadge=true;
+      spawnFloatText('🏆 '+b.name+'!','#FF8F00');
+      sfxStar();
+    }
+  });
+  if(newBadge)saveGame();
+}
+
+// ==================== EFFECTS ====================
+function spawnSparkle(plotIndex,emoji){
+  const plots=document.querySelectorAll('.plot');const el=plots[plotIndex];if(!el)return;
+  const rect=el.getBoundingClientRect();
+  for(let i=0;i<3;i++){
+    const s=document.createElement('div');s.className='sparkle';s.textContent=emoji;s.style.fontSize='1.5em';
+    s.style.left=(rect.left+rect.width/2+(Math.random()-0.5)*40)+'px';
+    s.style.top=(rect.top+rect.height/2+(Math.random()-0.5)*40)+'px';
+    document.body.appendChild(s);setTimeout(()=>s.remove(),900);
+  }
+}
+function spawnWaterDrop(plotIndex){
+  const plots=document.querySelectorAll('.plot');const el=plots[plotIndex];if(!el)return;
+  const rect=el.getBoundingClientRect();
+  for(let i=0;i<4;i++){
+    const d=document.createElement('div');d.className='water-drop';d.textContent='💧';
+    d.style.left=(rect.left+10+Math.random()*(rect.width-20))+'px';d.style.top=(rect.top+10)+'px';
+    d.style.animationDelay=(i*0.1)+'s';
+    document.body.appendChild(d);setTimeout(()=>d.remove(),800);
+  }
+}
+function spawnFloatText(text,color){
+  const d=document.createElement('div');d.className='float-text';d.textContent=text;
+  d.style.color=color||'#E65100';d.style.left='50%';d.style.top='45%';d.style.transform='translateX(-50%)';
+  document.body.appendChild(d);setTimeout(()=>d.remove(),1600);
+}
+function spawnCoinFly(){
+  const f=document.createElement('div');f.className='coin-fly';f.textContent='🪙';
+  f.style.left=(40+Math.random()*20)+'%';f.style.top='50%';
+  document.body.appendChild(f);setTimeout(()=>f.remove(),1100);
+}
+function celebrate(){
+  sfxStar();
+  const cel=document.getElementById('celebration');cel.classList.add('active');cel.innerHTML='';
+  const colors=['#FF5252','#FFD740','#69F0AE','#40C4FF','#E040FB','#FF6E40'];
+  for(let i=0;i<50;i++){
+    const c=document.createElement('div');c.className='confetti';
+    c.style.left=Math.random()*100+'%';
+    c.style.background=colors[Math.floor(Math.random()*colors.length)];
+    c.style.animationDuration=(1.5+Math.random()*2)+'s';
+    c.style.animationDelay=(Math.random()*0.8)+'s';
+    const size=8+Math.random()*10;
+    c.style.width=size+'px';c.style.height=size+'px';
+    c.style.borderRadius=Math.random()>0.5?'50%':'2px';
+    cel.appendChild(c);
+  }
+  setTimeout(()=>{cel.classList.remove('active');cel.innerHTML=''},3500);
+}
+
+// ==================== TUTORIAL ====================
+function startTutorial(){showTutorial('plot','Tap to plant!')}
+function showTutorial(target,text){
+  const hand=document.getElementById('tut-hand');hand.style.display='block';
+  let el;
+  if(target==='plot'){el=document.querySelector('.plot')}
+  else if(target==='water'||target==='pick'||target==='pet'){el=document.querySelector(`[data-tool="${target}"]`)}
+  else if(target==='stand'){el=document.getElementById('stand')}
+  if(el){const r=el.getBoundingClientRect();hand.style.left=(r.left+r.width/2-20)+'px';hand.style.top=(r.top+r.height+5)+'px'}
+  spawnFloatText(text,'#E65100');
+}
+function showTutStand(){setTimeout(()=>showTutorial('stand','Sell at the stand!'),600)}
+function hideTutorial(){document.getElementById('tut-hand').style.display='none';G.tutDone=true}
+
+// ==================== CLICK ON VISITOR ====================
+document.getElementById('visitor').addEventListener('click',()=>{
+  if(G.visitorActive){
+    if(G.tool==='pet'){tryShareWithVisitor()}
+    else{selectTool('pet');spawnFloatText('🤗 Share with '+G.visitorType.name+'!','#E91E63')}
+  }
+});
+document.getElementById('visitor').addEventListener('touchstart',(e)=>{
+  e.preventDefault();
+  if(G.visitorActive){
+    if(G.tool==='pet'){tryShareWithVisitor()}
+    else{selectTool('pet');spawnFloatText('🤗 Share with '+G.visitorType.name+'!','#E91E63')}
+  }
+},{passive:false});
+
+// ==================== INIT ====================
+init();
+
+// Rainbow after enough stars
+setInterval(()=>{
+  if(G.correctAnswers>=5)document.getElementById('rainbow').classList.add('show');
+},5000);
+</script>
+</body>
+</html>

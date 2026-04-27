@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__Claude_Preview__preview_start",
+      "WebSearch",
+      "WebFetch(domain:tabs.ultimate-guitar.com)",
+      "WebFetch(domain:www.hrwiki.org)",
+      "WebFetch(domain:www.bigbasstabs.com)",
+      "WebFetch(domain:www.songsterr.com)",
+      "WebFetch(domain:www.e-chords.com)",
+      "WebFetch(domain:www.911tabs.com)",
+      "WebFetch(domain:www.guitaretab.com)",
+      "WebFetch(domain:www.guitartabsexplorer.com)",
+      "WebFetch(domain:www.wechords.com)",
+      "WebFetch(domain:www.guitartabs.cc)",
+      "WebFetch(domain:www.chordsound.com)",
+      "WebFetch(domain:www.cifraclub.com)",
+      "Bash(ls /c/Users/micha/Documents/all_ai_games/trogdor/*.mp3 /c/Users/micha/Documents/all_ai_games/trogdor/*.wav /c/Users/micha/Documents/all_ai_games/trogdor/*.ogg)"
+    ]
+  }
+}

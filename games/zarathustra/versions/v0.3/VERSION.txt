@@ -1,0 +1,13 @@
+Thus Spoke Zarathustra — v0.3
+Snapshot: 2026-04-26
+
+Scenes included:
+  §1  Descent          (walking sim + saint encounter)
+  §3  Marketplace      (click-to-emphasize speech, tightrope walker)
+  §6  The Fall         (consolation dialogue, dying walker)
+  §8  Night Journey    (walking sim, three encounters)
+
+Hub: index.html
+SDK: sdk.js (Journal, audio, typewriter)
+
+Restore: copy these files back over the working tree.

@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prologue §3 — The Marketplace</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #eae4d2;
+    --ink-dim: #8a8678;
+    --paper: #0b0a08;
+    --gold: #d4a017;
+    --gold-soft: #f3c84a;
+    --red: #c65245;
+    --red-soft: #e26a5d;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: 'Cormorant Garamond', Georgia, serif;
+    overflow: hidden;
+    height: 100vh; width: 100vw;
+    user-select: none;
+  }
+  canvas {
+    position: absolute; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    display: block;
+  }
+  #wordsLayer {
+    position: fixed; inset: 0;
+    pointer-events: none;
+    z-index: 4;
+  }
+  .topbar {
+    position: fixed;
+    top: 1rem; left: 1.25rem;
+    display: flex; align-items: center; gap: 1rem;
+    z-index: 10;
+  }
+  .topbar a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    font-size: 0.8rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    border: 1px solid var(--ink-dim);
+    padding: 0.4rem 0.85rem;
+    transition: all 0.3s ease;
+  }
+  .topbar a:hover { color: var(--gold); border-color: var(--gold); }
+  .chapter {
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+  }
+
+  /* ===== Intro overlay ===== */
+  #intro {
+    position: fixed; inset: 0;
+    background: rgba(11,10,8,0.96);
+    display: flex; align-items: center; justify-content: center;
+    flex-direction: column;
+    z-index: 30;
+    padding: 2rem;
+    text-align: center;
+    transition: opacity 0.9s ease;
+  }
+  #intro.hidden { opacity: 0; pointer-events: none; }
+  #intro h2 {
+    font-size: 0.85rem;
+    font-weight: 400;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin: 0 0 1rem;
+  }
+  #intro h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    margin: 0 0 1.4rem;
+  }
+  #intro .quote {
+    font-size: clamp(1.05rem, 2vw, 1.4rem);
+    font-style: italic;
+    max-width: 36ch;
+    line-height: 1.55;
+    color: var(--ink);
+    margin: 0 auto 2rem;
+  }
+  #intro .howto {
+    max-width: 56ch;
+    color: var(--ink-dim);
+    font-size: 0.97rem;
+    line-height: 1.7;
+    margin: 0 auto 1.4rem;
+  }
+  #intro .howto b { color: var(--ink); font-weight: 500; }
+  #intro .legend {
+    display: flex;
+    gap: 1.5rem;
+    margin: 0 auto 1.6rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .legend-item {
+    display: flex; align-items: center;
+    gap: 0.55rem;
+    font-size: 0.86rem;
+    color: var(--ink-dim);
+  }
+  .legend-item .dot {
+    width: 12px; height: 12px;
+    border-radius: 50%;
+  }
+  .legend-item .dot.gold { background: var(--gold-soft); box-shadow: 0 0 10px rgba(212,160,23,0.7); }
+  .legend-item .dot.red  { background: var(--red-soft); box-shadow: 0 0 10px rgba(198,82,69,0.65); }
+  .legend-item .dot.white { background: var(--ink); box-shadow: 0 0 6px rgba(234,228,210,0.4); }
+  #intro button {
+    background: transparent;
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.75rem 1.8rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background 0.25s ease;
+  }
+  #intro button:hover { background: rgba(212,160,23,0.12); }
+
+  /* ===== Movement banner ===== */
+  #movement {
+    position: fixed;
+    top: 5vh;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--gold);
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.9s ease;
+    text-shadow: 0 2px 14px rgba(0,0,0,0.7);
+    text-align: center;
+  }
+  #movement.visible { opacity: 1; }
+  #movement .sub {
+    display: block;
+    font-size: 0.66rem;
+    letter-spacing: 0.18em;
+    color: var(--ink-dim);
+    margin-top: 0.4rem;
+    font-style: italic;
+    text-transform: none;
+  }
+
+  /* ===== Sentence panel ===== */
+  #sentence {
+    position: fixed;
+    bottom: 4vh;
+    left: 50%;
+    transform: translateX(-50%);
+    width: min(880px, 92vw);
+    z-index: 6;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+  }
+  #sentence.visible { opacity: 1; }
+  #sentence .line {
+    background: rgba(11,10,8,0.92);
+    border: 1px solid rgba(212,160,23,0.5);
+    padding: 1.2rem 1.6rem;
+    font-size: clamp(1.1rem, 1.9vw, 1.45rem);
+    font-style: italic;
+    line-height: 1.5;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,0,0,0.55);
+  }
+  #sentence .blank {
+    display: inline-block;
+    min-width: 6em;
+    border-bottom: 1px dashed rgba(212,160,23,0.5);
+    margin: 0 0.2rem;
+    color: var(--ink-dim);
+    text-align: center;
+  }
+  #sentence .blank.filled {
+    border-bottom-color: transparent;
+    color: var(--ink);
+  }
+  #sentence .blank.filled.gold { color: var(--gold-soft); text-shadow: 0 0 12px rgba(212,160,23,0.7); }
+  #sentence .blank.filled.red  { color: var(--red-soft); text-shadow: 0 0 12px rgba(198,82,69,0.65); }
+  #sentence .timer {
+    height: 3px;
+    background: rgba(138,134,120,0.18);
+    margin-top: 0.5rem;
+    position: relative;
+  }
+  #sentence .timer .fill {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    background: var(--ink-dim);
+    width: 100%;
+    transition: width 0.1s linear, background 0.4s ease;
+  }
+  #sentence .hint {
+    margin-top: 0.45rem;
+    color: var(--ink-dim);
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    text-align: center;
+    opacity: 0.7;
+  }
+
+  /* ===== Drifting words ===== */
+  .word {
+    position: absolute;
+    pointer-events: auto;
+    cursor: pointer;
+    color: var(--ink);
+    font-style: italic;
+    font-size: 1.4rem;
+    padding: 0.5rem 0.95rem;
+    background: rgba(11,10,8,0.55);
+    border: 1px solid rgba(138,134,120,0.4);
+    transition: border-color 0.25s ease, transform 0.2s ease, opacity 0.6s ease, color 0.3s ease;
+    white-space: nowrap;
+    transform: translate(-50%, -50%);
+    will-change: transform;
+  }
+  .word:hover { transform: translate(-50%, -50%) scale(1.07); border-color: var(--ink); }
+  .word .label {
+    display: block;
+    font-size: 0.6rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-style: normal;
+    margin-top: 0.18rem;
+  }
+  .word .dot {
+    display: inline-block;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    margin-right: 0.3rem;
+    vertical-align: middle;
+  }
+  .word.gold {
+    color: var(--gold-soft);
+    border-color: rgba(212,160,23,0.7);
+    text-shadow: 0 0 10px rgba(212,160,23,0.4);
+  }
+  .word.gold .dot { background: var(--gold-soft); box-shadow: 0 0 8px rgba(212,160,23,0.7); }
+  .word.gold .label { color: var(--gold); }
+  .word.gold:hover { border-color: var(--gold); box-shadow: 0 0 18px rgba(212,160,23,0.4); }
+  .word.red {
+    color: var(--red-soft);
+    border-color: rgba(198,82,69,0.6);
+    text-shadow: 0 0 10px rgba(198,82,69,0.35);
+  }
+  .word.red .dot { background: var(--red-soft); box-shadow: 0 0 8px rgba(198,82,69,0.7); }
+  .word.red .label { color: var(--red); }
+  .word.red:hover { border-color: var(--red); box-shadow: 0 0 18px rgba(198,82,69,0.4); }
+  .word.white .dot { background: var(--ink); }
+  .word.fading { opacity: 0; pointer-events: none; transform: translate(-50%, -50%) scale(0.85); }
+  .word.spoken { opacity: 0; pointer-events: none; }
+  .word.snatched { color: var(--red); pointer-events: none; }
+
+  /* ===== Reaction tag ===== */
+  #reaction {
+    position: fixed;
+    left: 50%;
+    bottom: 28vh;
+    transform: translateX(-50%);
+    color: var(--ink);
+    font-size: 1.05rem;
+    font-style: italic;
+    text-align: center;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.6s ease;
+    z-index: 5;
+    text-shadow: 0 2px 10px rgba(0,0,0,0.85);
+    max-width: 60ch;
+    padding: 0 1rem;
+  }
+  #reaction.visible { opacity: 1; }
+  #reaction.gold { color: var(--gold-soft); }
+  #reaction.red  { color: var(--red-soft); }
+
+  /* ===== Ending ===== */
+  #end {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.96);
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    text-align: center;
+    z-index: 40;
+    opacity: 0;
+    transition: opacity 1.5s ease;
+  }
+  #end.visible { display: flex; opacity: 1; }
+  #end .verdict {
+    font-size: 0.78rem;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.2rem;
+  }
+  #end .quote {
+    font-size: clamp(1.3rem, 2.5vw, 1.95rem);
+    font-style: italic;
+    max-width: 38ch;
+    line-height: 1.5;
+    margin-bottom: 1rem;
+  }
+  #end .sub {
+    color: var(--ink-dim);
+    font-size: 1rem;
+    font-style: italic;
+    margin-bottom: 2rem;
+    max-width: 44ch;
+  }
+  #end .stats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 0.6rem 2.5rem;
+    margin-bottom: 2.2rem;
+  }
+  #end .stats .row {
+    display: flex; justify-content: space-between;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+  }
+  #end .stats .row .v {
+    color: var(--gold);
+    font-size: 1.15rem;
+    font-weight: 500;
+  }
+  #end .stats .row.crowd .v { color: var(--red); }
+  #end .links {
+    display: flex; flex-wrap: wrap; gap: 0.5rem;
+    justify-content: center;
+  }
+  #end a {
+    color: var(--gold);
+    border: 1px solid var(--gold);
+    padding: 0.65rem 1.5rem;
+    text-decoration: none;
+    letter-spacing: 0.18em;
+    font-size: 0.84rem;
+    text-transform: uppercase;
+    transition: background 0.25s ease;
+  }
+  #end a:hover { background: rgba(212,160,23,0.12); }
+</style>
+</head>
+<body>
+
+<canvas id="bg"></canvas>
+<canvas id="fg"></canvas>
+<div id="wordsLayer"></div>
+
+<div class="topbar">
+  <a href="../index.html">&larr; hub</a>
+  <span class="chapter">Prologue · §3 — The Marketplace</span>
+</div>
+
+<div id="movement"></div>
+<div id="reaction"></div>
+
+<div id="sentence">
+  <div class="line" id="sentenceLine"></div>
+  <div class="timer"><div class="fill" id="timerFill"></div></div>
+  <div class="hint" id="hintLine"></div>
+</div>
+
+<div id="intro">
+  <h2>Prologue · §3</h2>
+  <h1>The Marketplace</h1>
+  <div class="quote">&ldquo;Man is a rope, tied between beast and superman &mdash; a rope over an abyss.&rdquo;</div>
+  <div class="howto">
+    Zarathustra speaks above the marketplace. The wind carries words past him &mdash;
+    <b>click one</b> to speak it. The walker on the rope is your meter:
+    a true word steadies him; a flattering word tips him toward the crowd.
+    The crowd will show you what it heard.
+  </div>
+  <div class="legend">
+    <div class="legend-item"><span class="dot gold"></span>Lightning</div>
+    <div class="legend-item"><span class="dot red"></span>Flatter</div>
+    <div class="legend-item"><span class="dot white"></span>Passing</div>
+  </div>
+  <div class="howto" style="font-size:0.86rem;font-style:italic;">
+    The labels fade with each movement. By the third you must <b>hear</b> the difference.
+    And then &mdash; beware the jester. He steals lightning before it lands.
+  </div>
+  <button id="startBtn">Begin speaking</button>
+</div>
+
+<div id="end">
+  <div class="verdict" id="endVerdict"></div>
+  <div class="quote" id="endQuote"></div>
+  <div class="sub" id="endSub"></div>
+  <div class="stats">
+    <div class="row"><span>Lightning struck</span><span class="v" id="endGold">0</span></div>
+    <div class="row crowd"><span>Flatteries</span><span class="v" id="endRed">0</span></div>
+    <div class="row"><span>Words taken by wind</span><span class="v" id="endMissed">0</span></div>
+    <div class="row crowd"><span>Snatched by jester</span><span class="v" id="endStolen">0</span></div>
+  </div>
+  <div class="links">
+    <a href="../index.html">return to hub</a>
+    <a href="prologue-3.html">speak again</a>
+    <a href="prologue-6.html">on to §6 &rarr;</a>
+  </div>
+</div>
+
+<script src="../sdk.js"></script>
+<script>
+(() => {
+  const bg = document.getElementById('bg');
+  const fg = document.getElementById('fg');
+  const bctx = bg.getContext('2d');
+  const fctx = fg.getContext('2d');
+  const wordsLayer = document.getElementById('wordsLayer');
+
+  function resize() {
+    for (const c of [bg, fg]) {
+      c.width = window.innerWidth;
+      c.height = window.innerHeight;
+    }
+    drawSky();
+  }
+  window.addEventListener('resize', resize);
+
+  // ============== SPEECH DATA ==============
+  // Three movements. Each line: a sentence with a blank, and a set of words
+  // that will drift across the sky as floating buttons. The player clicks one.
+  // Kinds: 'gold' (truth/lightning), 'red' (flatter the crowd), 'white' (passing word).
+  const SPEECHES = [
+    {
+      movement: 'I — The Superman',
+      sub: 'labels visible — learn the colors',
+      lines: [
+        {
+          before: "I teach you the ", after: ". Man is something that shall be overcome.",
+          words: [
+            { word: 'superman', kind: 'gold' },
+            { word: 'better servant', kind: 'red' },
+            { word: 'higher man', kind: 'white' },
+          ],
+          react: {
+            gold: "A few step back. Most laugh.",
+            red:  "They like the sound of that.",
+            white:"The phrase passes them by.",
+          },
+        },
+        {
+          before: "Behold, I teach you the superman: he is this ", after: ", he is this frenzy.",
+          words: [
+            { word: 'lightning', kind: 'gold' },
+            { word: 'lantern', kind: 'red' },
+            { word: 'hour', kind: 'white' },
+          ],
+          react: {
+            gold: "The word cracks above their heads.",
+            red:  "They smile at the small light.",
+            white:"Some glance up. Most do not.",
+          },
+        },
+        {
+          before: "Man is a rope, tied between beast and superman — a rope over an ", after: ".",
+          words: [
+            { word: 'abyss', kind: 'gold' },
+            { word: 'evening', kind: 'red' },
+            { word: 'orchard', kind: 'white' },
+          ],
+          react: {
+            gold: "Some look down despite themselves.",
+            red:  "How pleasant the evening sounds.",
+            white:"An odd image. They wait.",
+          },
+        },
+        {
+          before: "What is great in man is that he is a ", after: " and not an end.",
+          words: [
+            { word: 'bridge', kind: 'gold' },
+            { word: 'banquet', kind: 'red' },
+            { word: 'tradesman', kind: 'white' },
+          ],
+          react: {
+            gold: "The word builds itself across the rope above them.",
+            red:  "Now you are talking sense, they think.",
+            white:"A trade is a trade. They wait.",
+          },
+          quote: { id: 'p3.rope-abyss', text: "Man is a rope, tied between beast and superman — a rope over an abyss.", source: "Prologue §3" },
+        },
+      ],
+    },
+    {
+      movement: 'II — The Dancing Star',
+      sub: 'only the color remains — read the dot',
+      lines: [
+        {
+          before: "I say unto you: one must still have ", after: " in oneself to give birth to a dancing star.",
+          words: [
+            { word: 'chaos', kind: 'gold' },
+            { word: 'good order', kind: 'red' },
+            { word: 'patience', kind: 'white' },
+          ],
+          react: {
+            gold: "Chaos? The word is unwelcome.",
+            red:  "Yes, good order. They nod.",
+            white:"Patience is fine. They wait, patiently.",
+          },
+          quote: { id: 'p3.dancing-star', text: "One must still have chaos in oneself to give birth to a dancing star.", source: "Prologue §3" },
+        },
+        {
+          before: "The time approaches when man will no longer give birth to a ", after: ".",
+          words: [
+            { word: 'star', kind: 'gold' },
+            { word: 'son', kind: 'red' },
+            { word: 'doubt', kind: 'white' },
+          ],
+          react: {
+            gold: "Some squint. Some look up.",
+            red:  "Sons they understand. They warm.",
+            white:"They have no doubts that need birthing.",
+          },
+        },
+        {
+          before: "The time approaches of the most despicable man, who can no longer despise ", after: ".",
+          words: [
+            { word: 'himself', kind: 'gold' },
+            { word: 'his neighbor', kind: 'red' },
+            { word: 'his work', kind: 'white' },
+          ],
+          react: {
+            gold: "A man near the front looks at his hands.",
+            red:  "They like that. Yes, their neighbors.",
+            white:"Work is sacred to them. They nod.",
+          },
+        },
+        {
+          before: "The hour of the great contempt, the hour in which your happiness, too, becomes ", after: ".",
+          words: [
+            { word: 'nausea', kind: 'gold' },
+            { word: 'a feast', kind: 'red' },
+            { word: 'a custom', kind: 'white' },
+          ],
+          react: {
+            gold: "Nausea! They draw back from the word.",
+            red:  "A feast! Now there's something.",
+            white:"Custom is fine. They prefer custom.",
+          },
+        },
+      ],
+    },
+    {
+      movement: 'III — The Last Man',
+      sub: 'no labels, no colors — and the jester walks the rope',
+      preamble: "The crowd has grown impatient. The jester has come out.",
+      lines: [
+        {
+          before: "Behold! I show you the ", after: ".",
+          words: [
+            { word: 'last man', kind: 'gold' },
+            { word: 'superman', kind: 'red' },
+            { word: 'wise man', kind: 'white' },
+          ],
+          react: {
+            gold: "They lean in. They like being seen.",
+            red:  "Again that word. They tune out.",
+            white:"Wisdom! They approve, generally.",
+          },
+        },
+        {
+          before: "&lsquo;What is love? What is creation? What is longing? What is a star?&rsquo; — thus asks the last man, and ", after: ".",
+          words: [
+            { word: 'blinks', kind: 'gold' },
+            { word: 'sleeps', kind: 'red' },
+            { word: 'sighs', kind: 'white' },
+          ],
+          react: {
+            gold: "They blink. They laugh at themselves, cheerfully.",
+            red:  "Sleep! Yes, they love sleep.",
+            white:"Some sigh, agreeably.",
+          },
+          quote: { id: 'p3.blink', text: "'We have invented happiness,' say the last men — and they blink.", source: "Prologue §5" },
+        },
+        {
+          before: "&lsquo;We have invented ", after: ',&rsquo; say the last men — and they blink.',
+          words: [
+            { word: 'happiness', kind: 'gold' },
+            { word: 'heaven', kind: 'red' },
+            { word: 'comfort', kind: 'white' },
+          ],
+          react: {
+            gold: "Happiness! They jubilate. They claim it.",
+            red:  "Heaven! Why not. They want both.",
+            white:"Comfort. Yes. They have invented that.",
+          },
+        },
+        {
+          before: "Whoever feels ", after: " goes voluntarily into a madhouse.",
+          words: [
+            { word: 'different', kind: 'gold' },
+            { word: 'lonely', kind: 'red' },
+            { word: 'tired', kind: 'white' },
+          ],
+          react: {
+            gold: "&lsquo;Yes!&rsquo; they shout. &lsquo;Lock them up!&rsquo;",
+            red:  "Lonely. They pity loneliness — and lock it away.",
+            white:"They are not tired. Yet.",
+          },
+        },
+      ],
+    },
+  ];
+
+  const CLOSING = "They do not understand me: I am not the mouth for these ears.";
+
+  // ============== STATE ==============
+  const state = {
+    phase: 'intro',
+    movIdx: 0,
+    lineIdx: 0,
+    goldStruck: 0,
+    redGiven: 0,
+    missed: 0,
+    stolen: 0,
+    walkerProgress: 0,
+    walkerLean: 0,         // -1..+1, negative=poise (gold), positive=tilt-toward-crowd (red)
+    walkerWobble: 0,
+    crowdPulse: 0,
+    walkerFallen: false,
+    fall: { active: false, t: 0, x: 0, y: 0, vy: 0, vx: 0, rot: 0, landed: false },
+    audioStarted: false,
+    activeWords: [],       // {el, kind, word, x, y, vx, vy, alive, snatched, target}
+    lineStartT: 0,
+    lineDuration: 8000,
+    lineDone: false,
+    sentenceVisible: false,
+    crowdFaces: [],        // {x, baseY, kind, target, mood: 'neutral'|'grin'|'leave', presence: 1}
+    jester: { active: false, x: 0, y: 0, target: null, t: 0, lane: 0, hasWord: null },
+  };
+
+  // ============== UI refs ==============
+  const introEl = document.getElementById('intro');
+  const startBtn = document.getElementById('startBtn');
+  const sentenceEl = document.getElementById('sentence');
+  const lineEl = document.getElementById('sentenceLine');
+  const timerFill = document.getElementById('timerFill');
+  const hintEl = document.getElementById('hintLine');
+  const reactionEl = document.getElementById('reaction');
+  const movementEl = document.getElementById('movement');
+  const endEl = document.getElementById('end');
+
+  function showReaction(text, kind) {
+    reactionEl.innerHTML = text;
+    reactionEl.className = '';
+    reactionEl.classList.add('visible');
+    if (kind) reactionEl.classList.add(kind);
+    clearTimeout(showReaction._t);
+    showReaction._t = setTimeout(() => reactionEl.classList.remove('visible'), 2400);
+  }
+
+  function flashMovement(name, sub, ms) {
+    movementEl.innerHTML = name + (sub ? `<span class="sub">${sub}</span>` : '');
+    movementEl.classList.add('visible');
+    clearTimeout(flashMovement._t);
+    flashMovement._t = setTimeout(() => movementEl.classList.remove('visible'), ms || 2800);
+  }
+
+  // ============== ENGINE ==============
+  function startGame() {
+    introEl.classList.add('hidden');
+    setTimeout(() => { introEl.style.display = 'none'; }, 900);
+    state.phase = 'play';
+    state.movIdx = 0;
+    state.lineIdx = 0;
+    Zara.audio();
+    Zara.playMurmur(0.05);
+    state.audioStarted = true;
+    spawnCrowdFaces();
+    flashMovement(SPEECHES[0].movement, SPEECHES[0].sub, 2800);
+    setTimeout(() => presentLine(), 900);
+  }
+  startBtn.addEventListener('click', startGame);
+  document.addEventListener('keydown', (e) => {
+    if (state.phase === 'intro' && (e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault(); startGame();
+    }
+  });
+
+  function currentLine() {
+    return SPEECHES[state.movIdx].lines[state.lineIdx];
+  }
+
+  function presentLine() {
+    const ln = currentLine();
+    const mov = SPEECHES[state.movIdx];
+
+    // build sentence with blank
+    lineEl.innerHTML = `${ln.before}<span class="blank" id="blankSlot">___</span>${ln.after}`;
+    sentenceEl.classList.add('visible');
+    state.sentenceVisible = true;
+
+    // hint changes with movement
+    if (state.movIdx === 0) hintEl.textContent = 'click a word as it drifts';
+    else if (state.movIdx === 1) hintEl.textContent = 'the dot still tells. the label is gone.';
+    else hintEl.textContent = 'no marks. no labels. listen for the lightning.';
+
+    // reset timer
+    state.lineStartT = performance.now();
+    state.lineDuration = state.movIdx === 2 ? 7500 : 8500;
+    state.lineDone = false;
+    timerFill.style.background = '';
+    timerFill.style.width = '100%';
+
+    // spawn drifting words
+    spawnDriftingWords(ln, mov);
+  }
+
+  function spawnDriftingWords(ln, mov) {
+    clearWords();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Words drift in the air between the towers and Zarathustra
+    // The "speech zone" is roughly between y=15% and y=42% of screen
+    const lanes = ln.words.length;
+    // pick lane order (shuffle)
+    const order = ln.words.map((_, i) => i);
+    for (let i = order.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [order[i], order[j]] = [order[j], order[i]];
+    }
+    const showLabel = state.movIdx === 0;     // tone label only in M1
+    const showDot   = state.movIdx <= 1;      // dot fades from M2 → M3 (none in M3)
+    ln.words.forEach((wDef, i) => {
+      const lane = order[i];
+      const laneY = h * (0.18 + (lane / Math.max(1, lanes - 1)) * 0.22);
+      const startX = w + 80 + i * 220;
+      const speed = -(40 + Math.random() * 18 + state.movIdx * 6); // px/sec, faster in later movements
+      const drift = (Math.random() - 0.5) * 5;
+
+      const el = document.createElement('div');
+      el.className = `word ${wDef.kind}`;
+      let toneText = '';
+      if (showLabel) {
+        toneText = wDef.kind === 'gold' ? 'lightning'
+                 : wDef.kind === 'red'  ? 'flatter'
+                 : 'a passing word';
+      }
+      const dotHtml = showDot ? `<span class="dot"></span>` : '';
+      const labelHtml = showLabel ? `<span class="label">${dotHtml}${toneText}</span>` : '';
+      el.innerHTML = `${wDef.word}${labelHtml}`;
+      // if no label but dot still visible, put dot inline before word
+      if (!showLabel && showDot) {
+        el.innerHTML = `<span class="dot"></span>${wDef.word}`;
+      }
+
+      el.style.transform = `translate(${startX}px, ${laneY}px) translate(-50%, -50%)`;
+      wordsLayer.appendChild(el);
+      const wordObj = {
+        el, def: wDef, x: startX, y: laneY, vx: speed, vy: drift,
+        alive: true, snatched: false, lane, age: 0,
+      };
+      el.addEventListener('click', () => speakWord(wordObj));
+      state.activeWords.push(wordObj);
+    });
+  }
+
+  function clearWords() {
+    for (const w of state.activeWords) {
+      w.alive = false;
+      if (w.el && w.el.parentNode) w.el.parentNode.removeChild(w.el);
+    }
+    state.activeWords = [];
+  }
+
+  function speakWord(wordObj) {
+    if (!wordObj.alive || state.lineDone) return;
+    // Mark line as done
+    state.lineDone = true;
+    const ln = currentLine();
+    const opt = wordObj.def;
+
+    // visually claim it
+    wordObj.el.classList.add('spoken');
+    wordObj.alive = false;
+
+    // fill blank
+    const blank = document.getElementById('blankSlot');
+    if (blank) {
+      blank.textContent = opt.word;
+      blank.classList.add('filled');
+      if (opt.kind === 'gold') blank.classList.add('gold');
+      else if (opt.kind === 'red') blank.classList.add('red');
+    }
+
+    // apply effects to walker + crowd
+    applyEffect(opt.kind);
+
+    // reaction text
+    const rText = ln.react[opt.kind];
+    if (rText) showReaction(rText, opt.kind);
+
+    // unlock journal quote on gold pick (where defined)
+    if (opt.kind === 'gold' && ln.quote) {
+      Zara.addQuote(ln.quote.id, ln.quote.text, ln.quote.source);
+    }
+
+    // remove the rest of the words after a short fade
+    setTimeout(() => {
+      for (const w of state.activeWords) {
+        if (w.alive) { w.el.classList.add('fading'); w.alive = false; }
+      }
+    }, 200);
+
+    // advance after a beat
+    setTimeout(advanceLine, 2100);
+  }
+
+  function applyEffect(kind) {
+    const inLastMan = state.movIdx === 2;
+    if (kind === 'gold') {
+      state.goldStruck++;
+      Zara.chime(0.06);
+      // gold straightens the walker
+      state.walkerLean += -0.35;
+      state.walkerWobble = Math.max(0, state.walkerWobble - 0.4);
+      // crowd reacts: in M3 even truth flatters them
+      if (inLastMan) {
+        crowdReact('grin', 0.7);
+        state.crowdPulse = 1.4;
+      } else {
+        crowdReact('leave', 0.4);
+        state.crowdPulse = 0.4;
+      }
+    } else if (kind === 'red') {
+      state.redGiven++;
+      Zara.laugh(0.12);
+      // red leans walker toward the crowd
+      state.walkerLean += 0.45;
+      state.walkerWobble += 0.55;
+      crowdReact('grin', 0.85);
+      state.crowdPulse = 1.6;
+    } else {
+      Zara.chime(0.025);
+      state.walkerLean += 0.05;
+      state.crowdPulse = 0.25;
+      crowdReact('neutral', 0.2);
+    }
+    // clamp lean
+    state.walkerLean = Math.max(-1, Math.min(1, state.walkerLean));
+  }
+
+  function missLine() {
+    if (state.lineDone) return;
+    state.lineDone = true;
+    state.missed++;
+    Zara.gasp(0.08);
+    // wind takes the words
+    for (const w of state.activeWords) {
+      if (w.alive) { w.el.classList.add('fading'); w.alive = false; }
+    }
+    showReaction('The wind took the word. Zarathustra falters.', '');
+    state.walkerWobble += 0.35;
+    setTimeout(advanceLine, 1800);
+  }
+
+  function advanceLine() {
+    state.lineIdx++;
+    const mov = SPEECHES[state.movIdx];
+    if (state.lineIdx >= mov.lines.length) {
+      // movement transition
+      state.movIdx++;
+      state.lineIdx = 0;
+      if (state.movIdx >= SPEECHES.length) {
+        // walker falls, then closing
+        sentenceEl.classList.remove('visible');
+        state.sentenceVisible = false;
+        triggerWalkerFall();
+        setTimeout(showClosing, 2600);
+        return;
+      }
+      const next = SPEECHES[state.movIdx];
+      sentenceEl.classList.remove('visible');
+      state.sentenceVisible = false;
+      flashMovement(next.movement, next.sub, 2800);
+      if (next.preamble) {
+        setTimeout(() => showReaction(next.preamble, ''), 900);
+      }
+      setTimeout(() => {
+        sentenceEl.classList.add('visible');
+        state.sentenceVisible = true;
+        presentLine();
+      }, 2900);
+      return;
+    }
+    presentLine();
+  }
+
+  function triggerWalkerFall() {
+    if (state.walkerFallen) return;
+    state.walkerFallen = true;
+    state.fall.active = true;
+    Zara.scream(0.22);
+    setTimeout(() => Zara.thud(0.55), 950);
+  }
+
+  function showClosing() {
+    sentenceEl.classList.add('visible');
+    state.sentenceVisible = true;
+    lineEl.innerHTML = `<span style="color:var(--ink);">${CLOSING}</span>`;
+    timerFill.style.width = '0%';
+    hintEl.textContent = '';
+    Zara.addQuote('p3.closing', CLOSING, 'Prologue §5');
+    setTimeout(() => {
+      sentenceEl.classList.remove('visible');
+      state.sentenceVisible = false;
+      reactionEl.classList.remove('visible');
+      endGame();
+    }, 4400);
+  }
+
+  function endGame() {
+    state.phase = 'end';
+    Zara.stopMurmur();
+    Zara.addQuote('p3.anchor',
+      "Man is a rope, tied between beast and superman — a rope over an abyss.",
+      "Prologue §3");
+
+    // Outcome based on gold vs red vs missed
+    const G = state.goldStruck, R = state.redGiven, M = state.missed, S = state.stolen;
+    let verdict, q, sub;
+    if (G >= 8 && R <= 2) {
+      verdict = "The word, named.";
+      q = "\u201CYou spoke with lightning. They did not hear you.\u201D";
+      sub = "Their ears were not for that mouth.";
+    } else if (R >= 7) {
+      verdict = "The crowd's poet.";
+      q = "\u201C\u2018Give us this last man, O Zarathustra! Turn us into these last men!\u2019\u201D";
+      sub = "They loved you. For the wrong reasons.";
+    } else if (M + S >= 6) {
+      verdict = "The wind, mostly.";
+      q = "\u201CThe walker fell. The words went past.\u201D";
+      sub = "Lightning needs a hand to catch it.";
+    } else if (G >= 5 && R >= 4) {
+      verdict = "Half-mouth, half-mirror.";
+      q = "\u201CYou half-spoke the truth, and were half-loved for it.\u201D";
+      sub = "Even truth, named to the last men, sounds like flattery.";
+    } else if (G >= R) {
+      verdict = "The mouth that drifted.";
+      q = "\u201CThey do not understand me: I am not the mouth for these ears.\u201D";
+      sub = "Some words struck. Most fell into the murmur.";
+    } else {
+      verdict = "The market drifted.";
+      q = "\u201CThe walker fell. No one stayed to hear the rest.\u201D";
+      sub = "Words and crowd both went thin.";
+    }
+
+    document.getElementById('endVerdict').textContent = verdict;
+    document.getElementById('endQuote').textContent = q;
+    document.getElementById('endSub').textContent = sub;
+    document.getElementById('endGold').textContent = G;
+    document.getElementById('endRed').textContent = R;
+    document.getElementById('endMissed').textContent = M;
+    document.getElementById('endStolen').textContent = S;
+    setTimeout(() => endEl.classList.add('visible'), 700);
+  }
+
+  // ============== CROWD FACES ==============
+  function spawnCrowdFaces() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const baseY = h * 0.78;
+    const startX = w * 0.18;
+    const endX = w * 0.96;
+    const count = 28;
+    state.crowdFaces = [];
+    for (let i = 0; i < count; i++) {
+      state.crowdFaces.push({
+        x: startX + (endX - startX) * (i / (count - 1)) + (Math.random() - 0.5) * 14,
+        baseY: baseY + (i % 3) * 12 + (Math.random() - 0.5) * 6,
+        mood: 'neutral',
+        moodT: 0,
+        presence: 1,        // 1 = fully here, 0 = walked away
+        targetPresence: 1,
+        forwardLean: 0,
+      });
+    }
+  }
+  function crowdReact(mood, intensity) {
+    const faces = state.crowdFaces;
+    if (!faces.length) return;
+    const wantCount = Math.max(3, Math.floor(faces.length * (0.25 + intensity * 0.45)));
+    // Choose random faces still present
+    const candidates = faces.filter(f => f.presence > 0.3);
+    const shuffled = candidates.sort(() => Math.random() - 0.5).slice(0, wantCount);
+    for (const f of shuffled) {
+      if (mood === 'grin') {
+        f.mood = 'grin';
+        f.moodT = performance.now();
+        f.forwardLean = Math.min(1, f.forwardLean + 0.4 + intensity * 0.3);
+      } else if (mood === 'leave') {
+        // small chance per face: walk away
+        if (Math.random() < 0.55) {
+          f.mood = 'leave';
+          f.targetPresence = 0;
+        } else {
+          f.mood = 'frown';
+          f.moodT = performance.now();
+        }
+      } else {
+        f.mood = 'neutral';
+        f.forwardLean *= 0.8;
+      }
+    }
+  }
+
+  // ============== JESTER ==============
+  function jesterUpdate(dt) {
+    const j = state.jester;
+    if (state.movIdx < 2 || state.walkerFallen) { j.active = false; return; }
+    j.active = true;
+    j.t += dt;
+    // Find a gold word in play to chase
+    if (!j.target || !j.target.alive) {
+      const gold = state.activeWords.filter(w => w.alive && w.def.kind === 'gold');
+      j.target = gold[0] || null;
+    }
+    if (j.target && j.target.alive) {
+      // Move jester toward target
+      const dx = j.target.x - j.x;
+      const dy = j.target.y - j.y;
+      const dist = Math.hypot(dx, dy);
+      const speed = 220; // faster than the words
+      if (dist > 1) {
+        j.x += (dx / dist) * speed * (dt / 1000);
+        j.y += (dy / dist) * speed * (dt / 1000);
+      }
+      if (dist < 32) {
+        // snatch!
+        snatchWord(j.target);
+        j.target = null;
+      }
+    } else {
+      // hop along the rope
+      const w = window.innerWidth, h = window.innerHeight;
+      const ropeY = h * 0.13;
+      const ropeX1 = w * 0.13, ropeX2 = w * 0.87;
+      j.y += (ropeY - j.y) * Math.min(1, dt / 600);
+      // drift toward middle
+      const mid = (ropeX1 + ropeX2) / 2;
+      j.x += (mid - j.x) * Math.min(1, dt / 1400);
+    }
+  }
+  function snatchWord(w) {
+    if (!w.alive) return;
+    w.alive = false;
+    w.snatched = true;
+    state.stolen++;
+    w.el.classList.add('snatched');
+    Zara.laugh(0.08);
+    setTimeout(() => { if (w.el && w.el.parentNode) w.el.classList.add('fading'); }, 50);
+    showReaction("The jester snatched the word.", 'red');
+  }
+
+  // ============== DRAW ==============
+  function drawSky() {
+    const w = bg.width, h = bg.height;
+    const grd = bctx.createLinearGradient(0, 0, 0, h);
+    grd.addColorStop(0, '#30202a');
+    grd.addColorStop(0.35, '#5a3826');
+    grd.addColorStop(0.65, '#9a5a2a');
+    grd.addColorStop(1, '#4a2818');
+    bctx.fillStyle = grd;
+    bctx.fillRect(0, 0, w, h);
+
+    bctx.fillStyle = 'rgba(255, 195, 120, 0.9)';
+    bctx.beginPath();
+    bctx.arc(w * 0.78, h * 0.24, 48, 0, Math.PI * 2);
+    bctx.fill();
+    const glow = bctx.createRadialGradient(w * 0.78, h * 0.24, 0, w * 0.78, h * 0.24, 260);
+    glow.addColorStop(0, 'rgba(255, 180, 100, 0.35)');
+    glow.addColorStop(1, 'rgba(255, 180, 100, 0)');
+    bctx.fillStyle = glow;
+    bctx.fillRect(0, 0, w, h);
+
+    bctx.fillStyle = '#1a0f18';
+    bctx.beginPath();
+    bctx.moveTo(0, h * 0.56);
+    for (let x = 0; x <= w; x += 70) {
+      bctx.lineTo(x, h * 0.56 - Math.sin(x * 0.015) * 22 - Math.sin(x * 0.004 + 1.2) * 38);
+    }
+    bctx.lineTo(w, h);
+    bctx.lineTo(0, h);
+    bctx.closePath();
+    bctx.fill();
+  }
+
+  function drawTowers() {
+    const w = fg.width, h = fg.height;
+    const tower1X = w * 0.13;
+    const tower2X = w * 0.87;
+    const topY = h * 0.10;
+    const botY = h * 0.40;
+
+    fctx.fillStyle = '#0a0808';
+    fctx.fillRect(tower1X - 38, topY, 76, botY - topY);
+    fctx.fillRect(tower2X - 38, topY, 76, botY - topY);
+    fctx.fillStyle = '#1d1814';
+    fctx.fillRect(tower1X - 32, topY, 64, botY - topY);
+    fctx.fillRect(tower1X - 42, topY - 12, 84, 14);
+    fctx.fillRect(tower2X - 32, topY, 64, botY - topY);
+    fctx.fillRect(tower2X - 42, topY - 12, 84, 14);
+    fctx.fillStyle = '#d4a017';
+    fctx.fillRect(tower1X - 4, topY + 32, 8, 12);
+    fctx.fillRect(tower2X - 4, topY + 32, 8, 12);
+
+    fctx.strokeStyle = '#6a5a3a';
+    fctx.lineWidth = 1.5;
+    fctx.beginPath();
+    fctx.moveTo(tower1X, topY - 6);
+    const sag = 6 + state.walkerWobble * 4;
+    fctx.quadraticCurveTo((tower1X + tower2X) / 2, topY + sag, tower2X, topY - 6);
+    fctx.stroke();
+    return { tower1X, tower2X, ropeY: topY - 6 };
+  }
+
+  function drawWalker(rope) {
+    if (state.walkerFallen) return;
+    const { tower1X, tower2X, ropeY } = rope;
+    const wobbleX = Math.sin(performance.now() / 140) * state.walkerWobble * 4;
+    const wobbleY = Math.abs(Math.sin(performance.now() / 140)) * state.walkerWobble * 2;
+    const x = tower1X + (tower2X - tower1X) * state.walkerProgress + wobbleX;
+    const sag = Math.sin(state.walkerProgress * Math.PI) * 5;
+    const y = ropeY + sag + wobbleY;
+
+    // pole — angle reflects walker lean (the meter)
+    const poleAngle = state.walkerLean * 0.35; // radians
+    const pl = 34;
+    fctx.save();
+    fctx.translate(x, y - 14);
+    fctx.rotate(poleAngle);
+    fctx.strokeStyle = '#8a7454';
+    fctx.lineWidth = 2;
+    fctx.beginPath();
+    fctx.moveTo(-pl, 0);
+    fctx.lineTo(pl, 0);
+    fctx.stroke();
+    fctx.restore();
+
+    drawFigure(x, y, '#e4d8b8');
+  }
+
+  function drawJester(rope) {
+    const j = state.jester;
+    if (!j.active) return;
+    const hop = Math.sin(performance.now() / 110) * 4;
+    drawFigure(j.x, j.y - hop, '#c65245', true);
+  }
+
+  function drawFall(rope) {
+    if (!state.fall.active) return;
+    const f = state.fall;
+    if (f.t === 0) {
+      const { tower1X, tower2X, ropeY } = rope;
+      f.x = tower1X + (tower2X - tower1X) * 0.5;
+      f.y = ropeY;
+      f.vy = 0;
+      f.vx = (Math.random() - 0.5) * 2;
+    }
+    f.t += 1;
+    if (!f.landed) {
+      f.vy += 0.55;
+      f.x += f.vx;
+      f.y += f.vy;
+      f.rot += 0.25;
+      if (f.y > fg.height * 0.62) {
+        f.landed = true;
+        f.y = fg.height * 0.62;
+      }
+    }
+    fctx.save();
+    fctx.translate(f.x, f.y);
+    fctx.rotate(f.landed ? Math.PI / 2 : f.rot);
+    drawFigure(0, 0, '#e4d8b8');
+    fctx.restore();
+  }
+
+  function drawFigure(x, y, color, jester) {
+    fctx.fillStyle = color;
+    fctx.fillRect(x - 4, y - 22, 8, 18);
+    fctx.beginPath();
+    fctx.arc(x, y - 26, 4, 0, Math.PI * 2);
+    fctx.fill();
+    fctx.fillRect(x - 3, y - 4, 2, 5);
+    fctx.fillRect(x + 1, y - 4, 2, 5);
+    if (jester) {
+      fctx.beginPath();
+      fctx.moveTo(x - 4, y - 28);
+      fctx.lineTo(x - 2, y - 34);
+      fctx.lineTo(x, y - 28);
+      fctx.moveTo(x, y - 28);
+      fctx.lineTo(x + 2, y - 34);
+      fctx.lineTo(x + 4, y - 28);
+      fctx.fill();
+    }
+  }
+
+  function drawMarketplace() {
+    const w = fg.width, h = fg.height;
+    const grd = fctx.createLinearGradient(0, h * 0.62, 0, h);
+    grd.addColorStop(0, '#1a1410');
+    grd.addColorStop(1, '#0a0806');
+    fctx.fillStyle = grd;
+    fctx.fillRect(0, h * 0.62, w, h * 0.38);
+    drawZarathustra(w * 0.08, h * 0.62);
+    drawCrowdFaces(w, h);
+  }
+
+  function drawZarathustra(x, y) {
+    fctx.fillStyle = '#efe4c8';
+    fctx.beginPath();
+    fctx.moveTo(x - 18, y);
+    fctx.lineTo(x - 11, y - 78);
+    fctx.lineTo(x + 11, y - 78);
+    fctx.lineTo(x + 18, y);
+    fctx.closePath();
+    fctx.fill();
+    fctx.beginPath();
+    fctx.arc(x, y - 90, 11, 0, Math.PI * 2);
+    fctx.fill();
+    fctx.fillStyle = '#b5a98a';
+    fctx.fillRect(x - 8, y - 86, 16, 7);
+    // arm raised
+    fctx.strokeStyle = '#efe4c8';
+    fctx.lineWidth = 2.5;
+    fctx.beginPath();
+    fctx.moveTo(x + 18, y - 30);
+    fctx.lineTo(x + 26, y - 96);
+    fctx.stroke();
+  }
+
+  function drawCrowdFaces(w, h) {
+    const baseY = h * 0.78;
+    const now = performance.now();
+    for (const f of state.crowdFaces) {
+      // ease presence
+      f.presence += (f.targetPresence - f.presence) * 0.04;
+      if (f.presence < 0.02) continue;
+      // body bob
+      const bob = Math.sin(now / 380 + f.x * 0.05) * (1 + state.crowdPulse * 2.5);
+      const lean = -f.forwardLean * 4;
+      const y = f.baseY + bob + lean;
+      f.forwardLean *= 0.992;
+      // mood color shift (red tint when grinning, dimmer when frowning)
+      let r = 50, g = 45, b = 42;
+      if (f.mood === 'grin' && now - f.moodT < 1800) {
+        const k = 1 - (now - f.moodT) / 1800;
+        r += k * 70; g += k * 10;
+      } else if (f.mood === 'frown' && now - f.moodT < 1800) {
+        const k = 1 - (now - f.moodT) / 1800;
+        r -= k * 12; g -= k * 12; b -= k * 12;
+      } else if (f.mood === 'leave') {
+        // fading away as presence drops
+      }
+      const a = Math.max(0, Math.min(1, f.presence));
+      fctx.globalAlpha = a;
+      fctx.fillStyle = `rgb(${r|0},${g|0},${b|0})`;
+      fctx.fillRect(f.x - 4, y - 18, 8, 18);
+      // head
+      fctx.beginPath();
+      fctx.arc(f.x, y - 22, 4, 0, Math.PI * 2);
+      fctx.fill();
+      // grin curve when grinning
+      if (f.mood === 'grin' && now - f.moodT < 1500) {
+        fctx.strokeStyle = `rgba(255,210,170,${0.7 * a})`;
+        fctx.lineWidth = 1;
+        fctx.beginPath();
+        fctx.arc(f.x, y - 21, 1.8, 0.1, Math.PI - 0.1);
+        fctx.stroke();
+      }
+      fctx.globalAlpha = 1;
+    }
+  }
+
+  // ============== UPDATE WORDS ==============
+  function updateWords(dt) {
+    const w = window.innerWidth;
+    for (const wo of state.activeWords) {
+      if (!wo.alive && !wo.snatched) continue;
+      wo.age += dt;
+      // drift
+      wo.x += wo.vx * (dt / 1000);
+      wo.y += wo.vy * (dt / 1000);
+      // gentle vertical sway
+      wo.y += Math.sin((wo.age + wo.x) * 0.002) * 0.15;
+      // off-screen left = wind takes it
+      if (wo.x < -120) {
+        wo.alive = false;
+        if (wo.el && wo.el.parentNode) wo.el.classList.add('fading');
+      } else if (wo.alive) {
+        wo.el.style.transform = `translate(${wo.x}px, ${wo.y}px) translate(-50%, -50%)`;
+      }
+    }
+  }
+
+  // ============== LOOP ==============
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(50, now - last); last = now;
+
+    if (state.phase === 'play') {
+      // walker progress drives slowly through total speech
+      if (!state.walkerFallen) {
+        const totalLines = SPEECHES.reduce((s, m) => s + m.lines.length, 0);
+        const lineNum = SPEECHES.slice(0, state.movIdx).reduce((s, m) => s + m.lines.length, 0) + state.lineIdx;
+        const target = (lineNum / totalLines) * 0.55;
+        state.walkerProgress += (target - state.walkerProgress) * Math.min(1, dt / 1000);
+      }
+      // lean returns to neutral slowly
+      state.walkerLean *= Math.pow(0.96, dt / 16);
+      if (state.walkerWobble > 0) state.walkerWobble = Math.max(0, state.walkerWobble - dt / 700);
+      if (state.crowdPulse > 0) state.crowdPulse = Math.max(0, state.crowdPulse - dt / 700);
+      Zara.setMurmurIntensity(0.05 + state.crowdPulse * 0.18);
+
+      // line timer
+      if (state.sentenceVisible && !state.lineDone) {
+        const elapsed = now - state.lineStartT;
+        const frac = Math.max(0, 1 - elapsed / state.lineDuration);
+        timerFill.style.width = (frac * 100) + '%';
+        if (frac < 0.3) timerFill.style.background = 'var(--red)';
+        else if (frac < 0.55) timerFill.style.background = 'var(--gold)';
+        else timerFill.style.background = 'var(--ink-dim)';
+        if (elapsed >= state.lineDuration) {
+          missLine();
+        }
+      }
+
+      updateWords(dt);
+      jesterUpdate(dt);
+    }
+
+    fctx.clearRect(0, 0, fg.width, fg.height);
+    drawMarketplace();
+    const rope = drawTowers();
+    drawWalker(rope);
+    drawJester(rope);
+    drawFall(rope);
+
+    requestAnimationFrame(frame);
+  }
+  resize();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

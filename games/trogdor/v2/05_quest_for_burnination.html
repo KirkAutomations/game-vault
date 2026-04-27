@@ -1,0 +1,1826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TROGDOR: Quest for Burnination</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+canvas { image-rendering: pixelated; cursor: default; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// ========== SETUP ==========
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = 800, H = 600;
+canvas.width = W; canvas.height = H;
+
+// Scale to fit window
+function resize() {
+  const s = Math.min(window.innerWidth / W, window.innerHeight / H);
+  canvas.style.width = (W * s) + 'px';
+  canvas.style.height = (H * s) + 'px';
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Mouse
+let mouseX = 0, mouseY = 0, mouseClick = false;
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+});
+canvas.addEventListener('click', e => {
+  const r = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - r.left) * (W / r.width);
+  mouseY = (e.clientY - r.top) * (H / r.height);
+  mouseClick = true;
+});
+
+// ========== AUDIO ENGINE ==========
+let audioCtx = null;
+let masterGain = null;
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  masterGain = audioCtx.createGain();
+  masterGain.gain.value = 0.3;
+  masterGain.connect(audioCtx.destination);
+}
+
+// Music state
+let musicNodes = [];
+let musicPlaying = false;
+
+function stopMusic() {
+  musicNodes.forEach(n => { try { n.stop(); } catch(e) {} });
+  musicNodes = [];
+  musicPlaying = false;
+}
+
+function playNote(freq, type, start, dur, vol = 0.15, detune = 0) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  osc.detune.value = detune;
+  gain.gain.value = 0;
+  gain.gain.setValueAtTime(0, start);
+  gain.gain.linearRampToValueAtTime(vol, start + 0.02);
+  gain.gain.setValueAtTime(vol, start + dur - 0.05);
+  gain.gain.linearRampToValueAtTime(0, start + dur);
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start(start);
+  osc.stop(start + dur);
+  musicNodes.push(osc);
+  return osc;
+}
+
+function playNoise(start, dur, vol = 0.05) {
+  if (!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate * dur;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const src = audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const gain = audioCtx.createGain();
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 8000;
+  gain.gain.value = vol;
+  gain.gain.setValueAtTime(vol, start);
+  gain.gain.linearRampToValueAtTime(0, start + dur);
+  src.connect(hp);
+  hp.connect(gain);
+  gain.connect(masterGain);
+  src.start(start);
+  src.stop(start + dur);
+  musicNodes.push(src);
+}
+
+// Battle music - Trogdor theme arranged as JRPG battle music
+// Key: D minor, based on the real Trogdor guitar/bass tabs
+// Freqs: D3=146.83, F3=174.61, G3=196.00, Bb3=233.08, C4=261.63
+//        D4=293.66, F4=349.23, G4=392.00, Bb4=466.16, C5=523.25, D5=587.33
+function playBattleMusic(isBoss = false) {
+  if (!audioCtx) return;
+  stopMusic();
+  musicPlaying = true;
+  const t = audioCtx.currentTime + 0.05;
+  const bpm = isBoss ? 180 : 160;
+  const beat = 60 / bpm;
+  const sixteenth = beat / 4;
+  const eighth = beat / 2;
+  const bar = beat * 4;
+  const loopLen = bar * 16; // 16 bars total loop: riff(4) + verse(4) + chorus(4) + bridge(4)
+
+  // Trogdor frequencies
+  const D3 = 146.83, F3 = 174.61, G3 = 196.00, Bb3 = 233.08, C4 = 261.63;
+  const D4 = 293.66, F4 = 349.23, G4 = 392.00, Bb4 = 466.16, C5 = 523.25, D5 = 587.33;
+  // Power chord fifths
+  const A3 = 220.00, D4fifth = 220.00, Bb3fifth = 349.23, G3fifth = 293.66, F3fifth = 261.63;
+
+  // Boss: detune for dissonance (minor 2nd intervals added)
+  const bossDetune = isBoss ? 25 : 0;
+  const bossOctave = isBoss ? 0.5 : 1; // Boss melody in lower octave
+
+  function scheduleLoop(offset) {
+    if (!musicPlaying) return;
+
+    // ===== SECTION 1: MAIN RIFF (bars 1-4) =====
+    // D5-D5-D5-Bb5---D5-D5-D5-G5---D5-D5-D5-Bb5-G5-F5->G5
+    const riffSection = offset;
+
+    // Bar 1: D5-D5-D5-Bb5 (power chords, root+fifth)
+    for (let i = 0; i < 3; i++) {
+      playNote(D3, 'sawtooth', riffSection + i * eighth, eighth * 0.85, 0.13, bossDetune);
+      playNote(D3 * 1.5, 'sawtooth', riffSection + i * eighth, eighth * 0.85, 0.07, bossDetune);
+    }
+    playNote(Bb3, 'sawtooth', riffSection + 3 * eighth, eighth * 5 * 0.85, 0.13, bossDetune); // held
+    playNote(Bb3 * 1.5, 'sawtooth', riffSection + 3 * eighth, eighth * 5 * 0.85, 0.07, bossDetune);
+
+    // Bar 2: D5-D5-D5-G5
+    const b2 = riffSection + bar;
+    for (let i = 0; i < 3; i++) {
+      playNote(D3, 'sawtooth', b2 + i * eighth, eighth * 0.85, 0.13, bossDetune);
+      playNote(D3 * 1.5, 'sawtooth', b2 + i * eighth, eighth * 0.85, 0.07, bossDetune);
+    }
+    playNote(G3, 'sawtooth', b2 + 3 * eighth, eighth * 5 * 0.85, 0.13, bossDetune);
+    playNote(G3 * 1.5, 'sawtooth', b2 + 3 * eighth, eighth * 5 * 0.85, 0.07, bossDetune);
+
+    // Bar 3: D5-D5-D5-Bb5
+    const b3 = riffSection + bar * 2;
+    for (let i = 0; i < 3; i++) {
+      playNote(D3, 'sawtooth', b3 + i * eighth, eighth * 0.85, 0.13, bossDetune);
+      playNote(D3 * 1.5, 'sawtooth', b3 + i * eighth, eighth * 0.85, 0.07, bossDetune);
+    }
+    playNote(Bb3, 'sawtooth', b3 + 3 * eighth, beat * 0.85, 0.13, bossDetune);
+    playNote(Bb3 * 1.5, 'sawtooth', b3 + 3 * eighth, beat * 0.85, 0.07, bossDetune);
+
+    // Bar 4: G5-F5->G5 resolution
+    const b4 = riffSection + bar * 3;
+    playNote(G3, 'sawtooth', b4, beat * 0.85, 0.13, bossDetune);
+    playNote(G3 * 1.5, 'sawtooth', b4, beat * 0.85, 0.07, bossDetune);
+    playNote(F3, 'sawtooth', b4 + beat, beat * 0.7, 0.13, bossDetune);
+    playNote(F3 * 1.5, 'sawtooth', b4 + beat, beat * 0.7, 0.07, bossDetune);
+    playNote(G3, 'sawtooth', b4 + beat * 2, beat * 2 * 0.85, 0.14, bossDetune);
+    playNote(G3 * 1.5, 'sawtooth', b4 + beat * 2, beat * 2 * 0.85, 0.08, bossDetune);
+
+    // ===== SECTION 2: VERSE CHORDS (bars 5-8) =====
+    // D-D-Bb-D-D-C pattern, triangle pads
+    const verseSection = offset + bar * 4;
+    const verseChords = [
+      [D3, bar],         // bar 5: Dm
+      [Bb3, bar * 0.5],  // bar 6 first half: Bb
+      [D3, bar * 0.5],   // bar 6 second half: D
+      [C4 * 0.5, bar],   // bar 7: C (using C3=130.81)
+      [D3, bar]           // bar 8: Dm
+    ];
+    let vTime = 0;
+    for (const [root, dur] of verseChords) {
+      // Root
+      playNote(root, 'triangle', verseSection + vTime, dur * 0.92, 0.06, bossDetune);
+      // Fifth
+      playNote(root * 1.5, 'triangle', verseSection + vTime, dur * 0.92, 0.04, bossDetune);
+      // Octave
+      playNote(root * 2, 'triangle', verseSection + vTime, dur * 0.92, 0.03, bossDetune);
+      // Boss: add minor 2nd dissonance
+      if (isBoss) {
+        playNote(root * 1.06, 'sawtooth', verseSection + vTime, dur * 0.92, 0.02, bossDetune);
+      }
+      vTime += dur;
+    }
+
+    // Verse bass line: D-D-Bb-D-D-C (eighth notes, driving)
+    const verseBassNotes = [D3,D3,Bb3*0.5,D3,D3,C4*0.5, D3,D3,Bb3*0.5,D3,D3,C4*0.5, D3,D3,Bb3*0.5,D3];
+    for (let i = 0; i < 16; i++) {
+      const freq = verseBassNotes[i] * 0.5;
+      playNote(freq, 'sawtooth', verseSection + i * beat, beat * 0.8, 0.1, bossDetune);
+    }
+
+    // ===== SECTION 3: CHORUS MELODY (bars 9-12) =====
+    // "Burninating the countryside" - D4-D4-D4-D4-F4-G4-G4-Bb4
+    // "Burninating the peasants"   - D4-D4-D4-D4-F4-G4-Bb4
+    // "Thatched roof COTTAGES"     - Bb4-C5-D5-Bb4-G4-F4-G4
+    // "TROGDOR!"                   - G4-Bb4-D5
+    const chorusSection = offset + bar * 8;
+    const chorusMelody = [
+      // Bar 9: "burninating the countryside"
+      [D4, eighth], [D4, eighth], [D4, eighth], [D4, eighth],
+      [F4, eighth], [G4, eighth], [G4, beat], [Bb4, beat],
+      // Bar 10: "burninating the peasants"
+      [D4, eighth], [D4, eighth], [D4, eighth], [D4, eighth],
+      [F4, eighth], [G4, beat], [Bb4, beat + eighth],
+      // Bar 11: "thatched roof COTTAGES"
+      [Bb4, eighth], [C5, eighth], [D5, beat], [Bb4, eighth], [G4, eighth],
+      [F4, eighth], [G4, beat + eighth],
+      // Bar 12: "TROGDOR!"
+      [G4, beat], [Bb4, beat], [D5, beat * 2]
+    ];
+    let cTime = 0;
+    for (const [freq, dur] of chorusMelody) {
+      const f = freq * bossOctave;
+      playNote(f, 'square', chorusSection + cTime, dur * 0.85, 0.09);
+      // Harmony: slight detune for thickness
+      playNote(f * 1.002, 'square', chorusSection + cTime, dur * 0.85, 0.04);
+      if (isBoss) {
+        // Boss: add gritty lower octave doubling
+        playNote(f * 0.5, 'sawtooth', chorusSection + cTime, dur * 0.85, 0.05, 15);
+      }
+      cTime += dur;
+    }
+
+    // Chorus chord pads: Dm-Bb-C-Dm following the progression
+    const chorusChords = [
+      [D3, Bb3],   // bars 9-10
+      [C4*0.5, D3] // bars 11-12
+    ];
+    for (let i = 0; i < 2; i++) {
+      for (let j = 0; j < 2; j++) {
+        const root = chorusChords[i][j];
+        const start = chorusSection + (i * 2 + j) * bar;
+        playNote(root * 2, 'triangle', start, bar * 0.92, 0.04, bossDetune);
+        playNote(root * 3, 'triangle', start, bar * 0.92, 0.03, bossDetune);
+      }
+    }
+
+    // Chorus bass: Dm-Bb-G-F->G power chord roots
+    const chorusBass = [D3,D3,D3,D3, Bb3*0.5,Bb3*0.5,Bb3*0.5,Bb3*0.5,
+                        G3*0.5,G3*0.5,G3*0.5,G3*0.5, F3*0.5,F3*0.5,G3*0.5,G3*0.5];
+    for (let i = 0; i < 16; i++) {
+      playNote(chorusBass[i], 'sawtooth', chorusSection + i * beat, beat * 0.8, 0.1, bossDetune);
+    }
+
+    // ===== SECTION 4: BRIDGE (bars 13-16) =====
+    // D-F->G hammer-on pattern repeating
+    const bridgeSection = offset + bar * 12;
+    for (let rep = 0; rep < 16; rep++) {
+      const bStart = bridgeSection + rep * beat;
+      // D eighth
+      playNote(D3, 'sawtooth', bStart, eighth * 0.8, 0.12, bossDetune);
+      playNote(D3 * 1.5, 'sawtooth', bStart, eighth * 0.8, 0.06, bossDetune);
+      // F->G hammer-on (F for short, slides into G)
+      playNote(F3, 'sawtooth', bStart + eighth, eighth * 0.4, 0.1, bossDetune);
+      playNote(G3, 'sawtooth', bStart + eighth + eighth * 0.3, eighth * 0.6, 0.12, bossDetune);
+      playNote(G3 * 1.5, 'sawtooth', bStart + eighth + eighth * 0.3, eighth * 0.6, 0.06, bossDetune);
+    }
+    // Bridge bass: follow the same D-F->G pattern in lower octave
+    for (let rep = 0; rep < 16; rep++) {
+      const bStart = bridgeSection + rep * beat;
+      playNote(D3 * 0.5, 'sawtooth', bStart, eighth * 0.8, 0.1, bossDetune);
+      playNote(F3 * 0.5, 'sawtooth', bStart + eighth, eighth * 0.35, 0.08, bossDetune);
+      playNote(G3 * 0.5, 'sawtooth', bStart + eighth + eighth * 0.3, eighth * 0.55, 0.1, bossDetune);
+    }
+
+    // ===== DRUMS (all 16 bars) =====
+    const totalBeats = 64; // 16 bars * 4 beats
+    const totalSixteenths = totalBeats * 4;
+
+    // Hi-hats: 16th notes throughout
+    for (let i = 0; i < totalSixteenths; i++) {
+      const accent = (i % 4 === 0) ? 0.04 : (i % 2 === 0 ? 0.02 : 0.012);
+      playNoise(offset + i * sixteenth, sixteenth * 0.35, accent);
+    }
+
+    // Kick and snare
+    for (let i = 0; i < totalBeats; i++) {
+      if (isBoss) {
+        // Boss: double kick (1-and-3 plus 8th note doubles)
+        if (i % 4 === 0 || i % 4 === 2) {
+          playNote(50, 'sine', offset + i * beat, 0.08, 0.22);
+          playNote(50, 'sine', offset + i * beat + eighth, 0.06, 0.15);
+        }
+        // Extra kick on the "and" of every beat for intensity
+        if (i % 2 === 1) {
+          playNote(55, 'sine', offset + i * beat, 0.06, 0.12);
+        }
+      } else {
+        // Normal: kick on 1 and 3
+        if (i % 4 === 0 || i % 4 === 2) {
+          playNote(55, 'sine', offset + i * beat, 0.1, 0.2);
+        }
+      }
+      // Snare on 2 and 4
+      if (i % 4 === 1 || i % 4 === 3) {
+        playNoise(offset + i * beat, 0.1, 0.09);
+        playNote(200, 'triangle', offset + i * beat, 0.04, 0.1);
+      }
+    }
+
+    // Cymbal crash on bar starts (every 4 beats)
+    for (let i = 0; i < 16; i++) {
+      playNoise(offset + i * bar, 0.4, 0.05);
+    }
+
+    // Boss: extra dissonant stabs on section transitions
+    if (isBoss) {
+      const stabs = [0, bar * 4, bar * 8, bar * 12];
+      for (const s of stabs) {
+        playNote(D3 * 2.06, 'sawtooth', offset + s, beat * 0.5, 0.04, 30); // minor 2nd above D
+        playNote(D3 * 4.06, 'sawtooth', offset + s, beat * 0.3, 0.03, 40);
+      }
+    }
+
+    // Schedule next loop
+    setTimeout(() => {
+      if (musicPlaying) scheduleLoop(offset + loopLen);
+    }, (loopLen - 0.5) * 1000);
+  }
+
+  scheduleLoop(t);
+}
+
+// Victory fanfare - D minor Trogdor arpeggio: D-F-G-Bb-D ascending with triumphant resolution
+function playVictoryFanfare() {
+  if (!audioCtx) return;
+  stopMusic();
+  const t = audioCtx.currentTime + 0.05;
+
+  // Quick ascending D-F-G-Bb-D arpeggio
+  const arp = [293.66, 349.23, 392.00, 466.16, 587.33];
+  let time = t;
+  for (let i = 0; i < arp.length; i++) {
+    const dur = 0.12;
+    playNote(arp[i], 'square', time, dur * 0.9, 0.12);
+    playNote(arp[i] * 1.5, 'triangle', time, dur * 0.9, 0.06); // fifth harmony
+    playNote(arp[i] * 0.5, 'sawtooth', time, dur * 0.9, 0.06); // bass octave
+    time += dur;
+  }
+
+  // Hold the high D
+  time += 0.05;
+  playNote(587.33, 'square', time, 0.4, 0.13);
+  playNote(587.33 * 1.5, 'triangle', time, 0.4, 0.06);
+
+  // Pause
+  time += 0.5;
+
+  // Triumphant resolution: D major chord (D-F#-A) for victory feel
+  // Second arpeggio run: G-Bb-D-F-G-Bb-D (higher)
+  const arp2 = [392.00, 466.16, 587.33, 698.46, 783.99, 932.33, 1174.66];
+  for (let i = 0; i < arp2.length; i++) {
+    const dur = 0.1;
+    playNote(arp2[i], 'square', time, dur * 0.85, 0.1 - i * 0.008);
+    playNote(arp2[i] * 0.5, 'triangle', time, dur * 0.85, 0.05);
+    time += dur;
+  }
+
+  // Final triumphant chord: D5 power chord held
+  time += 0.05;
+  playNote(587.33, 'square', time, 1.2, 0.1);
+  playNote(587.33 * 1.5, 'square', time, 1.2, 0.07); // A5
+  playNote(293.66, 'sawtooth', time, 1.2, 0.08); // D4 bass
+  playNote(1174.66, 'triangle', time, 1.2, 0.04); // D6 shimmer
+
+  // Snare roll into final hit
+  for (let i = 0; i < 6; i++) {
+    playNoise(time - 0.3 + i * 0.05, 0.06, 0.04 + i * 0.01);
+  }
+}
+
+// SFX
+function playSFX(type) {
+  if (!audioCtx) return;
+  const t = audioCtx.currentTime;
+  switch(type) {
+    case 'fire': {
+      for (let i = 0; i < 8; i++) {
+        playNoise(t + i * 0.04, 0.15, 0.08 - i * 0.008);
+        playNote(300 + i * 50, 'sawtooth', t + i * 0.03, 0.08, 0.06);
+      }
+      break;
+    }
+    case 'stomp': {
+      playNote(80, 'sine', t, 0.1, 0.25);
+      playNote(40, 'sine', t + 0.05, 0.15, 0.2);
+      playNoise(t, 0.08, 0.15);
+      break;
+    }
+    case 'roar': {
+      for (let i = 0; i < 5; i++) {
+        playNote(80 + i * 20, 'sawtooth', t + i * 0.08, 0.3 - i * 0.04, 0.1);
+      }
+      playNote(60, 'sawtooth', t, 0.5, 0.08);
+      break;
+    }
+    case 'heal': {
+      const healNotes = [523.25, 659.25, 783.99, 1046.5];
+      healNotes.forEach((f, i) => {
+        playNote(f, 'sine', t + i * 0.12, 0.3, 0.08);
+        playNote(f * 1.5, 'triangle', t + i * 0.12, 0.2, 0.04);
+      });
+      break;
+    }
+    case 'hit': {
+      playNoise(t, 0.1, 0.12);
+      playNote(150, 'square', t, 0.05, 0.15);
+      playNote(80, 'square', t + 0.05, 0.08, 0.1);
+      break;
+    }
+    case 'damage': {
+      playNote(400, 'square', t, 0.05, 0.1);
+      playNote(200, 'square', t + 0.05, 0.1, 0.08);
+      playNoise(t, 0.08, 0.1);
+      break;
+    }
+    case 'select': {
+      playNote(600, 'square', t, 0.05, 0.06);
+      playNote(800, 'square', t + 0.05, 0.06, 0.06);
+      break;
+    }
+    case 'levelup': {
+      const lu = [261.63, 329.63, 392, 523.25, 659.25];
+      lu.forEach((f, i) => {
+        playNote(f, 'square', t + i * 0.1, 0.15, 0.1);
+        playNote(f, 'triangle', t + i * 0.1, 0.15, 0.06);
+      });
+      break;
+    }
+    case 'death': {
+      for (let i = 0; i < 6; i++) {
+        playNote(300 - i * 40, 'sawtooth', t + i * 0.12, 0.2, 0.08);
+      }
+      break;
+    }
+  }
+}
+
+// ========== PARTICLES ==========
+let particles = [];
+function addParticle(x, y, type, count = 10) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * (type === 'fire' ? 6 : 3),
+      vy: -Math.random() * 4 - 1,
+      life: 1,
+      decay: 0.01 + Math.random() * 0.02,
+      size: 2 + Math.random() * 4,
+      type
+    });
+  }
+}
+
+function updateParticles() {
+  particles = particles.filter(p => {
+    p.x += p.vx;
+    p.y += p.vy;
+    if (p.type === 'fire') { p.vy -= 0.1; p.vx *= 0.98; }
+    else if (p.type === 'magic') { p.vx *= 0.95; p.vy *= 0.95; }
+    else if (p.type === 'heal') { p.vy -= 0.05; }
+    else { p.vy += 0.1; }
+    p.life -= p.decay;
+    return p.life > 0;
+  });
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life;
+    if (p.type === 'fire') {
+      const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.size);
+      g.addColorStop(0, '#fff');
+      g.addColorStop(0.3, '#ff0');
+      g.addColorStop(0.6, '#f80');
+      g.addColorStop(1, '#f00');
+      ctx.fillStyle = g;
+    } else if (p.type === 'magic') {
+      ctx.fillStyle = `hsl(${260 + Math.random() * 60}, 100%, ${60 + Math.random() * 30}%)`;
+    } else if (p.type === 'heal') {
+      ctx.fillStyle = `hsl(120, 100%, ${60 + Math.random() * 30}%)`;
+    } else if (p.type === 'stomp') {
+      ctx.fillStyle = '#a86';
+    } else {
+      ctx.fillStyle = '#fff';
+    }
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size * p.life, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ========== FLOATING TEXT ==========
+let floatingTexts = [];
+function addFloatingText(x, y, text, color = '#fff', size = 24) {
+  floatingTexts.push({ x, y, text, color, size, life: 1, vy: -1.5 });
+}
+
+function updateFloatingTexts() {
+  floatingTexts = floatingTexts.filter(ft => {
+    ft.y += ft.vy;
+    ft.life -= 0.015;
+    return ft.life > 0;
+  });
+}
+
+function drawFloatingTexts() {
+  for (const ft of floatingTexts) {
+    ctx.globalAlpha = ft.life;
+    ctx.font = `bold ${ft.size}px monospace`;
+    ctx.fillStyle = '#000';
+    ctx.fillText(ft.text, ft.x + 2, ft.y + 2);
+    ctx.fillStyle = ft.color;
+    ctx.fillText(ft.text, ft.x, ft.y);
+    ctx.globalAlpha = 1;
+  }
+}
+
+// ========== SCREEN EFFECTS ==========
+let screenShake = 0;
+let screenFlash = 0;
+let screenFlashColor = '#fff';
+
+// ========== DRAWING HELPERS ==========
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+}
+
+function drawRPGBox(x, y, w, h, bgColor = '#112', borderColor = '#88f') {
+  // Shadow
+  drawPixelRect(x + 3, y + 3, w, h, 'rgba(0,0,0,0.5)');
+  // Border
+  drawPixelRect(x, y, w, h, borderColor);
+  // Inner
+  drawPixelRect(x + 3, y + 3, w - 6, h - 6, bgColor);
+  // Highlight edges
+  drawPixelRect(x + 3, y + 3, w - 6, 1, '#aaf');
+  drawPixelRect(x + 3, y + 3, 1, h - 6, '#aaf');
+}
+
+function drawHPBar(x, y, w, h, current, max, color1, color2, label = '') {
+  drawPixelRect(x - 1, y - 1, w + 2, h + 2, '#000');
+  drawPixelRect(x, y, w, h, '#222');
+  const ratio = Math.max(0, current / max);
+  const barW = w * ratio;
+  if (barW > 0) {
+    const g = ctx.createLinearGradient(x, y, x, y + h);
+    g.addColorStop(0, color1);
+    g.addColorStop(1, color2);
+    ctx.fillStyle = g;
+    ctx.fillRect(x, y, barW, h);
+    // Shine
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(x, y, barW, h / 3);
+  }
+  if (label) {
+    ctx.font = 'bold 11px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText(label, x + 3, y + h - 3);
+    ctx.fillStyle = '#fff';
+    const txt = `${Math.ceil(current)}/${max}`;
+    ctx.fillText(txt, x + w - ctx.measureText(txt).width - 3, y + h - 3);
+  }
+}
+
+// ========== SPRITE DRAWING ==========
+function drawTrogdor(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+
+  // Body (muscular S-shape)
+  const bodyBob = Math.sin(frame * 0.08) * 2;
+
+  // Tail
+  ctx.fillStyle = '#2a2';
+  for (let i = 0; i < 8; i++) {
+    const tx = -20 * s + i * 2 * s;
+    const ty = -10 * s + Math.sin(frame * 0.1 + i * 0.5) * 3 * s + bodyBob;
+    drawPixelRect(tx, ty, 3 * s, 2 * s, '#2a2');
+  }
+
+  // Body
+  drawPixelRect(-6 * s, -12 * s + bodyBob, 14 * s, 10 * s, '#2a2');
+  drawPixelRect(-4 * s, -14 * s + bodyBob, 10 * s, 3 * s, '#2a2');
+  // Belly
+  drawPixelRect(-4 * s, -6 * s + bodyBob, 10 * s, 4 * s, '#5d5');
+
+  // Legs
+  const legAnim = Math.sin(frame * 0.1) * 1;
+  drawPixelRect(-3 * s, -2 * s + bodyBob, 3 * s, 8 * s + legAnim, '#2a2');
+  drawPixelRect(4 * s, -2 * s + bodyBob, 3 * s, 8 * s - legAnim, '#2a2');
+  // Feet
+  drawPixelRect(-4 * s, 6 * s + bodyBob + legAnim, 5 * s, 2 * s, '#2a2');
+  drawPixelRect(3 * s, 6 * s + bodyBob - legAnim, 5 * s, 2 * s, '#2a2');
+
+  // BEEFY ARM (the important one!)
+  const armWave = Math.sin(frame * 0.12) * 3;
+  ctx.fillStyle = '#2a2';
+  drawPixelRect(8 * s, -10 * s + bodyBob, 4 * s, 3 * s, '#2a2');
+  drawPixelRect(12 * s, -12 * s + bodyBob + armWave, 5 * s, 3 * s, '#2a2');
+  drawPixelRect(17 * s, -14 * s + bodyBob + armWave, 3 * s, 2 * s, '#2a2');
+  // Fist
+  drawPixelRect(16 * s, -15 * s + bodyBob + armWave, 5 * s, 4 * s, '#2a2');
+  // Muscles
+  drawPixelRect(13 * s, -11 * s + bodyBob + armWave, 2 * s, 1 * s, '#5d5');
+
+  // Neck
+  drawPixelRect(4 * s, -18 * s + bodyBob, 5 * s, 6 * s, '#2a2');
+
+  // Head
+  drawPixelRect(2 * s, -26 * s + bodyBob, 12 * s, 9 * s, '#2a2');
+  // Snout
+  drawPixelRect(12 * s, -22 * s + bodyBob, 6 * s, 5 * s, '#2a2');
+  // Jaw (open/close)
+  const jawOpen = Math.sin(frame * 0.06) * 1.5;
+  drawPixelRect(12 * s, -18 * s + bodyBob + jawOpen, 6 * s, 3 * s, '#2a2');
+  // Teeth
+  drawPixelRect(14 * s, -18 * s + bodyBob, 1.5 * s, 1.5 * s, '#fff');
+  drawPixelRect(16 * s, -18 * s + bodyBob, 1.5 * s, 1.5 * s, '#fff');
+  // Eye
+  drawPixelRect(8 * s, -24 * s + bodyBob, 3 * s, 3 * s, '#fff');
+  drawPixelRect(9 * s, -23 * s + bodyBob, 2 * s, 2 * s, '#f00');
+  drawPixelRect(10 * s, -23 * s + bodyBob, 1 * s, 1 * s, '#000');
+  // Nostril
+  drawPixelRect(16 * s, -22 * s + bodyBob, 1.5 * s, 1.5 * s, '#181');
+  // Spines
+  for (let i = 0; i < 5; i++) {
+    drawPixelRect((3 + i * 2) * s, -27 * s + bodyBob - i * 0.3 * s, 2 * s, 2 * s, '#f80');
+    drawPixelRect((3.5 + i * 2) * s, -29 * s + bodyBob - i * 0.3 * s, 1 * s, 2 * s, '#f80');
+  }
+
+  // Wings
+  const wingFlap = Math.sin(frame * 0.15) * 4;
+  ctx.fillStyle = '#396';
+  // Left wing
+  drawPixelRect(-8 * s, -22 * s + bodyBob - wingFlap, 8 * s, 2 * s, '#396');
+  drawPixelRect(-14 * s, -26 * s + bodyBob - wingFlap * 1.5, 8 * s, 6 * s, '#396');
+  drawPixelRect(-12 * s, -24 * s + bodyBob - wingFlap * 1.5, 6 * s, 4 * s, '#5b8');
+  // Wing membrane
+  drawPixelRect(-16 * s, -28 * s + bodyBob - wingFlap * 1.5, 4 * s, 3 * s, '#396');
+
+  ctx.restore();
+}
+
+// Enemy sprites
+function drawPeasant(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(frame * 0.06) * 1.5;
+
+  // Body (brown tunic)
+  drawPixelRect(-4*s, -8*s+bob, 8*s, 12*s, '#854');
+  drawPixelRect(-3*s, -6*s+bob, 6*s, 8*s, '#a65');
+  // Belt
+  drawPixelRect(-4*s, -1*s+bob, 8*s, 1.5*s, '#531');
+  // Legs
+  drawPixelRect(-3*s, 4*s+bob, 2.5*s, 5*s, '#854');
+  drawPixelRect(0.5*s, 4*s+bob, 2.5*s, 5*s, '#854');
+  // Shoes
+  drawPixelRect(-4*s, 9*s+bob, 3.5*s, 1.5*s, '#421');
+  drawPixelRect(0.5*s, 9*s+bob, 3.5*s, 1.5*s, '#421');
+  // Head
+  drawPixelRect(-3*s, -14*s+bob, 6*s, 6*s, '#da8');
+  // Hair
+  drawPixelRect(-3*s, -15*s+bob, 6*s, 2*s, '#642');
+  // Eyes (scared)
+  drawPixelRect(-2*s, -12*s+bob, 1.5*s, 2*s, '#fff');
+  drawPixelRect(0.5*s, -12*s+bob, 1.5*s, 2*s, '#fff');
+  drawPixelRect(-1.5*s, -11*s+bob, 1*s, 1*s, '#000');
+  drawPixelRect(1*s, -11*s+bob, 1*s, 1*s, '#000');
+  // Mouth (O shape - scared)
+  drawPixelRect(-0.5*s, -9.5*s+bob, 1*s, 1*s, '#800');
+  // Arms holding pitchfork
+  drawPixelRect(-6*s, -6*s+bob, 2.5*s, 1.5*s, '#da8');
+  // Pitchfork
+  drawPixelRect(-8*s, -16*s+bob, 1*s, 14*s, '#862');
+  drawPixelRect(-10*s, -18*s+bob, 1*s, 3*s, '#888');
+  drawPixelRect(-8*s, -19*s+bob, 1*s, 3*s, '#888');
+  drawPixelRect(-6*s, -18*s+bob, 1*s, 3*s, '#888');
+
+  ctx.restore();
+}
+
+function drawKnight(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(frame * 0.05) * 1;
+
+  // Legs (armored)
+  drawPixelRect(-3*s, 3*s+bob, 3*s, 7*s, '#777');
+  drawPixelRect(0.5*s, 3*s+bob, 3*s, 7*s, '#777');
+  drawPixelRect(-3.5*s, 3*s+bob, 3.5*s, 1.5*s, '#999');
+  drawPixelRect(0.5*s, 3*s+bob, 3.5*s, 1.5*s, '#999');
+  // Body (plate armor)
+  drawPixelRect(-5*s, -8*s+bob, 10*s, 12*s, '#999');
+  drawPixelRect(-4*s, -7*s+bob, 8*s, 10*s, '#bbb');
+  // Cross emblem
+  drawPixelRect(-0.5*s, -6*s+bob, 1*s, 6*s, '#d22');
+  drawPixelRect(-2.5*s, -4*s+bob, 5*s, 1*s, '#d22');
+  // Helmet
+  drawPixelRect(-4*s, -16*s+bob, 8*s, 8*s, '#999');
+  drawPixelRect(-3*s, -15*s+bob, 6*s, 6*s, '#aaa');
+  // Visor slit
+  drawPixelRect(-2*s, -12*s+bob, 4*s, 1.5*s, '#222');
+  // Plume
+  drawPixelRect(-1*s, -19*s+bob, 2*s, 4*s, '#d22');
+  drawPixelRect(0, -20*s+bob, 1*s, 2*s, '#f44');
+  // Shield (left)
+  drawPixelRect(-9*s, -8*s+bob, 5*s, 8*s, '#44a');
+  drawPixelRect(-8*s, -7*s+bob, 3*s, 6*s, '#66c');
+  drawPixelRect(-7*s, -5*s+bob, 1*s, 2*s, '#ff0');
+  // Sword (right)
+  drawPixelRect(5*s, -14*s+bob + Math.sin(frame*0.08)*2, 1.5*s, 12*s, '#ccc');
+  drawPixelRect(4*s, -3*s+bob, 3.5*s, 2*s, '#a62');
+  drawPixelRect(5*s, -1*s+bob, 1.5*s, 2*s, '#862');
+  // Sword shine
+  drawPixelRect(5.5*s, -12*s+bob, 0.5*s, 6*s, '#fff');
+
+  ctx.restore();
+}
+
+function drawArcher(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(frame * 0.07) * 1.5;
+
+  // Legs
+  drawPixelRect(-2.5*s, 3*s+bob, 2.5*s, 6*s, '#584');
+  drawPixelRect(0.5*s, 3*s+bob, 2.5*s, 6*s, '#584');
+  // Boots
+  drawPixelRect(-3*s, 9*s+bob, 3*s, 1.5*s, '#532');
+  drawPixelRect(0.5*s, 9*s+bob, 3*s, 1.5*s, '#532');
+  // Body (leather armor)
+  drawPixelRect(-4*s, -7*s+bob, 8*s, 10*s, '#584');
+  drawPixelRect(-3*s, -6*s+bob, 6*s, 8*s, '#6a5');
+  // Hood/Head
+  drawPixelRect(-3*s, -14*s+bob, 6*s, 7*s, '#473');
+  drawPixelRect(-2*s, -12*s+bob, 5*s, 4*s, '#da8');
+  // Eyes (focused)
+  drawPixelRect(-1*s, -11*s+bob, 1*s, 1*s, '#000');
+  drawPixelRect(1.5*s, -11*s+bob, 1*s, 1*s, '#000');
+  // Hood peak
+  drawPixelRect(-1*s, -16*s+bob, 2*s, 3*s, '#473');
+  // Bow (left hand)
+  ctx.strokeStyle = '#862';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(-8*s, -4*s+bob, 10*s, -0.8, 0.8);
+  ctx.stroke();
+  // Bowstring
+  ctx.strokeStyle = '#ccc';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-8*s + 10*s * Math.cos(-0.8), -4*s+bob + 10*s * Math.sin(-0.8));
+  ctx.lineTo(-8*s + 10*s * Math.cos(0.8), -4*s+bob + 10*s * Math.sin(0.8));
+  ctx.stroke();
+  // Arrow
+  drawPixelRect(-10*s, -5*s+bob, 8*s, 0.8*s, '#862');
+  // Arrowhead
+  ctx.fillStyle = '#aaa';
+  ctx.beginPath();
+  ctx.moveTo(-11*s, -5.5*s+bob);
+  ctx.lineTo(-11*s, -3.5*s+bob);
+  ctx.lineTo(-13*s, -4.5*s+bob);
+  ctx.fill();
+  // Quiver on back
+  drawPixelRect(4*s, -10*s+bob, 2*s, 8*s, '#642');
+  for (let i = 0; i < 3; i++) {
+    drawPixelRect(4.3*s + i*0.5*s, -14*s+bob, 0.5*s, 5*s, '#862');
+  }
+
+  ctx.restore();
+}
+
+function drawWizard(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(frame * 0.06) * 1;
+  const orbGlow = Math.sin(frame * 0.1) * 0.3 + 0.7;
+
+  // Robe bottom (flowing)
+  drawPixelRect(-5*s, 0*s+bob, 10*s, 10*s, '#228');
+  drawPixelRect(-6*s, 5*s+bob, 12*s, 5*s, '#228');
+  drawPixelRect(-4*s, 1*s+bob, 8*s, 8*s, '#33a');
+  // Body/robe top
+  drawPixelRect(-4*s, -8*s+bob, 8*s, 9*s, '#228');
+  drawPixelRect(-3*s, -7*s+bob, 6*s, 7*s, '#33a');
+  // Stars on robe
+  drawPixelRect(-1*s, -4*s+bob, 1*s, 1*s, '#ff0');
+  drawPixelRect(1*s, 0*s+bob, 1*s, 1*s, '#ff0');
+  drawPixelRect(-2*s, 3*s+bob, 1*s, 1*s, '#ff0');
+  // Face
+  drawPixelRect(-2.5*s, -14*s+bob, 5*s, 6*s, '#da8');
+  // Beard
+  drawPixelRect(-2*s, -9*s+bob, 4*s, 4*s, '#ddd');
+  drawPixelRect(-1*s, -5*s+bob, 2*s, 2*s, '#ddd');
+  // Eyes (glowing)
+  drawPixelRect(-1.5*s, -13*s+bob, 1*s, 1*s, '#0ff');
+  drawPixelRect(0.5*s, -13*s+bob, 1*s, 1*s, '#0ff');
+  // Hat
+  drawPixelRect(-4*s, -16*s+bob, 8*s, 3*s, '#228');
+  drawPixelRect(-3*s, -20*s+bob, 6*s, 4*s, '#228');
+  drawPixelRect(-2*s, -24*s+bob, 4*s, 4*s, '#228');
+  drawPixelRect(-1*s, -26*s+bob, 2*s, 3*s, '#33a');
+  // Hat star
+  drawPixelRect(-0.5*s, -22*s+bob, 1*s, 1*s, '#ff0');
+  // Staff
+  drawPixelRect(-8*s, -20*s+bob, 1.5*s, 26*s, '#642');
+  // Orb
+  ctx.globalAlpha = orbGlow;
+  const orbG = ctx.createRadialGradient(-7.5*s, -22*s+bob, 0, -7.5*s, -22*s+bob, 3*s);
+  orbG.addColorStop(0, '#fff');
+  orbG.addColorStop(0.3, '#f0f');
+  orbG.addColorStop(0.7, '#80f');
+  orbG.addColorStop(1, 'rgba(128,0,255,0)');
+  ctx.fillStyle = orbG;
+  ctx.beginPath();
+  ctx.arc(-7.5*s, -22*s+bob, 3*s, 0, Math.PI*2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  ctx.restore();
+}
+
+function drawKing(x, y, scale = 1, frame = 0) {
+  const s = 3 * scale;
+  ctx.save();
+  ctx.translate(x, y);
+  const bob = Math.sin(frame * 0.04) * 1;
+
+  // Cape
+  const capeWave = Math.sin(frame * 0.06) * 2;
+  drawPixelRect(-7*s, -10*s+bob, 14*s, 18*s+capeWave, '#a00');
+  drawPixelRect(-6*s, -9*s+bob, 12*s, 16*s+capeWave, '#c22');
+  // Ermine trim
+  for (let i = 0; i < 7; i++) {
+    drawPixelRect(-6*s + i*2*s, 6*s+bob+capeWave, 1.5*s, 1.5*s, '#fff');
+    drawPixelRect(-5.5*s + i*2*s, 7*s+bob+capeWave, 0.5*s, 0.5*s, '#000');
+  }
+  // Legs
+  drawPixelRect(-3*s, 4*s+bob, 2.5*s, 5*s, '#880');
+  drawPixelRect(0.5*s, 4*s+bob, 2.5*s, 5*s, '#880');
+  drawPixelRect(-3.5*s, 9*s+bob, 3*s, 1.5*s, '#642');
+  drawPixelRect(0.5*s, 9*s+bob, 3*s, 1.5*s, '#642');
+  // Body (royal garb)
+  drawPixelRect(-5*s, -8*s+bob, 10*s, 12*s, '#880');
+  drawPixelRect(-4*s, -7*s+bob, 8*s, 10*s, '#aa0');
+  // Royal sash
+  drawPixelRect(-1*s, -7*s+bob, 2*s, 10*s, '#a00');
+  // Gold chain
+  drawPixelRect(-3*s, -6*s+bob, 6*s, 1*s, '#ff0');
+  // Amulet
+  drawPixelRect(-0.5*s, -5*s+bob, 1*s, 1*s, '#f00');
+  // Head
+  drawPixelRect(-3*s, -15*s+bob, 6*s, 7*s, '#da8');
+  // Stern expression
+  drawPixelRect(-2*s, -13*s+bob, 1.5*s, 1*s, '#000');
+  drawPixelRect(0.5*s, -13*s+bob, 1.5*s, 1*s, '#000');
+  drawPixelRect(-2*s, -13.5*s+bob, 2*s, 0.5*s, '#a80'); // angry brow
+  drawPixelRect(0.5*s, -13.5*s+bob, 2*s, 0.5*s, '#a80');
+  // Mustache
+  drawPixelRect(-2*s, -10.5*s+bob, 4*s, 1*s, '#642');
+  // Crown
+  drawPixelRect(-4*s, -17*s+bob, 8*s, 3*s, '#ff0');
+  drawPixelRect(-4*s, -19*s+bob, 2*s, 2*s, '#ff0');
+  drawPixelRect(-1*s, -20*s+bob, 2*s, 3*s, '#ff0');
+  drawPixelRect(2*s, -19*s+bob, 2*s, 2*s, '#ff0');
+  // Jewels in crown
+  drawPixelRect(-3*s, -17.5*s+bob, 1*s, 1*s, '#f00');
+  drawPixelRect(-0.5*s, -18*s+bob, 1*s, 1*s, '#00f');
+  drawPixelRect(2*s, -17.5*s+bob, 1*s, 1*s, '#0f0');
+  // Royal scepter
+  drawPixelRect(6*s, -16*s+bob, 1.5*s, 18*s, '#aa0');
+  drawPixelRect(5*s, -18*s+bob, 3.5*s, 3*s, '#ff0');
+  drawPixelRect(5.5*s, -17*s+bob, 2.5*s, 1.5*s, '#f0f');
+
+  ctx.restore();
+}
+
+// ========== BACKGROUNDS ==========
+function drawCountryside(frame) {
+  // Sky gradient
+  const skyG = ctx.createLinearGradient(0, 0, 0, 300);
+  skyG.addColorStop(0, '#4488cc');
+  skyG.addColorStop(1, '#88ccff');
+  ctx.fillStyle = skyG;
+  ctx.fillRect(0, 0, W, 300);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.7)';
+  for (let i = 0; i < 4; i++) {
+    const cx = ((frame * 0.2 + i * 220) % (W + 100)) - 50;
+    const cy = 40 + i * 30;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 25, 0, Math.PI * 2);
+    ctx.arc(cx + 30, cy - 5, 20, 0, Math.PI * 2);
+    ctx.arc(cx + 50, cy, 22, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Sun
+  ctx.fillStyle = '#ff0';
+  ctx.beginPath();
+  ctx.arc(680, 60, 30, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,0,0.2)';
+  ctx.beginPath();
+  ctx.arc(680, 60, 45, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Hills
+  ctx.fillStyle = '#3a7';
+  ctx.beginPath();
+  ctx.moveTo(0, 300);
+  for (let x = 0; x <= W; x += 20) {
+    ctx.lineTo(x, 260 + Math.sin(x * 0.008) * 30 + Math.sin(x * 0.003) * 20);
+  }
+  ctx.lineTo(W, 400);
+  ctx.lineTo(0, 400);
+  ctx.fill();
+
+  // Ground
+  const groundG = ctx.createLinearGradient(0, 300, 0, H);
+  groundG.addColorStop(0, '#4a4');
+  groundG.addColorStop(0.3, '#3a3');
+  groundG.addColorStop(1, '#293');
+  ctx.fillStyle = groundG;
+  ctx.fillRect(0, 300, W, H - 300);
+
+  // Grass tufts
+  ctx.fillStyle = '#5c5';
+  for (let i = 0; i < 20; i++) {
+    const gx = (i * 41 + 13) % W;
+    const gy = 310 + (i * 17) % 60;
+    drawPixelRect(gx, gy, 3, 4, '#5c5');
+    drawPixelRect(gx + 3, gy + 1, 3, 3, '#4b4');
+  }
+
+  // Cottages in distance
+  drawPixelRect(100, 260, 30, 20, '#864');
+  drawPixelRect(95, 250, 40, 12, '#a44');
+  drawPixelRect(300, 270, 25, 15, '#864');
+  drawPixelRect(295, 262, 35, 10, '#a44');
+}
+
+function drawThroneRoom(frame) {
+  // Dark stone walls
+  const wallG = ctx.createLinearGradient(0, 0, 0, H);
+  wallG.addColorStop(0, '#333');
+  wallG.addColorStop(1, '#222');
+  ctx.fillStyle = wallG;
+  ctx.fillRect(0, 0, W, H);
+
+  // Stone bricks
+  for (let row = 0; row < 15; row++) {
+    for (let col = 0; col < 12; col++) {
+      const bx = col * 70 + (row % 2) * 35;
+      const by = row * 40;
+      const shade = 50 + ((row * 7 + col * 13) % 20);
+      ctx.fillStyle = `rgb(${shade},${shade},${shade+5})`;
+      ctx.fillRect(bx + 1, by + 1, 68, 38);
+    }
+  }
+
+  // Red carpet
+  drawPixelRect(320, 0, 160, H, '#800');
+  drawPixelRect(330, 0, 140, H, '#a22');
+  // Carpet gold trim
+  drawPixelRect(325, 0, 3, H, '#aa0');
+  drawPixelRect(472, 0, 3, H, '#aa0');
+
+  // Pillars
+  for (let side = 0; side < 2; side++) {
+    const px = side === 0 ? 200 : 560;
+    drawPixelRect(px, 0, 30, H, '#555');
+    drawPixelRect(px + 3, 0, 24, H, '#666');
+    drawPixelRect(px + 6, 0, 3, H, 'rgba(255,255,255,0.1)');
+    // Capital
+    drawPixelRect(px - 5, 0, 40, 20, '#777');
+  }
+
+  // Floor
+  const floorG = ctx.createLinearGradient(0, 350, 0, H);
+  floorG.addColorStop(0, '#444');
+  floorG.addColorStop(1, '#333');
+  ctx.fillStyle = floorG;
+  ctx.fillRect(0, 350, W, H - 350);
+
+  // Floor tiles
+  for (let x = 0; x < W; x += 50) {
+    for (let y = 350; y < H; y += 50) {
+      const shade = ((x + y) / 50) % 2 === 0 ? '#3a3a3a' : '#404040';
+      drawPixelRect(x, y, 49, 49, shade);
+    }
+  }
+
+  // Torches
+  for (let i = 0; i < 2; i++) {
+    const tx = i === 0 ? 140 : 620;
+    drawPixelRect(tx, 100, 8, 30, '#862');
+    // Flame
+    const flicker = Math.sin(frame * 0.2 + i * 3) * 3;
+    ctx.fillStyle = '#f80';
+    ctx.beginPath();
+    ctx.arc(tx + 4, 95 + flicker, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff0';
+    ctx.beginPath();
+    ctx.arc(tx + 4, 92 + flicker, 4, 0, Math.PI * 2);
+    ctx.fill();
+    // Glow
+    ctx.fillStyle = 'rgba(255,150,50,0.05)';
+    ctx.beginPath();
+    ctx.arc(tx + 4, 95, 60, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Banners
+  for (const bx of [250, 510]) {
+    drawPixelRect(bx, 20, 30, 80, '#800');
+    drawPixelRect(bx + 3, 23, 24, 74, '#a00');
+    // Crown symbol
+    drawPixelRect(bx + 8, 45, 14, 3, '#ff0');
+    drawPixelRect(bx + 8, 42, 3, 3, '#ff0');
+    drawPixelRect(bx + 13, 40, 4, 5, '#ff0');
+    drawPixelRect(bx + 19, 42, 3, 3, '#ff0');
+  }
+}
+
+function drawCastle(frame) {
+  // Dusk sky
+  const skyG = ctx.createLinearGradient(0, 0, 0, 300);
+  skyG.addColorStop(0, '#2a1a3a');
+  skyG.addColorStop(0.5, '#6a3050');
+  skyG.addColorStop(1, '#c06040');
+  ctx.fillStyle = skyG;
+  ctx.fillRect(0, 0, W, 300);
+
+  // Stars
+  ctx.fillStyle = '#fff';
+  for (let i = 0; i < 30; i++) {
+    const sx = (i * 83 + 17) % W;
+    const sy = (i * 47 + 11) % 200;
+    const twinkle = Math.sin(frame * 0.05 + i) > 0.3 ? 1 : 0.3;
+    ctx.globalAlpha = twinkle;
+    drawPixelRect(sx, sy, 2, 2, '#fff');
+  }
+  ctx.globalAlpha = 1;
+
+  // Castle silhouette in background
+  drawPixelRect(250, 180, 300, 120, '#333');
+  // Towers
+  drawPixelRect(240, 130, 40, 170, '#333');
+  drawPixelRect(520, 130, 40, 170, '#333');
+  drawPixelRect(370, 100, 60, 200, '#333');
+  // Battlements
+  for (let i = 0; i < 5; i++) {
+    drawPixelRect(242 + i*8, 122, 6, 10, '#333');
+    drawPixelRect(522 + i*8, 122, 6, 10, '#333');
+  }
+  // Windows (lit)
+  drawPixelRect(390, 130, 10, 15, '#fa0');
+  drawPixelRect(260, 160, 8, 12, '#fa0');
+  drawPixelRect(535, 160, 8, 12, '#fa0');
+
+  // Ground
+  const gG = ctx.createLinearGradient(0, 300, 0, H);
+  gG.addColorStop(0, '#342');
+  gG.addColorStop(1, '#231');
+  ctx.fillStyle = gG;
+  ctx.fillRect(0, 300, W, H - 300);
+
+  // Path
+  drawPixelRect(350, 300, 100, H - 300, '#554');
+}
+
+// ========== GAME STATE ==========
+const ENEMIES = [
+  { name: 'PEASANT', hp: 60, atk: 8, def: 2, xp: 30, draw: drawPeasant, bg: 'countryside',
+    attacks: ['Pitchfork Poke', 'Throw Rock', 'Desperate Flail'] },
+  { name: 'KNIGHT', hp: 120, atk: 16, def: 8, xp: 60, draw: drawKnight, bg: 'countryside',
+    attacks: ['Sword Slash', 'Shield Bash', 'Heroic Strike'] },
+  { name: 'ARCHER', hp: 90, atk: 20, def: 5, xp: 80, draw: drawArcher, bg: 'castle',
+    attacks: ['Arrow Shot', 'Multi Shot', 'Poison Arrow'] },
+  { name: 'WIZARD', hp: 100, atk: 25, def: 6, xp: 100, draw: drawWizard, bg: 'castle',
+    attacks: ['Fireball', 'Lightning Bolt', 'Arcane Blast'] },
+  { name: 'THE KING', hp: 200, atk: 30, def: 12, xp: 200, draw: drawKing, bg: 'throne',
+    attacks: ['Royal Decree', 'Scepter Smash', 'Summon Guards', 'Kings Wrath'] }
+];
+
+let gameState = 'title'; // title, battle, playerTurn, playerAnim, enemyTurn, enemyAnim, victory, levelup, gameover, gamewin
+let frame = 0;
+
+let trogdor = {
+  maxHp: 100, hp: 100, maxMp: 40, mp: 40,
+  atk: 18, def: 5, level: 1, xp: 0, xpToNext: 50,
+  displayHp: 100, displayMp: 40,
+  buffTurns: 0, buffAmount: 0
+};
+
+let currentEnemy = 0;
+let enemy = null;
+let enemyDisplayHp = 0;
+
+let battleMessage = '';
+let messageTimer = 0;
+let animTimer = 0;
+let animType = '';
+let selectedAction = -1;
+let menuCursor = 0;
+
+// Title screen
+let titleBlink = 0;
+
+function resetTrogdor() {
+  trogdor = {
+    maxHp: 100, hp: 100, maxMp: 40, mp: 40,
+    atk: 18, def: 5, level: 1, xp: 0, xpToNext: 50,
+    displayHp: 100, displayMp: 40,
+    buffTurns: 0, buffAmount: 0
+  };
+}
+
+function startBattle(idx) {
+  currentEnemy = idx;
+  const e = ENEMIES[idx];
+  enemy = {
+    name: e.name, maxHp: e.hp, hp: e.hp, atk: e.atk, def: e.def, xp: e.xp,
+    draw: e.draw, bg: e.bg, attacks: e.attacks
+  };
+  enemyDisplayHp = e.hp;
+  battleMessage = `A wild ${e.name} appears!`;
+  messageTimer = 120;
+  gameState = 'battle';
+  animTimer = 0;
+  selectedAction = -1;
+  menuCursor = 0;
+
+  const isBoss = idx === ENEMIES.length - 1;
+  playBattleMusic(isBoss);
+}
+
+// ========== COMBAT LOGIC ==========
+const ACTIONS = [
+  { name: 'BURN', desc: 'Fire attack', mpCost: 5, color: '#f80' },
+  { name: 'STOMP', desc: 'Physical hit', mpCost: 0, color: '#a86' },
+  { name: 'ROAR', desc: 'Buff ATK +50%', mpCost: 8, color: '#ff0' },
+  { name: 'CONSUME', desc: 'Heal HP+MP', mpCost: 3, color: '#0f0' }
+];
+
+function executePlayerAction(idx) {
+  const action = ACTIONS[idx];
+  if (trogdor.mp < action.mpCost) {
+    battleMessage = 'Not enough MP!';
+    messageTimer = 60;
+    gameState = 'playerTurn';
+    return;
+  }
+  trogdor.mp -= action.mpCost;
+  animType = action.name.toLowerCase();
+  animTimer = 60;
+  gameState = 'playerAnim';
+
+  const atkPower = trogdor.atk + (trogdor.buffTurns > 0 ? trogdor.buffAmount : 0);
+
+  switch(idx) {
+    case 0: { // BURN
+      const dmg = Math.max(1, Math.floor(atkPower * 1.3 - enemy.def * 0.5 + Math.random() * 6));
+      enemy.hp = Math.max(0, enemy.hp - dmg);
+      battleMessage = `Trogdor breathes fire! ${dmg} damage!`;
+      playSFX('fire');
+      addParticle(250, 350, 'fire', 25);
+      addFloatingText(250, 300, `-${dmg}`, '#f80', 28);
+      break;
+    }
+    case 1: { // STOMP
+      const dmg = Math.max(1, Math.floor(atkPower * 1.0 - enemy.def * 0.7 + Math.random() * 8));
+      enemy.hp = Math.max(0, enemy.hp - dmg);
+      battleMessage = `Trogdor stomps mightily! ${dmg} damage!`;
+      playSFX('stomp');
+      screenShake = 15;
+      addParticle(250, 400, 'stomp', 15);
+      addFloatingText(250, 300, `-${dmg}`, '#fa0', 28);
+      break;
+    }
+    case 2: { // ROAR
+      trogdor.buffTurns = 3;
+      trogdor.buffAmount = Math.floor(trogdor.atk * 0.5);
+      battleMessage = `Trogdor ROARS! ATK up for 3 turns!`;
+      playSFX('roar');
+      screenFlash = 10;
+      screenFlashColor = '#ff0';
+      addFloatingText(580, 300, 'ATK UP!', '#ff0', 24);
+      break;
+    }
+    case 3: { // CONSUME
+      const healAmt = 25 + trogdor.level * 5;
+      const mpHeal = 10 + trogdor.level * 2;
+      trogdor.hp = Math.min(trogdor.maxHp, trogdor.hp + healAmt);
+      trogdor.mp = Math.min(trogdor.maxMp, trogdor.mp + mpHeal);
+      battleMessage = `Trogdor consumes a peasant! +${healAmt}HP +${mpHeal}MP!`;
+      playSFX('heal');
+      addParticle(580, 350, 'heal', 20);
+      addFloatingText(580, 300, `+${healAmt}`, '#0f0', 24);
+      addFloatingText(620, 320, `+${mpHeal}`, '#08f', 20);
+      break;
+    }
+  }
+  messageTimer = 90;
+}
+
+function executeEnemyAction() {
+  const atkIdx = Math.floor(Math.random() * enemy.attacks.length);
+  const atkName = enemy.attacks[atkIdx];
+  const atkPower = enemy.atk * (0.8 + Math.random() * 0.4);
+  const dmg = Math.max(1, Math.floor(atkPower - trogdor.def * 0.5));
+
+  trogdor.hp = Math.max(0, trogdor.hp - dmg);
+  battleMessage = `${enemy.name} uses ${atkName}! ${dmg} damage to Trogdor!`;
+  playSFX('damage');
+  screenShake = 10;
+  screenFlash = 8;
+  screenFlashColor = '#f00';
+  addFloatingText(580, 300, `-${dmg}`, '#f44', 28);
+  addParticle(580, 350, 'fire', 12);
+  messageTimer = 90;
+  animType = 'enemyAttack';
+  animTimer = 50;
+  gameState = 'enemyAnim';
+}
+
+function checkLevelUp() {
+  if (trogdor.xp >= trogdor.xpToNext) {
+    trogdor.level++;
+    trogdor.xp -= trogdor.xpToNext;
+    trogdor.xpToNext = Math.floor(trogdor.xpToNext * 1.5);
+    trogdor.maxHp += 15;
+    trogdor.maxMp += 5;
+    trogdor.atk += 4;
+    trogdor.def += 2;
+    trogdor.hp = trogdor.maxHp;
+    trogdor.mp = trogdor.maxMp;
+    trogdor.displayHp = trogdor.hp;
+    trogdor.displayMp = trogdor.mp;
+    return true;
+  }
+  return false;
+}
+
+// ========== MAIN UPDATE ==========
+function update() {
+  frame++;
+  updateParticles();
+  updateFloatingTexts();
+
+  // Smooth HP/MP bars
+  trogdor.displayHp += (trogdor.hp - trogdor.displayHp) * 0.1;
+  trogdor.displayMp += (trogdor.mp - trogdor.displayMp) * 0.1;
+  if (enemy) enemyDisplayHp += (enemy.hp - enemyDisplayHp) * 0.1;
+
+  if (screenShake > 0) screenShake *= 0.9;
+  if (screenShake < 0.5) screenShake = 0;
+  if (screenFlash > 0) screenFlash--;
+  if (messageTimer > 0) messageTimer--;
+
+  switch(gameState) {
+    case 'title': {
+      titleBlink++;
+      if (mouseClick) {
+        initAudio();
+        playSFX('select');
+        resetTrogdor();
+        currentEnemy = 0;
+        startBattle(0);
+      }
+      break;
+    }
+    case 'battle': {
+      if (messageTimer <= 0) {
+        gameState = 'playerTurn';
+      }
+      break;
+    }
+    case 'playerTurn': {
+      // Menu interaction
+      if (mouseClick) {
+        for (let i = 0; i < 4; i++) {
+          const bx = 20 + (i % 2) * 190;
+          const by = 460 + Math.floor(i / 2) * 55;
+          if (mouseX >= bx && mouseX <= bx + 180 && mouseY >= by && mouseY <= by + 48) {
+            if (trogdor.mp >= ACTIONS[i].mpCost) {
+              playSFX('select');
+              executePlayerAction(i);
+            }
+          }
+        }
+      }
+      break;
+    }
+    case 'playerAnim': {
+      animTimer--;
+      if (animTimer <= 0) {
+        if (enemy.hp <= 0) {
+          // Enemy defeated
+          playSFX('death');
+          stopMusic();
+          battleMessage = `${enemy.name} defeated! +${enemy.xp} XP!`;
+          messageTimer = 120;
+          trogdor.xp += enemy.xp;
+          if (trogdor.buffTurns > 0) trogdor.buffTurns--;
+          setTimeout(() => {
+            playVictoryFanfare();
+          }, 300);
+          gameState = 'victory';
+        } else {
+          // Enemy turn
+          gameState = 'enemyTurn';
+          setTimeout(() => executeEnemyAction(), 500);
+        }
+      }
+      break;
+    }
+    case 'enemyTurn': {
+      break;
+    }
+    case 'enemyAnim': {
+      animTimer--;
+      if (animTimer <= 0) {
+        if (trogdor.hp <= 0) {
+          stopMusic();
+          playSFX('death');
+          battleMessage = 'Trogdor has fallen...';
+          messageTimer = 180;
+          gameState = 'gameover';
+        } else {
+          if (trogdor.buffTurns > 0) trogdor.buffTurns--;
+          gameState = 'playerTurn';
+          battleMessage = 'Choose your action!';
+          messageTimer = 60;
+        }
+      }
+      break;
+    }
+    case 'victory': {
+      if (messageTimer <= 0) {
+        if (checkLevelUp()) {
+          playSFX('levelup');
+          gameState = 'levelup';
+          messageTimer = 180;
+          battleMessage = `LEVEL UP! Trogdor is now level ${trogdor.level}!`;
+        } else {
+          if (currentEnemy >= ENEMIES.length - 1) {
+            gameState = 'gamewin';
+            messageTimer = 300;
+          } else {
+            // Next battle after click
+            gameState = 'victory';
+            messageTimer = -1; // waiting for click
+          }
+        }
+      }
+      if (messageTimer === -1 && mouseClick) {
+        playSFX('select');
+        startBattle(currentEnemy + 1);
+      }
+      break;
+    }
+    case 'levelup': {
+      if (messageTimer <= 0) {
+        if (currentEnemy >= ENEMIES.length - 1) {
+          gameState = 'gamewin';
+          messageTimer = 300;
+        } else {
+          gameState = 'victory';
+          messageTimer = -1;
+        }
+      }
+      break;
+    }
+    case 'gameover': {
+      if (messageTimer <= 0 && mouseClick) {
+        gameState = 'title';
+      }
+      break;
+    }
+    case 'gamewin': {
+      if (messageTimer <= 0 && mouseClick) {
+        gameState = 'title';
+      }
+      break;
+    }
+  }
+
+  mouseClick = false;
+}
+
+// ========== MAIN DRAW ==========
+function draw() {
+  ctx.save();
+
+  // Screen shake
+  if (screenShake > 0) {
+    ctx.translate(
+      (Math.random() - 0.5) * screenShake * 2,
+      (Math.random() - 0.5) * screenShake * 2
+    );
+  }
+
+  if (gameState === 'title') {
+    drawTitleScreen();
+  } else if (gameState === 'gameover') {
+    drawBattleScene();
+    drawGameOver();
+  } else if (gameState === 'gamewin') {
+    drawGameWin();
+  } else {
+    drawBattleScene();
+  }
+
+  // Screen flash
+  if (screenFlash > 0) {
+    ctx.globalAlpha = screenFlash / 15;
+    ctx.fillStyle = screenFlashColor;
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  drawParticles();
+  drawFloatingTexts();
+
+  ctx.restore();
+}
+
+function drawTitleScreen() {
+  // Dramatic background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#100');
+  bg.addColorStop(0.5, '#300');
+  bg.addColorStop(1, '#000');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Fire particles in background
+  for (let i = 0; i < 30; i++) {
+    const fx = (i * 67 + frame * 0.5) % W;
+    const fy = H - ((frame * (0.5 + i * 0.03) + i * 40) % H);
+    const size = 2 + Math.sin(frame * 0.05 + i) * 2;
+    ctx.globalAlpha = 0.3 + Math.sin(frame * 0.03 + i * 0.7) * 0.2;
+    ctx.fillStyle = i % 3 === 0 ? '#f80' : (i % 3 === 1 ? '#f00' : '#ff0');
+    ctx.beginPath();
+    ctx.arc(fx, fy, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // Trogdor sprite (large)
+  drawTrogdor(400, 350, 2.5, frame);
+
+  // Title text
+  ctx.font = 'bold 52px monospace';
+  ctx.textAlign = 'center';
+  // Shadow
+  ctx.fillStyle = '#000';
+  ctx.fillText('TROGDOR', W/2 + 3, 103);
+  // Glow
+  ctx.fillStyle = '#f80';
+  ctx.fillText('TROGDOR', W/2, 100);
+
+  ctx.font = 'bold 24px monospace';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('QUEST FOR BURNINATION', W/2, 140);
+
+  // Subtitle
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('A Turn-Based RPG of Fire and Fury', W/2, 170);
+
+  // Blink prompt
+  if (Math.floor(frame / 30) % 2 === 0) {
+    ctx.font = 'bold 20px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('~ CLICK TO START ~', W/2, H - 60);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function drawBattleScene() {
+  // Background
+  if (!enemy) return;
+  if (enemy.bg === 'throne') drawThroneRoom(frame);
+  else if (enemy.bg === 'castle') drawCastle(frame);
+  else drawCountryside(frame);
+
+  // Battle platform / ground line
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.beginPath();
+  ctx.ellipse(250, 420, 80, 15, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.ellipse(580, 420, 80, 15, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Enemy sprite (left side)
+  const enemyShake = (gameState === 'playerAnim' && animTimer > 30) ? (Math.random() - 0.5) * 6 : 0;
+  const enemyAlpha = (enemy.hp <= 0 && gameState === 'victory') ? Math.max(0, messageTimer / 120) : 1;
+  ctx.globalAlpha = enemyAlpha;
+  enemy.draw(250 + enemyShake, 400, 1.2, frame);
+  ctx.globalAlpha = 1;
+
+  // Trogdor (right side)
+  const trogShake = (gameState === 'enemyAnim' && animTimer > 20) ? (Math.random() - 0.5) * 6 : 0;
+  // Attack animation - lunge forward
+  let trogX = 580 + trogShake;
+  if (gameState === 'playerAnim') {
+    if (animType === 'burn' || animType === 'stomp') {
+      const progress = 1 - animTimer / 60;
+      if (progress < 0.3) trogX -= progress * 100;
+      else if (progress < 0.5) trogX -= (0.3 - (progress - 0.3)) * 100;
+    }
+  }
+  drawTrogdor(trogX, 400, 1.2, frame);
+
+  // Fire breath animation
+  if (gameState === 'playerAnim' && animType === 'burn' && animTimer > 20) {
+    for (let i = 0; i < 5; i++) {
+      const progress = (60 - animTimer) / 60;
+      const fx = 520 - progress * 300 + Math.random() * 30;
+      const fy = 360 + Math.random() * 40;
+      addParticle(fx, fy, 'fire', 3);
+    }
+  }
+
+  // Stomp effect
+  if (gameState === 'playerAnim' && animType === 'stomp' && animTimer === 40) {
+    screenShake = 20;
+  }
+
+  // Roar visual
+  if (gameState === 'playerAnim' && animType === 'roar') {
+    const rSize = (60 - animTimer) * 3;
+    ctx.strokeStyle = `rgba(255,255,0,${animTimer/60})`;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(580, 370, rSize, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Enemy attack animation
+  if (gameState === 'enemyAnim' && animTimer > 20) {
+    const progress = (50 - animTimer) / 50;
+    // Projectile from enemy to trogdor
+    const px = 250 + progress * 330;
+    const py = 370 + Math.sin(progress * Math.PI) * -50;
+    ctx.fillStyle = enemy.name === 'WIZARD' ? '#f0f' : (enemy.name === 'ARCHER' ? '#888' : '#aaa');
+    ctx.beginPath();
+    ctx.arc(px, py, 5, 0, Math.PI * 2);
+    ctx.fill();
+    if (enemy.name === 'WIZARD') addParticle(px, py, 'magic', 2);
+  }
+
+  // Enemy HP bar
+  drawRPGBox(50, 30, 300, 60, '#112', '#88f');
+  ctx.font = 'bold 14px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(enemy.name, 65, 52);
+  drawHPBar(65, 58, 270, 16, enemyDisplayHp, enemy.maxHp, '#f44', '#a00', 'HP');
+
+  // Trogdor stats
+  drawRPGBox(450, 30, 330, 80, '#112', '#88f');
+  ctx.font = 'bold 14px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`TROGDOR  Lv.${trogdor.level}`, 465, 52);
+  drawHPBar(465, 58, 300, 14, trogdor.displayHp, trogdor.maxHp, '#4f4', '#080', 'HP');
+  drawHPBar(465, 78, 300, 14, trogdor.displayMp, trogdor.maxMp, '#48f', '#008', 'MP');
+
+  // Buff indicator
+  if (trogdor.buffTurns > 0) {
+    ctx.font = 'bold 12px monospace';
+    ctx.fillStyle = '#ff0';
+    ctx.fillText(`ATK UP (${trogdor.buffTurns})`, 465, 105);
+  }
+
+  // Action menu
+  if (gameState === 'playerTurn') {
+    drawActionMenu();
+  }
+
+  // Message box
+  if (battleMessage && messageTimer > 0) {
+    drawRPGBox(100, 440, 600, 50, '#112', '#88f');
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.textAlign = 'center';
+    ctx.fillText(battleMessage, 400, 472);
+    ctx.textAlign = 'left';
+  }
+
+  // Victory overlay
+  if (gameState === 'victory' && messageTimer === -1) {
+    drawVictoryScreen();
+  }
+
+  // Level up overlay
+  if (gameState === 'levelup') {
+    drawLevelUpScreen();
+  }
+}
+
+function drawActionMenu() {
+  drawRPGBox(10, 450, 400, 140, '#112', '#88f');
+  ctx.font = 'bold 13px monospace';
+  ctx.fillStyle = '#aaf';
+  ctx.fillText('ACTIONS', 25, 470);
+
+  for (let i = 0; i < 4; i++) {
+    const bx = 20 + (i % 2) * 190;
+    const by = 478 + Math.floor(i / 2) * 52;
+    const action = ACTIONS[i];
+    const canUse = trogdor.mp >= action.mpCost;
+
+    // Button bg
+    const hover = mouseX >= bx && mouseX <= bx + 180 && mouseY >= by && mouseY <= by + 44;
+    drawPixelRect(bx, by, 180, 44, hover && canUse ? '#334' : '#223');
+    drawPixelRect(bx, by, 180, 1, '#556');
+    drawPixelRect(bx, by + 43, 180, 1, '#111');
+
+    // Icon color bar
+    drawPixelRect(bx + 2, by + 2, 4, 40, canUse ? action.color : '#444');
+
+    ctx.globalAlpha = canUse ? 1 : 0.4;
+    ctx.font = 'bold 15px monospace';
+    ctx.fillStyle = action.color;
+    ctx.fillText(action.name, bx + 12, by + 18);
+    ctx.font = '11px monospace';
+    ctx.fillStyle = '#aaa';
+    ctx.fillText(action.desc, bx + 12, by + 32);
+    if (action.mpCost > 0) {
+      ctx.fillStyle = '#48f';
+      ctx.fillText(`${action.mpCost}MP`, bx + 135, by + 18);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawVictoryScreen() {
+  // Semi-transparent overlay
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  drawRPGBox(150, 180, 500, 240, '#112', '#ff0');
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 32px monospace';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('VICTORY!', 400, 230);
+
+  ctx.font = 'bold 18px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`${ENEMIES[currentEnemy].name} defeated!`, 400, 270);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#0f0';
+  ctx.fillText(`+${ENEMIES[currentEnemy].xp} Experience Points`, 400, 310);
+
+  // XP bar
+  const xpRatio = trogdor.xp / trogdor.xpToNext;
+  drawHPBar(230, 330, 340, 16, trogdor.xp, trogdor.xpToNext, '#ff0', '#a80', 'XP');
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText(`Level ${trogdor.level}  |  HP: ${trogdor.hp}/${trogdor.maxHp}  |  ATK: ${trogdor.atk}  |  DEF: ${trogdor.def}`, 400, 370);
+
+  if (Math.floor(frame / 25) % 2 === 0) {
+    ctx.font = 'bold 16px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('~ Click for next battle ~', 400, 400);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function drawLevelUpScreen() {
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, W, H);
+
+  drawRPGBox(180, 150, 440, 300, '#112', '#ff0');
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillStyle = '#ff0';
+  const bounce = Math.sin(frame * 0.1) * 5;
+  ctx.fillText('LEVEL UP!', 400, 200 + bounce);
+
+  ctx.font = 'bold 24px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText(`Level ${trogdor.level}`, 400, 250);
+
+  ctx.font = '16px monospace';
+  const stats = [
+    `Max HP: ${trogdor.maxHp}`,
+    `Max MP: ${trogdor.maxMp}`,
+    `ATK: ${trogdor.atk}`,
+    `DEF: ${trogdor.def}`
+  ];
+  stats.forEach((s, i) => {
+    ctx.fillStyle = '#0f0';
+    ctx.fillText(s, 400, 290 + i * 28);
+  });
+
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('HP & MP fully restored!', 400, 430);
+
+  ctx.textAlign = 'left';
+}
+
+function drawGameOver() {
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.textAlign = 'center';
+  ctx.font = 'bold 48px monospace';
+  ctx.fillStyle = '#f00';
+  ctx.fillText('GAME OVER', W/2, H/2 - 30);
+
+  ctx.font = '20px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText('The burnination has ended...', W/2, H/2 + 20);
+
+  if (messageTimer <= 0 && Math.floor(frame / 25) % 2 === 0) {
+    ctx.font = '18px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('Click to try again', W/2, H/2 + 70);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+function drawGameWin() {
+  // Epic victory background
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#000');
+  bg.addColorStop(0.3, '#210');
+  bg.addColorStop(0.6, '#420');
+  bg.addColorStop(1, '#000');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Fire rain
+  for (let i = 0; i < 40; i++) {
+    const fx = (i * 53 + frame * 0.8) % W;
+    const fy = (frame * (1 + i * 0.05) + i * 30) % H;
+    ctx.fillStyle = i % 2 === 0 ? '#f80' : '#f00';
+    ctx.globalAlpha = 0.5;
+    drawPixelRect(fx, fy, 3, 6, ctx.fillStyle);
+  }
+  ctx.globalAlpha = 1;
+
+  // Trogdor victorious
+  drawTrogdor(400, 380, 2, frame);
+
+  ctx.textAlign = 'center';
+
+  ctx.font = 'bold 44px monospace';
+  ctx.fillStyle = '#f80';
+  const bounce = Math.sin(frame * 0.05) * 5;
+  ctx.fillText('BURNINATION', W/2, 100 + bounce);
+  ctx.font = 'bold 32px monospace';
+  ctx.fillStyle = '#ff0';
+  ctx.fillText('COMPLETE!', W/2, 145 + bounce);
+
+  ctx.font = '18px monospace';
+  ctx.fillStyle = '#fff';
+  ctx.fillText('The King has fallen! The countryside burns!', W/2, 200);
+  ctx.fillText('Trogdor reigns supreme!', W/2, 230);
+
+  ctx.font = '16px monospace';
+  ctx.fillStyle = '#aaa';
+  ctx.fillText(`Final Level: ${trogdor.level}  |  ATK: ${trogdor.atk}  |  DEF: ${trogdor.def}`, W/2, 520);
+
+  if (messageTimer <= 0 && Math.floor(frame / 25) % 2 === 0) {
+    ctx.font = 'bold 18px monospace';
+    ctx.fillStyle = '#fff';
+    ctx.fillText('~ Click to play again ~', W/2, 560);
+  }
+
+  ctx.textAlign = 'left';
+}
+
+// ========== GAME LOOP ==========
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>

@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>TROGDOR: TOWER OF DOOM</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; font-family: monospace; }
+canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; cursor: none; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+// ============================================================
+// TROGDOR: TOWER OF DOOM - Vertical Platformer
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const W = 480, H = 640;
+canvas.width = W; canvas.height = H;
+
+function resizeCanvas() {
+    const scale = Math.min(window.innerWidth / W, window.innerHeight / H);
+    canvas.style.width = (W * scale) + 'px';
+    canvas.style.height = (H * scale) + 'px';
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let gameState = 'title'; // title, playing, gameover
+let score = 0;
+let highScore = parseInt(localStorage.getItem('trogdorTowerHigh') || '0');
+let cameraY = 0;
+let targetCameraY = 0;
+let maxHeightReached = 0;
+let trogdor, platforms, enemies, particles, powerUps, projectiles;
+let backgroundStars = [];
+let torches = [];
+let banners = [];
+let clouds = [];
+let frameCount = 0;
+let shakeTimer = 0;
+let shakeIntensity = 0;
+let musicStarted = false;
+
+// Zone thresholds (in world Y, going upward means more negative)
+const ZONE_DUNGEON_END = -3000;
+const ZONE_CASTLE_END = -7000;
+// Above castle end is sky
+
+function getZone(y) {
+    if (y > ZONE_DUNGEON_END) return 'dungeon';
+    if (y > ZONE_CASTLE_END) return 'castle';
+    return 'sky';
+}
+
+function getZoneProgress() {
+    const y = cameraY;
+    if (y > ZONE_DUNGEON_END) {
+        return { zone: 'dungeon', progress: Math.max(0, Math.min(1, (0 - y) / (0 - ZONE_DUNGEON_END))) };
+    }
+    if (y > ZONE_CASTLE_END) {
+        return { zone: 'castle', progress: (ZONE_DUNGEON_END - y) / (ZONE_DUNGEON_END - ZONE_CASTLE_END) };
+    }
+    return { zone: 'sky', progress: Math.min(1, (ZONE_CASTLE_END - y) / 3000) };
+}
+
+// ============================================================
+// INPUT
+// ============================================================
+const keys = {};
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Space'].includes(e.code)) e.preventDefault();
+    if (gameState === 'title' && e.code === 'Space') {
+        startGame();
+    }
+    if (gameState === 'gameover' && e.code === 'Space') {
+        gameState = 'title';
+    }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+// ============================================================
+// AUDIO ENGINE
+// ============================================================
+let audioCtx = null;
+let masterGain, musicGain, sfxGain;
+let dungeonOsc = [], castleOsc = [], skyOsc = [];
+let dungeonGain, castleGain, skyGain;
+let drumInterval = null;
+let currentMusicZone = 'dungeon';
+
+function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = 0.3;
+    masterGain.connect(audioCtx.destination);
+
+    musicGain = audioCtx.createGain();
+    musicGain.gain.value = 0.5;
+    musicGain.connect(masterGain);
+
+    sfxGain = audioCtx.createGain();
+    sfxGain.gain.value = 0.6;
+    sfxGain.connect(masterGain);
+
+    // Zone gain nodes
+    dungeonGain = audioCtx.createGain();
+    dungeonGain.gain.value = 1.0;
+    dungeonGain.connect(musicGain);
+
+    castleGain = audioCtx.createGain();
+    castleGain.gain.value = 0.0;
+    castleGain.connect(musicGain);
+
+    skyGain = audioCtx.createGain();
+    skyGain.gain.value = 0.0;
+    skyGain.connect(musicGain);
+}
+
+function startMusic() {
+    if (!audioCtx || musicStarted) return;
+    musicStarted = true;
+
+    // Create reverb for dungeon
+    const convolver = audioCtx.createConvolver();
+    const rate = audioCtx.sampleRate;
+    const length = rate * 2;
+    const impulse = audioCtx.createBuffer(2, length, rate);
+    for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let i = 0; i < length; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2.5);
+        }
+    }
+    convolver.buffer = impulse;
+    const reverbGain = audioCtx.createGain();
+    reverbGain.gain.value = 0.15;
+    convolver.connect(reverbGain);
+    reverbGain.connect(dungeonGain);
+
+    // DUNGEON MUSIC - dark minor key arpeggios
+    const dungeonNotes = [110, 130.81, 146.83, 164.81, 196, 164.81, 146.83, 130.81]; // Am arpeggio
+    let dungeonStep = 0;
+    const dungeonArp = audioCtx.createOscillator();
+    dungeonArp.type = 'triangle';
+    dungeonArp.frequency.value = dungeonNotes[0];
+    const dungeonArpGain = audioCtx.createGain();
+    dungeonArpGain.gain.value = 0.25;
+    dungeonArp.connect(dungeonArpGain);
+    dungeonArpGain.connect(dungeonGain);
+    dungeonArpGain.connect(convolver);
+    dungeonArp.start();
+
+    // Dungeon bass drone
+    const dungeonBass = audioCtx.createOscillator();
+    dungeonBass.type = 'sawtooth';
+    dungeonBass.frequency.value = 55;
+    const dungeonBassGain = audioCtx.createGain();
+    dungeonBassGain.gain.value = 0.12;
+    const dungeonBassFilter = audioCtx.createBiquadFilter();
+    dungeonBassFilter.type = 'lowpass';
+    dungeonBassFilter.frequency.value = 200;
+    dungeonBass.connect(dungeonBassFilter);
+    dungeonBassFilter.connect(dungeonBassGain);
+    dungeonBassGain.connect(dungeonGain);
+    dungeonBass.start();
+
+    // Dungeon pad
+    const dungeonPad = audioCtx.createOscillator();
+    dungeonPad.type = 'sine';
+    dungeonPad.frequency.value = 220;
+    const dungeonPadGain = audioCtx.createGain();
+    dungeonPadGain.gain.value = 0.08;
+    const dungeonPadFilter = audioCtx.createBiquadFilter();
+    dungeonPadFilter.type = 'lowpass';
+    dungeonPadFilter.frequency.value = 400;
+    dungeonPad.connect(dungeonPadFilter);
+    dungeonPadFilter.connect(dungeonPadGain);
+    dungeonPadGain.connect(dungeonGain);
+    dungeonPadGain.connect(convolver);
+    dungeonPad.start();
+
+    // CASTLE MUSIC - military, intense
+    const castleMelody = audioCtx.createOscillator();
+    castleMelody.type = 'square';
+    castleMelody.frequency.value = 220;
+    const castleMelGain = audioCtx.createGain();
+    castleMelGain.gain.value = 0.18;
+    castleMelody.connect(castleMelGain);
+    castleMelGain.connect(castleGain);
+    castleMelody.start();
+
+    const castleBass = audioCtx.createOscillator();
+    castleBass.type = 'sawtooth';
+    castleBass.frequency.value = 110;
+    const castleBassGain = audioCtx.createGain();
+    castleBassGain.gain.value = 0.15;
+    const castleBassFilter = audioCtx.createBiquadFilter();
+    castleBassFilter.type = 'lowpass';
+    castleBassFilter.frequency.value = 300;
+    castleBass.connect(castleBassFilter);
+    castleBassFilter.connect(castleBassGain);
+    castleBassGain.connect(castleGain);
+    castleBass.start();
+
+    // Castle brass
+    const castleBrass = audioCtx.createOscillator();
+    castleBrass.type = 'square';
+    castleBrass.frequency.value = 330;
+    const castleBrassGain = audioCtx.createGain();
+    castleBrassGain.gain.value = 0.1;
+    castleBrass.connect(castleBrassGain);
+    castleBrassGain.connect(castleGain);
+    castleBrass.start();
+
+    // SKY MUSIC - ethereal, triumphant
+    const skyMelody = audioCtx.createOscillator();
+    skyMelody.type = 'sine';
+    skyMelody.frequency.value = 440;
+    const skyMelGain = audioCtx.createGain();
+    skyMelGain.gain.value = 0.2;
+    skyMelody.connect(skyMelGain);
+    skyMelGain.connect(skyGain);
+    skyMelody.start();
+
+    const skyPad = audioCtx.createOscillator();
+    skyPad.type = 'triangle';
+    skyPad.frequency.value = 330;
+    const skyPadGain = audioCtx.createGain();
+    skyPadGain.gain.value = 0.15;
+    skyPad.connect(skyPadGain);
+    skyPadGain.connect(skyGain);
+    skyPad.start();
+
+    const skyHigh = audioCtx.createOscillator();
+    skyHigh.type = 'sine';
+    skyHigh.frequency.value = 660;
+    const skyHighGain = audioCtx.createGain();
+    skyHighGain.gain.value = 0.08;
+    skyHigh.connect(skyHighGain);
+    skyHighGain.connect(skyGain);
+    skyHigh.start();
+
+    // Arpeggio sequencer
+    const castleNotes = [220, 261.63, 329.63, 392, 440, 392, 329.63, 261.63];
+    const skyNotes = [440, 523.25, 659.25, 783.99, 880, 783.99, 659.25, 523.25];
+    let castleStep = 0, skyStep = 0;
+
+    const tempo = { dungeon: 280, castle: 200, sky: 160 };
+    let beatCount = 0;
+
+    function musicTick() {
+        if (!audioCtx || gameState !== 'playing') return;
+        const t = audioCtx.currentTime;
+
+        // Dungeon arpeggio
+        dungeonStep = (dungeonStep + 1) % dungeonNotes.length;
+        dungeonArp.frequency.setTargetAtTime(dungeonNotes[dungeonStep], t, 0.02);
+        dungeonArpGain.gain.setTargetAtTime(0.25 * (0.7 + 0.3 * Math.sin(beatCount * 0.3)), t, 0.02);
+
+        // Dungeon bass modulation
+        const bassNotes = [55, 55, 65.41, 55, 73.42, 65.41, 55, 55];
+        dungeonBass.frequency.setTargetAtTime(bassNotes[dungeonStep], t, 0.05);
+
+        // Dungeon pad chord shifts
+        const padNotes = [220, 220, 246.94, 261.63, 220, 196, 220, 220];
+        dungeonPad.frequency.setTargetAtTime(padNotes[dungeonStep], t, 0.1);
+
+        // Castle melody
+        castleStep = (castleStep + 1) % castleNotes.length;
+        castleMelody.frequency.setTargetAtTime(castleNotes[castleStep], t, 0.01);
+        castleMelGain.gain.setTargetAtTime(0.18 * (beatCount % 4 === 0 ? 1 : 0.7), t, 0.01);
+
+        // Castle brass accents
+        if (beatCount % 8 === 0) {
+            castleBrass.frequency.setTargetAtTime(castleNotes[castleStep] * 1.5, t, 0.01);
+            castleBrassGain.gain.setTargetAtTime(0.15, t, 0.01);
+            castleBrassGain.gain.setTargetAtTime(0.05, t + 0.15, 0.1);
+        }
+
+        // Castle bass
+        const castleBassNotes = [110, 110, 130.81, 146.83, 110, 98, 110, 110];
+        castleBass.frequency.setTargetAtTime(castleBassNotes[castleStep], t, 0.02);
+
+        // Sky melody
+        skyStep = (skyStep + 1) % skyNotes.length;
+        skyMelody.frequency.setTargetAtTime(skyNotes[skyStep], t, 0.02);
+        skyMelGain.gain.setTargetAtTime(0.2 * (0.8 + 0.2 * Math.sin(beatCount * 0.2)), t, 0.02);
+
+        // Sky pad harmony
+        const skyPadNotes = [330, 392, 440, 523.25, 440, 392, 330, 392];
+        skyPad.frequency.setTargetAtTime(skyPadNotes[skyStep], t, 0.05);
+
+        // Sky high shimmer
+        skyHigh.frequency.setTargetAtTime(skyNotes[skyStep] * 2, t, 0.03);
+        skyHighGain.gain.setTargetAtTime(0.08 * (0.5 + 0.5 * Math.sin(beatCount * 0.5)), t, 0.03);
+
+        beatCount++;
+
+        // Determine tempo based on zone blend
+        const zp = getZoneProgress();
+        let currentTempo;
+        if (zp.zone === 'dungeon') {
+            currentTempo = tempo.dungeon - (tempo.dungeon - tempo.castle) * zp.progress * 0.3;
+        } else if (zp.zone === 'castle') {
+            currentTempo = tempo.castle - (tempo.castle - tempo.sky) * zp.progress * 0.5;
+        } else {
+            currentTempo = tempo.sky;
+        }
+
+        setTimeout(musicTick, currentTempo);
+    }
+
+    // Drum pattern
+    function playDrum(type) {
+        if (!audioCtx) return;
+        const t = audioCtx.currentTime;
+
+        if (type === 'kick') {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, t);
+            osc.frequency.exponentialRampToValueAtTime(30, t + 0.15);
+            gain.gain.setValueAtTime(0.4, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+            osc.connect(gain);
+            gain.connect(musicGain);
+            osc.start(t);
+            osc.stop(t + 0.2);
+        } else if (type === 'snare') {
+            const noise = audioCtx.createBufferSource();
+            const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+            noise.buffer = buf;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.2, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 1000;
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(musicGain);
+            noise.start(t);
+            noise.stop(t + 0.1);
+        } else if (type === 'hihat') {
+            const noise = audioCtx.createBufferSource();
+            const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.05, audioCtx.sampleRate);
+            const data = buf.getChannelData(0);
+            for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+            noise.buffer = buf;
+            const gain = audioCtx.createGain();
+            gain.gain.setValueAtTime(0.08, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+            const filter = audioCtx.createBiquadFilter();
+            filter.type = 'highpass';
+            filter.frequency.value = 5000;
+            noise.connect(filter);
+            filter.connect(gain);
+            gain.connect(musicGain);
+            noise.start(t);
+            noise.stop(t + 0.05);
+        }
+    }
+
+    let drumBeat = 0;
+    function drumTick() {
+        if (!audioCtx || gameState !== 'playing') return;
+        const zp = getZoneProgress();
+
+        if (zp.zone === 'dungeon') {
+            // Slow sparse drums
+            if (drumBeat % 8 === 0) playDrum('kick');
+            if (drumBeat % 8 === 4) playDrum('hihat');
+        } else if (zp.zone === 'castle') {
+            // Military rhythm
+            if (drumBeat % 4 === 0) playDrum('kick');
+            if (drumBeat % 4 === 2) playDrum('snare');
+            if (drumBeat % 2 === 0) playDrum('hihat');
+        } else {
+            // Driving rhythm
+            if (drumBeat % 4 === 0) playDrum('kick');
+            if (drumBeat % 4 === 2) playDrum('snare');
+            playDrum('hihat');
+        }
+
+        drumBeat++;
+        let drumTempo;
+        if (zp.zone === 'dungeon') drumTempo = 350;
+        else if (zp.zone === 'castle') drumTempo = 250;
+        else drumTempo = 200;
+
+        setTimeout(drumTick, drumTempo);
+    }
+
+    musicTick();
+    drumTick();
+}
+
+function updateMusicZones() {
+    if (!audioCtx || !musicStarted) return;
+    const zp = getZoneProgress();
+    const t = audioCtx.currentTime;
+    const fadeTime = 0.5;
+
+    if (zp.zone === 'dungeon') {
+        dungeonGain.gain.setTargetAtTime(1.0 - zp.progress * 0.3, t, fadeTime);
+        castleGain.gain.setTargetAtTime(zp.progress * 0.5, t, fadeTime);
+        skyGain.gain.setTargetAtTime(0, t, fadeTime);
+    } else if (zp.zone === 'castle') {
+        dungeonGain.gain.setTargetAtTime(Math.max(0, 0.3 - zp.progress * 0.3), t, fadeTime);
+        castleGain.gain.setTargetAtTime(1.0 - zp.progress * 0.3, t, fadeTime);
+        skyGain.gain.setTargetAtTime(zp.progress * 0.5, t, fadeTime);
+    } else {
+        dungeonGain.gain.setTargetAtTime(0, t, fadeTime);
+        castleGain.gain.setTargetAtTime(Math.max(0, 0.3 - zp.progress * 0.3), t, fadeTime);
+        skyGain.gain.setTargetAtTime(0.7 + zp.progress * 0.3, t, fadeTime);
+    }
+}
+
+// Sound effects
+function playSound(type) {
+    if (!audioCtx) return;
+    const t = audioCtx.currentTime;
+
+    if (type === 'jump') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(200, t);
+        osc.frequency.exponentialRampToValueAtTime(600, t + 0.1);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+        osc.connect(gain); gain.connect(sfxGain);
+        osc.start(t); osc.stop(t + 0.15);
+    } else if (type === 'land') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(150, t);
+        osc.frequency.exponentialRampToValueAtTime(60, t + 0.08);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+        osc.connect(gain); gain.connect(sfxGain);
+        osc.start(t); osc.stop(t + 0.1);
+    } else if (type === 'fire') {
+        const noise = audioCtx.createBufferSource();
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.3, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buf;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'bandpass';
+        filter.frequency.setValueAtTime(2000, t);
+        filter.frequency.exponentialRampToValueAtTime(500, t + 0.3);
+        filter.Q.value = 2;
+        noise.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+        noise.start(t); noise.stop(t + 0.3);
+    } else if (type === 'enemyDeath') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(800, t);
+        osc.frequency.exponentialRampToValueAtTime(100, t + 0.3);
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        osc.connect(gain); gain.connect(sfxGain);
+        osc.start(t); osc.stop(t + 0.3);
+    } else if (type === 'crumble') {
+        const noise = audioCtx.createBufferSource();
+        const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.4, audioCtx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        noise.buffer = buf;
+        const gain = audioCtx.createGain();
+        gain.gain.setValueAtTime(0.15, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+        const filter = audioCtx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.value = 800;
+        noise.connect(filter); filter.connect(gain); gain.connect(sfxGain);
+        noise.start(t); noise.stop(t + 0.4);
+    } else if (type === 'powerup') {
+        for (let i = 0; i < 4; i++) {
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = 400 + i * 200;
+            gain.gain.setValueAtTime(0, t + i * 0.08);
+            gain.gain.linearRampToValueAtTime(0.12, t + i * 0.08 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + i * 0.08 + 0.15);
+            osc.connect(gain); gain.connect(sfxGain);
+            osc.start(t + i * 0.08); osc.stop(t + i * 0.08 + 0.15);
+        }
+    } else if (type === 'hurt') {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(300, t);
+        osc.frequency.exponentialRampToValueAtTime(80, t + 0.2);
+        gain.gain.setValueAtTime(0.2, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        osc.connect(gain); gain.connect(sfxGain);
+        osc.start(t); osc.stop(t + 0.25);
+    }
+}
+
+// ============================================================
+// TROGDOR PLAYER
+// ============================================================
+function createTrogdor() {
+    return {
+        x: W / 2 - 12, y: -20,
+        w: 24, h: 28,
+        vx: 0, vy: 0,
+        onGround: false,
+        facing: 1,
+        hp: 3,
+        maxHp: 3,
+        fireCooldown: 0,
+        fireTimer: 0,
+        extraFire: 0,
+        shieldTimer: 0,
+        superJumpTimer: 0,
+        invincTimer: 0,
+        animFrame: 0,
+        animTimer: 0,
+        walkCycle: 0,
+        jumpFrame: 0,
+        mouthOpen: false
+    };
+}
+
+function drawTrogdor(t) {
+    const sx = t.x, sy = t.y - cameraY;
+
+    // Invincibility flash
+    if (t.invincTimer > 0 && Math.floor(t.invincTimer / 4) % 2 === 0) return;
+
+    ctx.save();
+    if (t.facing < 0) {
+        ctx.translate(sx + t.w / 2, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-(sx + t.w / 2), 0);
+    }
+
+    const blink = frameCount % 120 < 5;
+    const bobY = t.onGround ? Math.sin(t.walkCycle * 0.3) * 1.5 : 0;
+
+    // Shield glow
+    if (t.shieldTimer > 0) {
+        ctx.globalAlpha = 0.3 + 0.1 * Math.sin(frameCount * 0.1);
+        ctx.fillStyle = '#44aaff';
+        ctx.beginPath();
+        ctx.arc(sx + t.w / 2, sy + t.h / 2 + bobY, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // Body (green dragon)
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(sx + 6, sy + 8 + bobY, 14, 14); // torso
+
+    // Belly
+    ctx.fillStyle = '#4abf4a';
+    ctx.fillRect(sx + 8, sy + 12 + bobY, 10, 8);
+
+    // Head
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(sx + 14, sy + 2 + bobY, 12, 12);
+
+    // Snout
+    ctx.fillStyle = '#3aad3a';
+    ctx.fillRect(sx + 22, sy + 6 + bobY, 5, 6);
+
+    // Nostril
+    ctx.fillStyle = '#1a6b1a';
+    ctx.fillRect(sx + 25, sy + 7 + bobY, 2, 2);
+
+    // Mouth
+    if (t.mouthOpen || t.fireTimer > 0) {
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(sx + 22, sy + 10 + bobY, 5, 3);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(sx + 23, sy + 11 + bobY, 3, 1);
+    }
+
+    // Eye
+    ctx.fillStyle = blink ? '#2d8f2d' : '#fff';
+    ctx.fillRect(sx + 20, sy + 4 + bobY, 4, 4);
+    if (!blink) {
+        ctx.fillStyle = '#ff0000';
+        ctx.fillRect(sx + 21, sy + 5 + bobY, 2, 2);
+    }
+
+    // Horn
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillRect(sx + 16, sy + bobY, 3, 4);
+    ctx.fillRect(sx + 17, sy - 2 + bobY, 2, 3);
+
+    // Wings
+    const wingFlap = t.onGround ? 0 : Math.sin(frameCount * 0.3) * 4;
+    ctx.fillStyle = '#1a6b1a';
+    ctx.fillRect(sx + 4, sy + 6 + bobY - wingFlap, 6, 3);
+    ctx.fillRect(sx + 2, sy + 4 + bobY - wingFlap, 4, 3);
+    ctx.fillStyle = '#43a843';
+    ctx.fillRect(sx + 3, sy + 5 + bobY - wingFlap, 3, 2);
+
+    // Legs with walk animation
+    const legOffset = t.onGround ? Math.sin(t.walkCycle * 0.3) * 3 : 2;
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(sx + 8, sy + 22 + bobY, 4, 6 + legOffset);
+    ctx.fillRect(sx + 16, sy + 22 + bobY, 4, 6 - legOffset);
+
+    // Feet
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillRect(sx + 7, sy + 27 + bobY + legOffset, 6, 2);
+    ctx.fillRect(sx + 15, sy + 27 + bobY - legOffset, 6, 2);
+
+    // Tail
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(sx + 2, sy + 16 + bobY, 6, 3);
+    ctx.fillRect(sx, sy + 15 + bobY, 4, 3);
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillRect(sx - 1, sy + 14 + bobY, 3, 2);
+
+    // Super jump glow
+    if (t.superJumpTimer > 0) {
+        ctx.globalAlpha = 0.2;
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(sx + 6, sy + 24 + bobY, 14, 6);
+        ctx.globalAlpha = 1;
+    }
+
+    ctx.restore();
+}
+
+// ============================================================
+// PLATFORMS
+// ============================================================
+function createPlatform(x, y, w, type, moving) {
+    return {
+        x, y, w, h: 12,
+        type: type || 'stone', // stone, wood, crumble, moving
+        moving: moving || null, // { range, speed, axis }
+        originX: x, originY: y,
+        crumbleTimer: -1,
+        burning: false,
+        burnTimer: 0,
+        phase: Math.random() * Math.PI * 2
+    };
+}
+
+function generatePlatforms() {
+    platforms = [];
+    // Floor
+    platforms.push(createPlatform(0, 20, W, 'stone'));
+
+    let y = -30;
+    while (y > -15000) {
+        const zone = getZone(y);
+        const count = 2 + Math.floor(Math.random() * 2);
+
+        for (let i = 0; i < count; i++) {
+            const pw = 50 + Math.random() * 80;
+            const px = Math.random() * (W - pw);
+
+            let type;
+            const r = Math.random();
+            if (zone === 'dungeon') {
+                type = r < 0.5 ? 'stone' : r < 0.75 ? 'crumble' : 'wood';
+            } else if (zone === 'castle') {
+                type = r < 0.4 ? 'stone' : r < 0.6 ? 'crumble' : r < 0.8 ? 'wood' : 'stone';
+            } else {
+                type = r < 0.3 ? 'stone' : r < 0.5 ? 'crumble' : r < 0.7 ? 'wood' : 'stone';
+            }
+
+            let moving = null;
+            if (Math.random() < 0.15 + (zone === 'sky' ? 0.15 : 0)) {
+                moving = {
+                    range: 30 + Math.random() * 60,
+                    speed: 0.5 + Math.random() * 1.5,
+                    axis: Math.random() < 0.7 ? 'x' : 'y'
+                };
+            }
+
+            platforms.push(createPlatform(px, y, pw, type, moving));
+        }
+
+        y -= 40 + Math.random() * 40;
+    }
+}
+
+function drawPlatform(p) {
+    const px = p.x, py = p.y - cameraY;
+    if (py < -20 || py > H + 20) return;
+
+    const zone = getZone(p.y);
+
+    if (p.type === 'stone') {
+        if (zone === 'dungeon') {
+            ctx.fillStyle = '#3a2d4f';
+            ctx.fillRect(px, py, p.w, p.h);
+            ctx.fillStyle = '#4a3d5f';
+            for (let i = 0; i < p.w; i += 12) {
+                ctx.fillRect(px + i + 1, py + 1, 10, 5);
+            }
+            ctx.fillStyle = '#2a1d3f';
+            ctx.fillRect(px, py + p.h - 2, p.w, 2);
+        } else if (zone === 'castle') {
+            ctx.fillStyle = '#888888';
+            ctx.fillRect(px, py, p.w, p.h);
+            ctx.fillStyle = '#999999';
+            for (let i = 0; i < p.w; i += 14) {
+                ctx.fillRect(px + i + 1, py + 1, 12, 5);
+            }
+            ctx.fillStyle = '#666666';
+            ctx.fillRect(px, py + p.h - 2, p.w, 2);
+            ctx.fillStyle = '#777777';
+            for (let i = 0; i < p.w; i += 14) {
+                ctx.fillRect(px + i + 7, py + 6, 6, 4);
+            }
+        } else {
+            ctx.fillStyle = '#ddeeff';
+            ctx.fillRect(px, py, p.w, p.h);
+            ctx.fillStyle = '#eef5ff';
+            ctx.fillRect(px + 2, py + 2, p.w - 4, p.h - 6);
+            ctx.fillStyle = '#bbccdd';
+            ctx.fillRect(px, py + p.h - 2, p.w, 2);
+        }
+    } else if (p.type === 'wood') {
+        if (p.burning) {
+            ctx.fillStyle = `rgb(${100 + Math.random() * 50}, ${30 + Math.random() * 20}, 0)`;
+        } else {
+            ctx.fillStyle = zone === 'dungeon' ? '#5a3a1a' : '#8b6914';
+        }
+        ctx.fillRect(px, py, p.w, p.h);
+        ctx.fillStyle = p.burning ? '#ff6600' : (zone === 'dungeon' ? '#6a4a2a' : '#9b7924');
+        for (let i = 0; i < p.w; i += 8) {
+            ctx.fillRect(px + i, py + 2, 7, 2);
+            ctx.fillRect(px + i + 3, py + 7, 5, 2);
+        }
+        if (p.burning) {
+            for (let i = 0; i < 3; i++) {
+                particles.push({
+                    x: px + Math.random() * p.w, y: py,
+                    vx: Math.random() * 2 - 1, vy: -1 - Math.random() * 2,
+                    life: 20, maxLife: 20, color: Math.random() < 0.5 ? '#ff4400' : '#ffaa00', size: 2 + Math.random() * 2
+                });
+            }
+        }
+    } else if (p.type === 'crumble') {
+        const alpha = p.crumbleTimer >= 0 ? Math.max(0.2, 1 - p.crumbleTimer / 60) : 1;
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = zone === 'dungeon' ? '#4a3a2a' : zone === 'castle' ? '#776655' : '#aabbcc';
+        ctx.fillRect(px, py, p.w, p.h);
+        // Cracks
+        ctx.fillStyle = zone === 'dungeon' ? '#3a2a1a' : zone === 'castle' ? '#554433' : '#8899aa';
+        ctx.fillRect(px + p.w * 0.3, py + 2, 1, p.h - 4);
+        ctx.fillRect(px + p.w * 0.6, py + 1, 1, p.h - 2);
+        ctx.fillRect(px + p.w * 0.45, py + 4, p.w * 0.2, 1);
+        if (p.crumbleTimer >= 0) {
+            // Shake
+            const shake = Math.sin(p.crumbleTimer * 0.5) * 2;
+            ctx.fillStyle = zone === 'dungeon' ? '#4a3a2a' : '#776655';
+            ctx.fillRect(px + shake, py, p.w, p.h);
+        }
+        ctx.globalAlpha = 1;
+    }
+}
+
+// ============================================================
+// ENEMIES
+// ============================================================
+function spawnEnemies() {
+    enemies = [];
+    let y = -200;
+    while (y > -15000) {
+        const zone = getZone(y);
+        if (Math.random() < 0.4) {
+            const type = zone === 'dungeon' ? (Math.random() < 0.7 ? 'knight' : 'archer') :
+                         zone === 'castle' ? (Math.random() < 0.4 ? 'knight' : Math.random() < 0.7 ? 'archer' : 'wizard') :
+                         (Math.random() < 0.3 ? 'archer' : 'wizard');
+            enemies.push({
+                x: 30 + Math.random() * (W - 60),
+                y: y,
+                w: 20, h: 24,
+                type: type,
+                vx: (Math.random() < 0.5 ? 1 : -1) * (0.5 + Math.random()),
+                hp: type === 'wizard' ? 2 : type === 'archer' ? 1 : 2,
+                shootTimer: 60 + Math.random() * 120,
+                animFrame: 0,
+                facing: 1,
+                alive: true
+            });
+        }
+        y -= 100 + Math.random() * 150;
+    }
+}
+
+function drawEnemy(e) {
+    if (!e.alive) return;
+    const ex = e.x, ey = e.y - cameraY;
+    if (ey < -30 || ey > H + 30) return;
+
+    ctx.save();
+    if (e.facing < 0) {
+        ctx.translate(ex + e.w / 2, 0);
+        ctx.scale(-1, 1);
+        ctx.translate(-(ex + e.w / 2), 0);
+    }
+
+    if (e.type === 'knight') {
+        // Helmet
+        ctx.fillStyle = '#888';
+        ctx.fillRect(ex + 4, ey, 12, 10);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(ex + 4, ey + 6, 14, 4);
+        // Visor slit
+        ctx.fillStyle = '#222';
+        ctx.fillRect(ex + 8, ey + 4, 6, 2);
+        // Body armor
+        ctx.fillStyle = '#777';
+        ctx.fillRect(ex + 3, ey + 10, 14, 10);
+        ctx.fillStyle = '#666';
+        ctx.fillRect(ex + 5, ey + 12, 10, 6);
+        // Sword
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(ex + 16, ey + 8, 2, 12);
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(ex + 14, ey + 8, 6, 3);
+        // Legs
+        ctx.fillStyle = '#666';
+        ctx.fillRect(ex + 5, ey + 20, 4, 4);
+        ctx.fillRect(ex + 11, ey + 20, 4, 4);
+    } else if (e.type === 'archer') {
+        // Hood
+        ctx.fillStyle = '#2a5a2a';
+        ctx.fillRect(ex + 5, ey, 10, 8);
+        // Face
+        ctx.fillStyle = '#deb887';
+        ctx.fillRect(ex + 7, ey + 3, 6, 4);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(ex + 9, ey + 4, 2, 2);
+        // Tunic
+        ctx.fillStyle = '#3a7a3a';
+        ctx.fillRect(ex + 4, ey + 8, 12, 10);
+        // Bow
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(ex + 16, ey + 4, 2, 14);
+        ctx.fillStyle = '#ccc';
+        ctx.fillRect(ex + 17, ey + 4, 1, 14);
+        // Legs
+        ctx.fillStyle = '#5a3a1a';
+        ctx.fillRect(ex + 6, ey + 18, 3, 6);
+        ctx.fillRect(ex + 12, ey + 18, 3, 6);
+    } else if (e.type === 'wizard') {
+        // Hat
+        ctx.fillStyle = '#4a2a8a';
+        ctx.fillRect(ex + 3, ey - 4, 14, 4);
+        ctx.fillRect(ex + 6, ey - 8, 8, 5);
+        ctx.fillRect(ex + 8, ey - 11, 4, 4);
+        // Stars on hat
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(ex + 9, ey - 9, 2, 2);
+        // Face
+        ctx.fillStyle = '#deb887';
+        ctx.fillRect(ex + 5, ey, 10, 8);
+        ctx.fillStyle = '#222';
+        ctx.fillRect(ex + 7, ey + 3, 2, 2);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(ex + 5, ey + 6, 10, 4);
+        // Robe
+        ctx.fillStyle = '#5a3aaa';
+        ctx.fillRect(ex + 3, ey + 8, 14, 12);
+        ctx.fillStyle = '#6a4aba';
+        ctx.fillRect(ex + 5, ey + 10, 10, 8);
+        // Staff
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(ex + 17, ey - 4, 2, 24);
+        ctx.fillStyle = '#00ffff';
+        ctx.fillRect(ex + 16, ey - 6, 4, 4);
+        // Glow
+        ctx.globalAlpha = 0.3 + 0.1 * Math.sin(frameCount * 0.1);
+        ctx.fillStyle = '#8844ff';
+        ctx.beginPath();
+        ctx.arc(ex + 18, ey - 4, 6, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+}
+
+// ============================================================
+// POWER-UPS
+// ============================================================
+function spawnPowerUps() {
+    powerUps = [];
+    let y = -300;
+    while (y > -15000) {
+        if (Math.random() < 0.25) {
+            const types = ['fire', 'shield', 'superjump', 'health'];
+            powerUps.push({
+                x: 20 + Math.random() * (W - 40),
+                y: y,
+                w: 16, h: 16,
+                type: types[Math.floor(Math.random() * types.length)],
+                collected: false,
+                bobPhase: Math.random() * Math.PI * 2
+            });
+        }
+        y -= 200 + Math.random() * 300;
+    }
+}
+
+function drawPowerUp(pu) {
+    if (pu.collected) return;
+    const px = pu.x, py = pu.y - cameraY + Math.sin(pu.bobPhase + frameCount * 0.05) * 4;
+    if (py < -20 || py > H + 20) return;
+
+    // Glow
+    ctx.globalAlpha = 0.2 + 0.1 * Math.sin(frameCount * 0.08);
+    const glowColor = pu.type === 'fire' ? '#ff4400' : pu.type === 'shield' ? '#4488ff' : pu.type === 'superjump' ? '#ffff00' : '#ff44aa';
+    ctx.fillStyle = glowColor;
+    ctx.beginPath();
+    ctx.arc(px + 8, py + 8, 14, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Icon
+    if (pu.type === 'fire') {
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(px + 4, py + 4, 8, 10);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(px + 6, py + 2, 4, 6);
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(px + 7, py + 4, 2, 3);
+    } else if (pu.type === 'shield') {
+        ctx.fillStyle = '#4488ff';
+        ctx.fillRect(px + 3, py + 2, 10, 12);
+        ctx.fillStyle = '#88bbff';
+        ctx.fillRect(px + 5, py + 4, 6, 8);
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(px + 7, py + 5, 2, 6);
+        ctx.fillRect(px + 5, py + 7, 6, 2);
+    } else if (pu.type === 'superjump') {
+        ctx.fillStyle = '#ffff00';
+        ctx.fillRect(px + 6, py + 2, 4, 10);
+        ctx.fillRect(px + 3, py + 2, 10, 3);
+        ctx.fillStyle = '#ffcc00';
+        ctx.fillRect(px + 4, py + 12, 8, 3);
+    } else {
+        ctx.fillStyle = '#ff2244';
+        ctx.fillRect(px + 3, py + 4, 5, 5);
+        ctx.fillRect(px + 8, py + 4, 5, 5);
+        ctx.fillRect(px + 4, py + 8, 8, 5);
+        ctx.fillRect(px + 5, py + 12, 6, 2);
+        ctx.fillRect(px + 7, py + 13, 2, 2);
+    }
+}
+
+// ============================================================
+// PARTICLES
+// ============================================================
+function spawnFireBreath(t) {
+    const dir = t.facing;
+    const ox = dir > 0 ? t.x + t.w + 2 : t.x - 4;
+    const oy = t.y + 8;
+    const spread = t.extraFire > 0 ? 2.5 : 1.5;
+    const count = t.extraFire > 0 ? 8 : 5;
+
+    for (let i = 0; i < count; i++) {
+        particles.push({
+            x: ox, y: oy + Math.random() * 6 - 3,
+            vx: dir * (3 + Math.random() * 4),
+            vy: Math.random() * spread - spread / 2,
+            life: 15 + Math.random() * 15,
+            maxLife: 30,
+            color: ['#ff4400', '#ff6600', '#ffaa00', '#ffcc00', '#ffff44'][Math.floor(Math.random() * 5)],
+            size: 3 + Math.random() * 4,
+            isFire: true
+        });
+    }
+}
+
+// ============================================================
+// PROJECTILES (enemy arrows and spells)
+// ============================================================
+function spawnProjectile(x, y, type, targetX, targetY) {
+    const dx = targetX - x, dy = targetY - y;
+    const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+    const speed = type === 'arrow' ? 3 : 2;
+
+    projectiles.push({
+        x, y, w: type === 'arrow' ? 8 : 6, h: type === 'arrow' ? 3 : 6,
+        vx: (dx / dist) * speed,
+        vy: (dy / dist) * speed,
+        type, life: 180
+    });
+}
+
+function drawProjectile(p) {
+    const px = p.x, py = p.y - cameraY;
+    if (py < -10 || py > H + 10) return;
+
+    if (p.type === 'arrow') {
+        ctx.fillStyle = '#8B4513';
+        ctx.fillRect(px, py, p.w, 2);
+        ctx.fillStyle = '#aaa';
+        ctx.fillRect(px + p.w - 3, py - 1, 3, 4);
+    } else {
+        ctx.fillStyle = '#aa44ff';
+        ctx.fillRect(px, py, p.w, p.h);
+        ctx.fillStyle = '#cc88ff';
+        ctx.fillRect(px + 1, py + 1, p.w - 2, p.h - 2);
+        // Spell trail
+        particles.push({
+            x: px + p.w / 2, y: p.y + p.h / 2,
+            vx: Math.random() * 2 - 1, vy: Math.random() * 2 - 1,
+            life: 10, maxLife: 10, color: '#8844ff', size: 2 + Math.random() * 2
+        });
+    }
+}
+
+// ============================================================
+// BACKGROUND DECORATIONS
+// ============================================================
+function generateDecorations() {
+    torches = [];
+    banners = [];
+    clouds = [];
+    backgroundStars = [];
+
+    // Torches in dungeon
+    for (let y = 0; y > -3500; y -= 80 + Math.random() * 60) {
+        torches.push({ x: Math.random() < 0.5 ? 10 : W - 20, y: y, flicker: Math.random() * Math.PI * 2 });
+    }
+
+    // Banners in castle
+    for (let y = ZONE_DUNGEON_END; y > ZONE_CASTLE_END; y -= 120 + Math.random() * 80) {
+        banners.push({ x: 5 + Math.random() * (W - 30), y: y, color: Math.random() < 0.5 ? '#aa2222' : '#2222aa', w: 20 + Math.random() * 15 });
+    }
+
+    // Clouds in sky
+    for (let y = ZONE_CASTLE_END; y > -15000; y -= 50 + Math.random() * 80) {
+        clouds.push({ x: Math.random() * W, y: y, w: 40 + Math.random() * 80, h: 15 + Math.random() * 20, speed: 0.1 + Math.random() * 0.3 });
+    }
+
+    // Background stars for sky
+    for (let i = 0; i < 100; i++) {
+        backgroundStars.push({ x: Math.random() * W, y: ZONE_CASTLE_END - Math.random() * 8000, size: 1 + Math.random() * 2, twinkle: Math.random() * Math.PI * 2 });
+    }
+}
+
+// ============================================================
+// DRAWING BACKGROUNDS
+// ============================================================
+function drawBackground() {
+    const zp = getZoneProgress();
+
+    // Sky gradient
+    if (zp.zone === 'sky' || (zp.zone === 'castle' && zp.progress > 0.7)) {
+        const skyAlpha = zp.zone === 'sky' ? 1 : (zp.progress - 0.7) / 0.3;
+        ctx.globalAlpha = skyAlpha;
+        const grd = ctx.createLinearGradient(0, 0, 0, H);
+        grd.addColorStop(0, '#1a0a3a');
+        grd.addColorStop(0.3, '#2244aa');
+        grd.addColorStop(0.7, '#4488dd');
+        grd.addColorStop(1, '#88bbff');
+        ctx.fillStyle = grd;
+        ctx.fillRect(0, 0, W, H);
+        ctx.globalAlpha = 1;
+
+        // Stars
+        backgroundStars.forEach(s => {
+            const sy = s.y - cameraY;
+            if (sy < -5 || sy > H + 5) return;
+            ctx.globalAlpha = 0.5 + 0.5 * Math.sin(s.twinkle + frameCount * 0.03);
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(s.x, sy, s.size, s.size);
+        });
+        ctx.globalAlpha = 1;
+
+        // Golden light at top
+        if (zp.zone === 'sky') {
+            ctx.globalAlpha = 0.1 + 0.05 * Math.sin(frameCount * 0.02);
+            const goldGrd = ctx.createRadialGradient(W / 2, 0, 0, W / 2, 0, 300);
+            goldGrd.addColorStop(0, '#ffcc44');
+            goldGrd.addColorStop(1, 'transparent');
+            ctx.fillStyle = goldGrd;
+            ctx.fillRect(0, 0, W, 300);
+            ctx.globalAlpha = 1;
+        }
+    }
+
+    // Castle background
+    if (zp.zone === 'castle' || (zp.zone === 'dungeon' && zp.progress > 0.7) || (zp.zone === 'sky' && zp.progress < 0.3)) {
+        const castAlpha = zp.zone === 'castle' ? 1 : zp.zone === 'dungeon' ? (zp.progress - 0.7) / 0.3 : 1 - zp.progress / 0.3;
+        ctx.globalAlpha = castAlpha * 0.5;
+        ctx.fillStyle = '#444';
+        ctx.fillRect(0, 0, W, H);
+
+        // Stone wall pattern
+        ctx.fillStyle = '#555';
+        for (let row = 0; row < H; row += 20) {
+            const offset = (Math.floor((row + cameraY) / 20) % 2) * 15;
+            for (let col = offset; col < W; col += 30) {
+                ctx.fillRect(col, row, 28, 18);
+            }
+        }
+        ctx.globalAlpha = 1;
+
+        // Windows
+        if (zp.zone === 'castle') {
+            for (let wy = -cameraY % 200; wy < H; wy += 200) {
+                ctx.fillStyle = '#222';
+                ctx.fillRect(30, wy, 16, 24);
+                ctx.fillRect(W - 46, wy, 16, 24);
+                // Window arch
+                ctx.fillStyle = '#555';
+                ctx.fillRect(30, wy - 4, 16, 6);
+                ctx.fillRect(W - 46, wy - 4, 16, 6);
+                // Light through window
+                ctx.globalAlpha = 0.15;
+                ctx.fillStyle = '#ffcc88';
+                ctx.fillRect(34, wy + 4, 8, 16);
+                ctx.fillRect(W - 42, wy + 4, 8, 16);
+                ctx.globalAlpha = 1;
+            }
+        }
+    }
+
+    // Dungeon background
+    if (zp.zone === 'dungeon' || (zp.zone === 'castle' && zp.progress < 0.3)) {
+        const dungAlpha = zp.zone === 'dungeon' ? 1 : 1 - zp.progress / 0.3;
+        ctx.globalAlpha = dungAlpha;
+        const dungGrd = ctx.createLinearGradient(0, 0, 0, H);
+        dungGrd.addColorStop(0, '#0a0515');
+        dungGrd.addColorStop(0.5, '#150a25');
+        dungGrd.addColorStop(1, '#0a0a15');
+        ctx.fillStyle = dungGrd;
+        ctx.fillRect(0, 0, W, H);
+
+        // Damp stone walls
+        ctx.fillStyle = '#1a1028';
+        for (let row = 0; row < H; row += 16) {
+            const offset = (Math.floor((row + cameraY) / 16) % 2) * 10;
+            for (let col = offset; col < W; col += 20) {
+                ctx.fillRect(col, row, 18, 14);
+            }
+        }
+
+        // Green moss spots
+        ctx.fillStyle = '#0a2a0a';
+        for (let i = 0; i < 20; i++) {
+            const mx = (i * 97 + Math.floor(cameraY * 0.1)) % W;
+            const my = (i * 53) % H;
+            ctx.fillRect(mx, my, 3 + (i % 4), 2 + (i % 3));
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // Draw torches
+    torches.forEach(torch => {
+        const ty = torch.y - cameraY;
+        if (ty < -30 || ty > H + 30) return;
+
+        // Bracket
+        ctx.fillStyle = '#555';
+        ctx.fillRect(torch.x, ty + 8, 8, 3);
+        ctx.fillRect(torch.x + 2, ty + 5, 4, 12);
+
+        // Flame
+        const flicker = Math.sin(torch.flicker + frameCount * 0.15) * 2;
+        ctx.fillStyle = '#ff6600';
+        ctx.fillRect(torch.x + 1, ty + flicker, 6, 6);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(torch.x + 2, ty - 1 + flicker, 4, 4);
+        ctx.fillStyle = '#ffff44';
+        ctx.fillRect(torch.x + 3, ty - 1 + flicker, 2, 2);
+
+        // Glow
+        ctx.globalAlpha = 0.08 + 0.03 * Math.sin(torch.flicker + frameCount * 0.1);
+        const glowGrd = ctx.createRadialGradient(torch.x + 4, ty + 3, 0, torch.x + 4, ty + 3, 60);
+        glowGrd.addColorStop(0, '#ff8800');
+        glowGrd.addColorStop(1, 'transparent');
+        ctx.fillStyle = glowGrd;
+        ctx.fillRect(torch.x - 56, ty - 57, 120, 120);
+        ctx.globalAlpha = 1;
+    });
+
+    // Draw banners
+    banners.forEach(b => {
+        const by = b.y - cameraY;
+        if (by < -40 || by > H + 40) return;
+        const wave = Math.sin(frameCount * 0.03 + b.x * 0.1) * 3;
+
+        ctx.fillStyle = '#888';
+        ctx.fillRect(b.x, by, b.w, 3);
+        ctx.fillStyle = b.color;
+        ctx.fillRect(b.x + 2, by + 3, b.w - 4, 25);
+        // Banner point
+        ctx.fillRect(b.x + 4, by + 28, b.w - 8, 4);
+        ctx.fillRect(b.x + 6, by + 32, b.w - 12, 3);
+        // Emblem
+        ctx.fillStyle = '#ffcc44';
+        ctx.fillRect(b.x + b.w / 2 - 3 + wave, by + 10, 6, 6);
+    });
+
+    // Draw clouds
+    clouds.forEach(c => {
+        const cy = c.y - cameraY;
+        if (cy < -30 || cy > H + 30) return;
+        c.x = (c.x + c.speed) % (W + c.w);
+
+        ctx.globalAlpha = 0.25;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath();
+        ctx.ellipse(c.x, cy, c.w / 2, c.h / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(c.x - c.w * 0.2, cy + 3, c.w * 0.3, c.h * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(c.x + c.w * 0.2, cy + 2, c.w * 0.35, c.h * 0.35, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    });
+}
+
+// ============================================================
+// TOWER WALLS
+// ============================================================
+function drawTowerWalls() {
+    const zone = getZone(cameraY);
+
+    // Left wall
+    if (zone === 'dungeon') {
+        ctx.fillStyle = '#1a1028';
+        ctx.fillRect(0, 0, 6, H);
+        ctx.fillStyle = '#251538';
+        ctx.fillRect(0, 0, 3, H);
+    } else if (zone === 'castle') {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(0, 0, 8, H);
+        ctx.fillStyle = '#666';
+        for (let y = (-cameraY % 20); y < H; y += 20) {
+            ctx.fillRect(0, y, 8, 8);
+        }
+    }
+
+    // Right wall
+    if (zone === 'dungeon') {
+        ctx.fillStyle = '#1a1028';
+        ctx.fillRect(W - 6, 0, 6, H);
+        ctx.fillStyle = '#251538';
+        ctx.fillRect(W - 3, 0, 3, H);
+    } else if (zone === 'castle') {
+        ctx.fillStyle = '#555';
+        ctx.fillRect(W - 8, 0, 8, H);
+        ctx.fillStyle = '#666';
+        for (let y = (-cameraY % 20) + 10; y < H; y += 20) {
+            ctx.fillRect(W - 8, y, 8, 8);
+        }
+    }
+}
+
+// ============================================================
+// HUD
+// ============================================================
+function drawHUD() {
+    // Health
+    for (let i = 0; i < trogdor.maxHp; i++) {
+        ctx.fillStyle = i < trogdor.hp ? '#ff2244' : '#440011';
+        ctx.fillRect(10 + i * 18, 10, 14, 14);
+        if (i < trogdor.hp) {
+            ctx.fillStyle = '#ff6688';
+            ctx.fillRect(12 + i * 18, 12, 6, 4);
+        }
+    }
+
+    // Score (height)
+    ctx.fillStyle = '#fff';
+    ctx.font = '14px monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(`HEIGHT: ${score}m`, W - 10, 22);
+    ctx.fillText(`BEST: ${highScore}m`, W - 10, 38);
+    ctx.textAlign = 'left';
+
+    // Zone indicator
+    const zone = getZone(cameraY);
+    const zoneName = zone === 'dungeon' ? 'THE DUNGEON' : zone === 'castle' ? 'THE CASTLE' : 'THE SKY';
+    const zoneColor = zone === 'dungeon' ? '#8844aa' : zone === 'castle' ? '#aaaaaa' : '#88ccff';
+    ctx.fillStyle = zoneColor;
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(zoneName, W / 2, 18);
+    ctx.textAlign = 'left';
+
+    // Power-up indicators
+    let puY = 32;
+    if (trogdor.extraFire > 0) {
+        ctx.fillStyle = '#ff4400';
+        ctx.font = '10px monospace';
+        ctx.fillText(`FIRE: ${Math.ceil(trogdor.extraFire / 60)}s`, 10, puY);
+        puY += 14;
+    }
+    if (trogdor.shieldTimer > 0) {
+        ctx.fillStyle = '#4488ff';
+        ctx.font = '10px monospace';
+        ctx.fillText(`SHIELD: ${Math.ceil(trogdor.shieldTimer / 60)}s`, 10, puY);
+        puY += 14;
+    }
+    if (trogdor.superJumpTimer > 0) {
+        ctx.fillStyle = '#ffff00';
+        ctx.font = '10px monospace';
+        ctx.fillText(`JUMP+: ${Math.ceil(trogdor.superJumpTimer / 60)}s`, 10, puY);
+    }
+
+    // Height bar on the right
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(W - 6, 50, 4, H - 60);
+    const totalHeight = 15000;
+    const progress = Math.min(1, Math.abs(cameraY) / totalHeight);
+    const barH = (H - 60) * progress;
+    const grd = ctx.createLinearGradient(0, H - 10, 0, 50);
+    grd.addColorStop(0, '#8844aa');
+    grd.addColorStop(0.3, '#888888');
+    grd.addColorStop(1, '#88ccff');
+    ctx.fillStyle = grd;
+    ctx.fillRect(W - 6, H - 10 - barH, 4, barH);
+}
+
+// ============================================================
+// GAME LOGIC
+// ============================================================
+function startGame() {
+    initAudio();
+    if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+
+    trogdor = createTrogdor();
+    generatePlatforms();
+    spawnEnemies();
+    spawnPowerUps();
+    generateDecorations();
+    particles = [];
+    projectiles = [];
+    cameraY = 0;
+    targetCameraY = 0;
+    maxHeightReached = 0;
+    score = 0;
+    frameCount = 0;
+    gameState = 'playing';
+    musicStarted = false;
+    startMusic();
+}
+
+function update() {
+    if (gameState !== 'playing') return;
+    frameCount++;
+
+    const t = trogdor;
+
+    // Movement
+    const moveSpeed = 3;
+    if (keys['ArrowLeft']) {
+        t.vx = -moveSpeed;
+        t.facing = -1;
+        if (t.onGround) t.walkCycle++;
+    } else if (keys['ArrowRight']) {
+        t.vx = moveSpeed;
+        t.facing = 1;
+        if (t.onGround) t.walkCycle++;
+    } else {
+        t.vx *= 0.7;
+    }
+
+    // Jump
+    if (keys['ArrowUp'] && t.onGround) {
+        const jumpPower = t.superJumpTimer > 0 ? -10 : -7.5;
+        t.vy = jumpPower;
+        t.onGround = false;
+        playSound('jump');
+    }
+
+    // Fire breath
+    if (keys['Space'] && t.fireCooldown <= 0) {
+        t.fireCooldown = t.extraFire > 0 ? 8 : 15;
+        t.fireTimer = 10;
+        t.mouthOpen = true;
+        spawnFireBreath(t);
+        playSound('fire');
+    }
+
+    if (t.fireCooldown > 0) t.fireCooldown--;
+    if (t.fireTimer > 0) t.fireTimer--;
+    else t.mouthOpen = false;
+    if (t.extraFire > 0) t.extraFire--;
+    if (t.shieldTimer > 0) t.shieldTimer--;
+    if (t.superJumpTimer > 0) t.superJumpTimer--;
+    if (t.invincTimer > 0) t.invincTimer--;
+
+    // Physics
+    t.vy += 0.35; // gravity
+    if (t.vy > 10) t.vy = 10;
+    t.x += t.vx;
+    t.y += t.vy;
+
+    // Wall bounds
+    if (t.x < 6) t.x = 6;
+    if (t.x + t.w > W - 6) t.x = W - 6 - t.w;
+
+    // Platform collision
+    const wasOnGround = t.onGround;
+    t.onGround = false;
+    platforms.forEach(p => {
+        if (p.crumbleTimer > 50) return; // Fully crumbled
+        if (p.burning && p.burnTimer > 60) return; // Fully burned
+
+        // Moving platforms
+        if (p.moving) {
+            if (p.moving.axis === 'x') {
+                p.x = p.originX + Math.sin(frameCount * 0.02 * p.moving.speed + p.phase) * p.moving.range;
+            } else {
+                p.y = p.originY + Math.sin(frameCount * 0.02 * p.moving.speed + p.phase) * p.moving.range;
+            }
+        }
+
+        // Check collision (only from above)
+        if (t.vy >= 0 &&
+            t.x + t.w > p.x && t.x < p.x + p.w &&
+            t.y + t.h >= p.y && t.y + t.h <= p.y + p.h + t.vy + 2) {
+            t.y = p.y - t.h;
+            t.vy = 0;
+            t.onGround = true;
+
+            // Moving platform carry
+            if (p.moving && p.moving.axis === 'x') {
+                t.x += Math.cos(frameCount * 0.02 * p.moving.speed + p.phase) * p.moving.speed * p.moving.range * 0.02;
+            }
+
+            if (p.type === 'crumble' && p.crumbleTimer < 0) {
+                p.crumbleTimer = 0;
+                playSound('crumble');
+            }
+        }
+    });
+
+    // Check if just landed (vy was positive, now on ground)
+    if (t.onGround && t.vy === 0) {
+        // landing effect handled by setting onGround
+    }
+
+    // Landing sound
+    if (t.onGround && !wasOnGround) {
+        playSound('land');
+    }
+
+    // Update crumbling platforms
+    platforms.forEach(p => {
+        if (p.crumbleTimer >= 0) {
+            p.crumbleTimer++;
+            if (p.crumbleTimer > 40) {
+                // Spawn crumble particles
+                for (let i = 0; i < 2; i++) {
+                    particles.push({
+                        x: p.x + Math.random() * p.w,
+                        y: p.y,
+                        vx: Math.random() * 2 - 1,
+                        vy: 1 + Math.random() * 2,
+                        life: 30, maxLife: 30,
+                        color: '#776655',
+                        size: 2 + Math.random() * 3
+                    });
+                }
+            }
+        }
+        if (p.burning) {
+            p.burnTimer++;
+        }
+    });
+
+    // Fire breath collision with platforms and enemies
+    particles.forEach(part => {
+        if (!part.isFire) return;
+
+        // Burn wooden platforms
+        platforms.forEach(p => {
+            if (p.type === 'wood' && !p.burning &&
+                part.x > p.x && part.x < p.x + p.w &&
+                part.y > p.y && part.y < p.y + p.h + 5) {
+                p.burning = true;
+                p.burnTimer = 0;
+            }
+        });
+
+        // Damage enemies
+        enemies.forEach(e => {
+            if (!e.alive) return;
+            if (part.x > e.x && part.x < e.x + e.w &&
+                part.y > e.y && part.y < e.y + e.h) {
+                e.hp--;
+                if (e.hp <= 0) {
+                    e.alive = false;
+                    playSound('enemyDeath');
+                    score += 10;
+                    // Death particles
+                    for (let i = 0; i < 10; i++) {
+                        particles.push({
+                            x: e.x + e.w / 2, y: e.y + e.h / 2,
+                            vx: Math.random() * 4 - 2, vy: Math.random() * 4 - 2,
+                            life: 25, maxLife: 25,
+                            color: ['#ff4400', '#ffaa00', '#ffff00'][Math.floor(Math.random() * 3)],
+                            size: 3 + Math.random() * 3
+                        });
+                    }
+                    shakeTimer = 8;
+                    shakeIntensity = 3;
+                }
+                part.life = 0;
+            }
+        });
+    });
+
+    // Enemy AI
+    enemies.forEach(e => {
+        if (!e.alive) return;
+        const ey = e.y - cameraY;
+        if (ey < -100 || ey > H + 100) return;
+
+        // Patrol
+        e.x += e.vx;
+        if (e.x < 10 || e.x + e.w > W - 10) {
+            e.vx = -e.vx;
+            e.facing = e.vx > 0 ? 1 : -1;
+        }
+
+        // Face player if nearby
+        const distX = t.x - e.x;
+        const distY = t.y - e.y;
+        const dist = Math.sqrt(distX * distX + distY * distY);
+
+        if (dist < 250) {
+            e.facing = distX > 0 ? 1 : -1;
+
+            e.shootTimer--;
+            if (e.shootTimer <= 0) {
+                if (e.type === 'archer') {
+                    spawnProjectile(e.x + e.w / 2, e.y + 6, 'arrow', t.x + t.w / 2, t.y + t.h / 2);
+                    e.shootTimer = 90 + Math.random() * 60;
+                } else if (e.type === 'wizard') {
+                    spawnProjectile(e.x + e.w / 2, e.y, 'spell', t.x + t.w / 2, t.y + t.h / 2);
+                    e.shootTimer = 120 + Math.random() * 60;
+                } else {
+                    e.shootTimer = 60;
+                }
+            }
+        }
+
+        // Contact damage
+        if (t.invincTimer <= 0 &&
+            t.x + t.w > e.x && t.x < e.x + e.w &&
+            t.y + t.h > e.y && t.y < e.y + e.h) {
+            hitPlayer();
+        }
+    });
+
+    // Projectile updates
+    projectiles = projectiles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+
+        // Hit player
+        if (t.invincTimer <= 0 &&
+            p.x + p.w > t.x && p.x < t.x + t.w &&
+            p.y + p.h > t.y && p.y < t.y + t.h) {
+            hitPlayer();
+            return false;
+        }
+
+        return p.life > 0 && p.y - cameraY > -50 && p.y - cameraY < H + 50;
+    });
+
+    // Power-up collection
+    powerUps.forEach(pu => {
+        if (pu.collected) return;
+        if (t.x + t.w > pu.x && t.x < pu.x + pu.w &&
+            t.y + t.h > pu.y && t.y < pu.y + pu.h) {
+            pu.collected = true;
+            playSound('powerup');
+
+            if (pu.type === 'fire') t.extraFire = 600;
+            else if (pu.type === 'shield') t.shieldTimer = 480;
+            else if (pu.type === 'superjump') t.superJumpTimer = 600;
+            else if (pu.type === 'health') { t.hp = Math.min(t.hp + 1, t.maxHp); }
+
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x: pu.x + 8, y: pu.y + 8,
+                    vx: Math.random() * 4 - 2, vy: Math.random() * 4 - 2,
+                    life: 20, maxLife: 20,
+                    color: pu.type === 'fire' ? '#ff4400' : pu.type === 'shield' ? '#4488ff' : pu.type === 'superjump' ? '#ffff00' : '#ff44aa',
+                    size: 2 + Math.random() * 3
+                });
+            }
+        }
+    });
+
+    // Update particles
+    particles = particles.filter(p => {
+        p.x += p.vx;
+        p.y += p.vy;
+        p.life--;
+        p.size *= 0.97;
+        return p.life > 0;
+    });
+
+    // Camera follow
+    const targetY = t.y - H * 0.4;
+    if (targetY < targetCameraY) {
+        targetCameraY = targetY;
+    }
+    cameraY += (targetCameraY - cameraY) * 0.08;
+
+    // Score = height
+    const currentHeight = Math.floor(Math.abs(Math.min(0, t.y)) / 10);
+    if (currentHeight > score) score = currentHeight;
+
+    // Update music zones
+    updateMusicZones();
+
+    // Screen shake
+    if (shakeTimer > 0) shakeTimer--;
+
+    // Fall death check
+    if (t.y > cameraY + H + 100) {
+        gameOver();
+    }
+
+    // HP death
+    if (t.hp <= 0) {
+        gameOver();
+    }
+}
+
+function hitPlayer() {
+    if (trogdor.shieldTimer > 0) {
+        trogdor.shieldTimer = Math.max(0, trogdor.shieldTimer - 120);
+        trogdor.invincTimer = 30;
+        playSound('hurt');
+        shakeTimer = 5;
+        shakeIntensity = 2;
+        return;
+    }
+    trogdor.hp--;
+    trogdor.invincTimer = 90;
+    trogdor.vy = -4;
+    playSound('hurt');
+    shakeTimer = 10;
+    shakeIntensity = 4;
+}
+
+function gameOver() {
+    gameState = 'gameover';
+    if (score > highScore) {
+        highScore = score;
+        localStorage.setItem('trogdorTowerHigh', highScore.toString());
+    }
+    shakeTimer = 20;
+    shakeIntensity = 6;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function draw() {
+    ctx.clearRect(0, 0, W, H);
+
+    if (gameState === 'title') {
+        drawTitleScreen();
+        return;
+    }
+
+    if (gameState === 'gameover') {
+        drawGameOverScreen();
+        return;
+    }
+
+    // Screen shake
+    ctx.save();
+    if (shakeTimer > 0) {
+        ctx.translate(
+            (Math.random() - 0.5) * shakeIntensity,
+            (Math.random() - 0.5) * shakeIntensity
+        );
+    }
+
+    // Background
+    drawBackground();
+    drawTowerWalls();
+
+    // Platforms
+    platforms.forEach(p => drawPlatform(p));
+
+    // Power-ups
+    powerUps.forEach(pu => drawPowerUp(pu));
+
+    // Enemies
+    enemies.forEach(e => drawEnemy(e));
+
+    // Projectiles
+    projectiles.forEach(p => drawProjectile(p));
+
+    // Particles
+    particles.forEach(p => {
+        const py = p.y - cameraY;
+        if (py < -10 || py > H + 10) return;
+        ctx.globalAlpha = p.life / p.maxLife;
+        ctx.fillStyle = p.color;
+        ctx.fillRect(p.x - p.size / 2, py - p.size / 2, p.size, p.size);
+    });
+    ctx.globalAlpha = 1;
+
+    // Trogdor
+    drawTrogdor(trogdor);
+
+    ctx.restore();
+
+    // HUD (no shake)
+    drawHUD();
+}
+
+function drawTitleScreen() {
+    // Animated background
+    const t = frameCount * 0.01;
+    const grd = ctx.createLinearGradient(0, 0, 0, H);
+    grd.addColorStop(0, '#0a0515');
+    grd.addColorStop(0.4, '#1a0a2a');
+    grd.addColorStop(0.7, '#2a1a3a');
+    grd.addColorStop(1, '#0a0a15');
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    // Floating particles
+    for (let i = 0; i < 30; i++) {
+        const px = (i * 37 + frameCount * 0.3) % W;
+        const py = (i * 23 + frameCount * 0.5) % H;
+        ctx.globalAlpha = 0.3 + 0.2 * Math.sin(i + frameCount * 0.03);
+        ctx.fillStyle = ['#ff4400', '#ffaa00', '#8844ff'][i % 3];
+        ctx.fillRect(px, py, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+
+    // Tower silhouette
+    ctx.fillStyle = '#1a0a2a';
+    ctx.fillRect(W / 2 - 80, 100, 160, H - 100);
+    ctx.fillStyle = '#2a1a3a';
+    ctx.fillRect(W / 2 - 70, 120, 140, H - 120);
+    // Battlements
+    for (let i = 0; i < 8; i++) {
+        ctx.fillRect(W / 2 - 80 + i * 22, 90, 16, 15);
+    }
+
+    // Title
+    ctx.fillStyle = '#ff4400';
+    ctx.font = 'bold 36px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('TROGDOR', W / 2, 220);
+
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = 'bold 28px monospace';
+    ctx.fillText('TOWER OF DOOM', W / 2, 260);
+
+    // Trogdor preview
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(W / 2 - 12, 300, 14, 14);
+    ctx.fillStyle = '#4abf4a';
+    ctx.fillRect(W / 2 - 10, 304, 10, 8);
+    ctx.fillStyle = '#2d8f2d';
+    ctx.fillRect(W / 2 + 2, 294, 12, 12);
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(W / 2 + 8, 298, 3, 3);
+    ctx.fillStyle = '#ffcc44';
+    ctx.fillRect(W / 2 + 4, 290, 3, 5);
+
+    // Fire breath from title Trogdor
+    for (let i = 0; i < 5; i++) {
+        const fx = W / 2 + 16 + i * 6 + Math.sin(frameCount * 0.1 + i) * 2;
+        const fy = 298 + Math.sin(frameCount * 0.15 + i * 0.5) * 3;
+        ctx.fillStyle = ['#ff4400', '#ff6600', '#ffaa00'][i % 3];
+        ctx.globalAlpha = 1 - i * 0.15;
+        ctx.fillRect(fx, fy, 5 - i * 0.5, 4 - i * 0.3);
+    }
+    ctx.globalAlpha = 1;
+
+    // Instructions
+    ctx.fillStyle = '#aaaaaa';
+    ctx.font = '12px monospace';
+    ctx.fillText('ARROW KEYS: MOVE / JUMP', W / 2, 380);
+    ctx.fillText('SPACEBAR: FIRE BREATH', W / 2, 400);
+
+    // Zone descriptions
+    ctx.fillStyle = '#8844aa';
+    ctx.fillText('DUNGEON', W / 2, 440);
+    ctx.fillStyle = '#888';
+    ctx.fillText('CASTLE', W / 2, 458);
+    ctx.fillStyle = '#88ccff';
+    ctx.fillText('SKY', W / 2, 476);
+
+    // Blink prompt
+    if (Math.floor(frameCount / 30) % 2 === 0) {
+        ctx.fillStyle = '#ffcc00';
+        ctx.font = 'bold 16px monospace';
+        ctx.fillText('PRESS SPACE TO BEGIN', W / 2, 540);
+    }
+
+    // High score
+    if (highScore > 0) {
+        ctx.fillStyle = '#ffaa00';
+        ctx.font = '12px monospace';
+        ctx.fillText(`BEST: ${highScore}m`, W / 2, 580);
+    }
+
+    ctx.textAlign = 'left';
+}
+
+function drawGameOverScreen() {
+    // Still draw the game behind
+    ctx.save();
+    drawBackground();
+    drawTowerWalls();
+    platforms.forEach(p => drawPlatform(p));
+    enemies.forEach(e => drawEnemy(e));
+    ctx.restore();
+
+    // Overlay
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Flame border
+    for (let i = 0; i < W; i += 8) {
+        const fh = 20 + Math.sin(i * 0.1 + frameCount * 0.05) * 10;
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(i, H - fh, 8, fh);
+        ctx.fillStyle = '#ffaa00';
+        ctx.fillRect(i + 1, H - fh + 4, 6, fh - 4);
+
+        ctx.fillRect(i, 0, 8, fh * 0.6);
+        ctx.fillStyle = '#ff4400';
+        ctx.fillRect(i + 1, 0, 6, fh * 0.4);
+    }
+
+    ctx.fillStyle = '#ff2222';
+    ctx.font = 'bold 32px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', W / 2, 220);
+
+    ctx.fillStyle = '#ffaa00';
+    ctx.font = '18px monospace';
+    ctx.fillText(`HEIGHT: ${score}m`, W / 2, 280);
+
+    if (score >= highScore && score > 0) {
+        ctx.fillStyle = '#ffff00';
+        ctx.font = 'bold 14px monospace';
+        ctx.fillText('NEW RECORD!', W / 2, 310);
+    }
+
+    ctx.fillStyle = '#ffcc00';
+    ctx.font = '14px monospace';
+    ctx.fillText(`BEST: ${highScore}m`, W / 2, 340);
+
+    // Zone reached
+    const zoneReached = score > 700 ? 'SKY' : score > 300 ? 'CASTLE' : 'DUNGEON';
+    ctx.fillStyle = zoneReached === 'SKY' ? '#88ccff' : zoneReached === 'CASTLE' ? '#888' : '#8844aa';
+    ctx.fillText(`ZONE: ${zoneReached}`, W / 2, 370);
+
+    if (Math.floor(frameCount / 30) % 2 === 0) {
+        ctx.fillStyle = '#fff';
+        ctx.font = '14px monospace';
+        ctx.fillText('PRESS SPACE', W / 2, 440);
+    }
+
+    ctx.textAlign = 'left';
+}
+
+// ============================================================
+// MAIN LOOP
+// ============================================================
+function gameLoop() {
+    if (gameState === 'title' || gameState === 'gameover') frameCount++;
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+</body>
+</html>

@@ -1,0 +1,1376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TROGDOR: PEASANT CRUSHER</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a0a2e;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  overflow: hidden;
+  font-family: monospace;
+}
+canvas {
+  cursor: none;
+  image-rendering: pixelated;
+  display: block;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<script>
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Responsive sizing
+const BASE_W = 800, BASE_H = 600;
+let scale = 1;
+function resize() {
+  scale = Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H);
+  canvas.width = BASE_W * scale;
+  canvas.height = BASE_H * scale;
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.imageSmoothingEnabled = false;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ========== AUDIO ENGINE ==========
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+let musicPlaying = false;
+let musicNodes = [];
+let currentTempo = 150;
+
+function createOsc(type, freq, gain, dest) {
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = type;
+  o.frequency.value = freq;
+  g.gain.value = gain;
+  o.connect(g);
+  g.connect(dest || audioCtx.destination);
+  return { osc: o, gain: g };
+}
+
+// Sound effects
+function playWhack() {
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'square';
+  o.frequency.setValueAtTime(300, now);
+  o.frequency.exponentialRampToValueAtTime(80, now + 0.15);
+  g.gain.setValueAtTime(0.3, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.2);
+  // Noise burst
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.1, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/data.length);
+  const ns = audioCtx.createBufferSource();
+  const ng = audioCtx.createGain();
+  ns.buffer = buf;
+  ng.gain.setValueAtTime(0.25, now);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+  ns.connect(ng); ng.connect(audioCtx.destination);
+  ns.start(now); ns.stop(now + 0.1);
+}
+
+function playSqueal() {
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(800, now);
+  o.frequency.setValueAtTime(1200, now + 0.05);
+  o.frequency.setValueAtTime(600, now + 0.1);
+  o.frequency.setValueAtTime(1000, now + 0.15);
+  g.gain.setValueAtTime(0.12, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.25);
+}
+
+function playMiss() {
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(150, now);
+  o.frequency.exponentialRampToValueAtTime(50, now + 0.3);
+  g.gain.setValueAtTime(0.2, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.3);
+}
+
+function playComboDing(combo) {
+  const now = audioCtx.currentTime;
+  const baseFreq = 523 + combo * 50;
+  for (let i = 0; i < 3; i++) {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.type = 'square';
+    o.frequency.setValueAtTime(baseFreq * (1 + i * 0.25), now + i * 0.06);
+    g.gain.setValueAtTime(0.1, now + i * 0.06);
+    g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.06 + 0.15);
+    o.connect(g); g.connect(audioCtx.destination);
+    o.start(now + i * 0.06); o.stop(now + i * 0.06 + 0.15);
+  }
+}
+
+function playBuzz() {
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(80, now);
+  g.gain.setValueAtTime(0.25, now);
+  g.gain.setValueAtTime(0.0, now + 0.08);
+  g.gain.setValueAtTime(0.25, now + 0.12);
+  g.gain.setValueAtTime(0.0, now + 0.2);
+  g.gain.setValueAtTime(0.2, now + 0.24);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.4);
+}
+
+// ========== MUSIC ENGINE - TROGDOR THEME (Bouncy/Funky Arrangement) ==========
+// Based on the actual Trogdor song: Key of D minor, ~150 BPM
+// Main riff: D5-D5-D5-Bb5---D5-D5-D5-G5---D5-D5-D5-Bb5-G5-F5->G5
+// Chorus melody: D4-D4-D4-D4-F4-G4-G4-Bb4 / Bb4-C5-D5-Bb4-G4-F4-G4 / G4-Bb4-D5
+
+let musicInterval = null;
+let beatCount = 0;
+let measureCount = 0;
+
+// Frequencies - Trogdor is in D minor
+const D3 = 146.83, F3 = 174.61, G3 = 196.00, Bb3 = 233.08, C4 = 261.63;
+const D4 = 293.66, F4 = 349.23, G4 = 392.00, A4 = 440.00, Bb4 = 466.16;
+const C5 = 523.25, D5 = 587.33, F5 = 698.46, G5 = 783.99;
+// Bass octave
+const D2 = 73.42, F2 = 87.31, G2 = 98.00, Bb2 = 116.54, C3 = 130.81;
+// Power chord fifths
+const A3 = 220.00, D4f = 293.66, Bb3f = 233.08;
+
+// 8th note = base unit. [freq, duration_in_8ths] where 0 = rest
+// MAIN RIFF - Power chords (staccato square wave hits)
+// D5-D5-D5-Bb5---D5-D5-D5-G5---D5-D5-D5-Bb5-G5-F5->G5
+const chordProgression = [
+  // Bar 1: D5 D5 D5 Bb5(held)
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: Bb3, fifth: F4, dur: 2.5}, {root: 0, fifth: 0, dur: 1},
+  // Bar 2: D5 D5 D5 G5(held)
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: G3, fifth: D4, dur: 2.5}, {root: 0, fifth: 0, dur: 1},
+  // Bar 3: D5 D5 D5 Bb5 G5 F5->G5
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: Bb3, fifth: F4, dur: 1.5},
+  {root: G3, fifth: D4, dur: 1.5},
+  {root: F3, fifth: C4, dur: 0.75},
+  {root: G3, fifth: D4, dur: 1.75}, {root: 0, fifth: 0, dur: 0.5},
+  // Bar 4: Repeat bar 1 variation (verse feel) D D Bb D D C
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: Bb3, fifth: F4, dur: 1.5}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: D3, fifth: A3, dur: 1}, {root: 0, fifth: 0, dur: 0.5},
+  {root: C4, fifth: G4, dur: 1.5}, {root: 0, fifth: 0, dur: 0.5},
+];
+
+// CHORUS MELODY - "burninating the countryside" etc.
+// D4-D4-D4-D4-F4-G4-G4-Bb4 / Bb4-C5-D5-Bb4-G4-F4-G4 / G4-Bb4-D5
+const melodyNotes = [
+  // "burninating the countryside" - bouncy staccato
+  [D4,0.8],[0,0.4],[D4,0.8],[0,0.4],[D4,0.6],[0,0.2],[D4,0.6],[0,0.4],
+  [F4,0.8],[0,0.2],[G4,1.0],[0,0.2],[G4,0.8],[0,0.4],[Bb4,1.4],[0,0.6],
+  // "burninating the peasants"
+  [D4,0.8],[0,0.4],[D4,0.8],[0,0.4],[D4,0.6],[0,0.2],[D4,0.6],[0,0.4],
+  [F4,0.8],[0,0.2],[G4,1.0],[0,0.2],[G4,0.8],[0,0.4],[Bb4,1.4],[0,0.6],
+  // "thatched roof COTTAGES" - Bb4-C5-D5-Bb4-G4-F4-G4
+  [Bb4,0.8],[0,0.2],[C5,0.8],[0,0.2],[D5,1.2],[0,0.2],
+  [Bb4,0.8],[0,0.2],[G4,0.8],[0,0.2],[F4,0.6],[0,0.1],[G4,1.4],[0,0.6],
+  // "TROGDOR!" - G4-Bb4-D5 (big triumphant hit)
+  [G4,0.8],[0,0.2],[Bb4,0.8],[0,0.2],[D5,2.4],[0,0.8],
+  // Bridge - D-F->G hammer-on pattern (bouncy)
+  [D4,0.6],[0,0.2],[F4,0.4],[G4,1.0],[0,0.4],
+  [D4,0.6],[0,0.2],[F4,0.4],[G4,1.0],[0,0.4],
+  [D4,0.6],[0,0.2],[F4,0.4],[G4,0.6],[0,0.2],[Bb4,0.6],[0,0.2],[G4,1.2],[0,0.6],
+  [D4,0.6],[0,0.2],[F4,0.4],[G4,1.0],[0,0.4],
+  [D4,0.6],[0,0.2],[F4,0.4],[G4,1.0],[0,0.4],
+  [Bb4,0.6],[0,0.2],[G4,0.6],[0,0.2],[F4,0.6],[0,0.2],[D4,1.4],[0,0.8],
+];
+
+// BASS - Funky syncopated groove following the real bass tab
+// D-D-D-Bb---D-D-D-G---D-D-D-Bb-G-F->G
+const bassNotes = [
+  // Bar 1: D D D Bb(held) - syncopated
+  [D2,0.8],[0,0.2],[D2,0.5],[0,0.3],[D2,0.8],[0,0.4],
+  [Bb2,1.6],[0,0.2],[Bb2,0.6],[0,0.6],
+  // Bar 2: D D D G(held) - with ghost notes
+  [D2,0.8],[0,0.2],[D2,0.5],[0,0.3],[D2,0.8],[0,0.4],
+  [G2,1.6],[0,0.2],[G2,0.6],[0,0.6],
+  // Bar 3: D D D Bb G F->G - walking
+  [D2,0.8],[0,0.2],[D2,0.5],[0,0.3],[D2,0.8],[0,0.4],
+  [Bb2,1.0],[0,0.2],[G2,1.0],[0,0.2],
+  [F2,0.5],[G2,1.4],[0,0.6],
+  // Bar 4: Verse bass - D D Bb D D C (funky)
+  [D2,0.8],[0,0.2],[D2,0.5],[0,0.5],
+  [Bb2,1.0],[0,0.2],[D2,0.8],[0,0.2],
+  [D2,0.5],[0,0.3],[C3,1.2],[0,0.8],
+  // Bars 5-6: Groove under chorus
+  [D2,0.6],[0,0.2],[D2,0.4],[0,0.2],[D2,0.6],[0,0.4],
+  [Bb2,0.6],[0,0.2],[Bb2,0.4],[0,0.2],[G2,0.8],[0,0.4],
+  [D2,0.6],[0,0.2],[D2,0.4],[0,0.2],[D2,0.6],[0,0.4],
+  [Bb2,0.6],[0,0.2],[G2,0.6],[0,0.2],[F2,0.4],[G2,0.8],[0,0.4],
+  // Bars 7-8: Bridge bass
+  [D2,1.0],[0,0.2],[F2,0.4],[G2,1.0],[0,0.4],
+  [D2,1.0],[0,0.2],[F2,0.4],[G2,1.0],[0,0.4],
+  [D2,0.8],[0,0.2],[Bb2,0.8],[0,0.2],[G2,0.8],[0,0.2],[F2,0.4],[G2,1.0],[0,0.6],
+  [D2,1.0],[0,0.2],[F2,0.4],[G2,1.0],[0,0.4],
+  [Bb2,0.8],[0,0.2],[G2,0.6],[0,0.2],[F2,0.6],[0,0.2],[D2,1.4],[0,0.6],
+];
+
+let melodyIdx = 0, bassIdx = 0, chordIdx = 0;
+let nextMelodyTime = 0, nextBassTime = 0, nextChordTime = 0;
+
+function scheduleMusic() {
+  if (!musicPlaying) return;
+  const now = audioCtx.currentTime;
+  const lookAhead = 0.25;
+  const tempoMult = currentTempo / 150;
+  // 8th note duration in seconds
+  const eighthNote = (60 / currentTempo) / 2;
+
+  // Schedule power chord hits (staccato square wave)
+  while (nextChordTime < now + lookAhead) {
+    const chord = chordProgression[chordIdx % chordProgression.length];
+    const dur = chord.dur * eighthNote;
+    if (chord.root > 0) {
+      // Root note
+      const o1 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      o1.type = 'square';
+      o1.frequency.setValueAtTime(chord.root, nextChordTime);
+      const attackEnd = nextChordTime + 0.01;
+      const staccatoDur = Math.min(dur * 0.7, dur - 0.02);
+      g1.gain.setValueAtTime(0.0, nextChordTime);
+      g1.gain.linearRampToValueAtTime(0.07, attackEnd);
+      g1.gain.setValueAtTime(0.06, nextChordTime + staccatoDur * 0.4);
+      g1.gain.exponentialRampToValueAtTime(0.001, nextChordTime + staccatoDur);
+      o1.connect(g1); g1.connect(audioCtx.destination);
+      o1.start(nextChordTime); o1.stop(nextChordTime + staccatoDur + 0.01);
+      // Fifth (power chord)
+      const o2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      o2.type = 'square';
+      o2.frequency.setValueAtTime(chord.fifth, nextChordTime);
+      g2.gain.setValueAtTime(0.0, nextChordTime);
+      g2.gain.linearRampToValueAtTime(0.05, attackEnd);
+      g2.gain.setValueAtTime(0.04, nextChordTime + staccatoDur * 0.4);
+      g2.gain.exponentialRampToValueAtTime(0.001, nextChordTime + staccatoDur);
+      o2.connect(g2); g2.connect(audioCtx.destination);
+      o2.start(nextChordTime); o2.stop(nextChordTime + staccatoDur + 0.01);
+    }
+    nextChordTime += dur;
+    chordIdx++;
+  }
+
+  // Schedule chorus/bridge melody (bouncy, playful feel)
+  while (nextMelodyTime < now + lookAhead) {
+    const note = melodyNotes[melodyIdx % melodyNotes.length];
+    const dur = note[1] * eighthNote;
+    if (note[0] > 0) {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      // Use square wave with slight pulse width feel
+      o.type = 'square';
+      o.frequency.setValueAtTime(note[0], nextMelodyTime);
+      // Bouncy envelope: quick attack, sustain, quick release
+      const staccatoDur = dur * 0.75;
+      g.gain.setValueAtTime(0.0, nextMelodyTime);
+      g.gain.linearRampToValueAtTime(0.09, nextMelodyTime + 0.008);
+      g.gain.setValueAtTime(0.07, nextMelodyTime + staccatoDur * 0.3);
+      g.gain.exponentialRampToValueAtTime(0.001, nextMelodyTime + staccatoDur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(nextMelodyTime); o.stop(nextMelodyTime + staccatoDur + 0.01);
+    }
+    nextMelodyTime += dur;
+    melodyIdx++;
+  }
+
+  // Schedule funky bass (triangle wave for warmth)
+  while (nextBassTime < now + lookAhead) {
+    const note = bassNotes[bassIdx % bassNotes.length];
+    const dur = note[1] * eighthNote;
+    if (note[0] > 0) {
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = 'triangle';
+      o.frequency.setValueAtTime(note[0], nextBassTime);
+      // Funky: punchy attack with quick decay for groove
+      const noteDur = dur * 0.85;
+      g.gain.setValueAtTime(0.0, nextBassTime);
+      g.gain.linearRampToValueAtTime(0.15, nextBassTime + 0.005);
+      g.gain.setValueAtTime(0.12, nextBassTime + noteDur * 0.2);
+      g.gain.exponentialRampToValueAtTime(0.001, nextBassTime + noteDur);
+      o.connect(g); g.connect(audioCtx.destination);
+      o.start(nextBassTime); o.stop(nextBassTime + noteDur + 0.01);
+    }
+    nextBassTime += dur;
+    bassIdx++;
+  }
+}
+
+function playKick() {
+  const now = audioCtx.currentTime;
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(160, now);
+  o.frequency.exponentialRampToValueAtTime(38, now + 0.1);
+  g.gain.setValueAtTime(0.35, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.12);
+}
+
+function playSnare() {
+  const now = audioCtx.currentTime;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * 0.07, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/data.length) * 0.9;
+  const ns = audioCtx.createBufferSource();
+  const ng = audioCtx.createGain();
+  ns.buffer = buf;
+  ng.gain.setValueAtTime(0.2, now);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+  ns.connect(ng); ng.connect(audioCtx.destination);
+  ns.start(now);
+  const o = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  o.type = 'triangle';
+  o.frequency.setValueAtTime(220, now);
+  o.frequency.exponentialRampToValueAtTime(110, now + 0.04);
+  g.gain.setValueAtTime(0.18, now);
+  g.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+  o.connect(g); g.connect(audioCtx.destination);
+  o.start(now); o.stop(now + 0.05);
+}
+
+function playHihat(accent) {
+  const now = audioCtx.currentTime;
+  const len = accent ? 0.04 : 0.025;
+  const vol = accent ? 0.1 : 0.06;
+  const buf = audioCtx.createBuffer(1, audioCtx.sampleRate * len, audioCtx.sampleRate);
+  const data = buf.getChannelData(0);
+  for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * (1 - i/data.length) * 0.4;
+  const ns = audioCtx.createBufferSource();
+  const ng = audioCtx.createGain();
+  const hp = audioCtx.createBiquadFilter();
+  hp.type = 'highpass'; hp.frequency.value = 7500;
+  ns.buffer = buf;
+  ng.gain.setValueAtTime(vol, now);
+  ng.gain.exponentialRampToValueAtTime(0.001, now + len);
+  ns.connect(hp); hp.connect(ng); ng.connect(audioCtx.destination);
+  ns.start(now);
+}
+
+function startMusic() {
+  if (musicPlaying) return;
+  musicPlaying = true;
+  melodyIdx = 0; bassIdx = 0; chordIdx = 0;
+  beatCount = 0;
+  const startTime = audioCtx.currentTime + 0.1;
+  nextMelodyTime = startTime;
+  nextBassTime = startTime;
+  nextChordTime = startTime;
+
+  // 8th note timing for drum scheduling
+  const eighthMs = () => 60000 / currentTempo / 2;
+  let lastBeatTime = Date.now();
+
+  musicInterval = setInterval(() => {
+    if (!musicPlaying) return;
+    scheduleMusic();
+
+    const now = Date.now();
+    if (now - lastBeatTime >= eighthMs()) {
+      lastBeatTime = now;
+      beatCount++;
+      const pos = beatCount % 8; // position within a beat (8 eighth notes per bar of 4/4)
+
+      // Kick on beats 1 and 3 (8th note positions 0, 4)
+      if (pos === 0 || pos === 4) playKick();
+      // Extra ghost kick for bounce (syncopation)
+      if (pos === 3 || pos === 7) {
+        // Occasional ghost kick for funk
+        if (beatCount % 16 < 8) playKick();
+      }
+      // Snare on beats 2 and 4 (strong backbeat, positions 2, 6)
+      if (pos === 2 || pos === 6) playSnare();
+      // Hi-hat: off-beat 8ths for funk groove
+      // Accented on off-beats (1, 3, 5, 7), lighter on downbeats
+      if (pos % 2 === 1) {
+        playHihat(true);  // off-beat accent
+      } else {
+        playHihat(false); // on-beat lighter
+      }
+      // Drum fill every 32 eighth notes (every 4 bars)
+      if (beatCount % 32 === 30) {
+        setTimeout(playSnare, eighthMs() * 0.5);
+        setTimeout(playSnare, eighthMs() * 0.75);
+      }
+      if (beatCount % 32 === 31) {
+        setTimeout(playKick, eighthMs() * 0.25);
+        setTimeout(playSnare, eighthMs() * 0.5);
+        setTimeout(playKick, eighthMs() * 0.75);
+      }
+    }
+  }, 15);
+}
+
+function stopMusic() {
+  musicPlaying = false;
+  if (musicInterval) clearInterval(musicInterval);
+}
+
+// ========== GAME STATE ==========
+const GAME_STATES = { MENU: 0, PLAYING: 1, GAMEOVER: 2 };
+let gameState = GAME_STATES.MENU;
+let score = 0;
+let displayScore = 0;
+let combo = 0;
+let maxCombo = 0;
+let timeLeft = 60;
+let lastTime = 0;
+let mouseX = 400, mouseY = 300;
+let armSmashing = false;
+let armSmashTimer = 0;
+let screenShake = 0;
+let screenShakeX = 0, screenShakeY = 0;
+let particles = [];
+let comboTimer = 0;
+let comboDisplay = { value: 0, x: 0, y: 0, timer: 0 };
+let scorePopups = [];
+let peasantsSmashed = 0;
+let missedPeasants = 0;
+let torchPenalties = 0;
+
+// Cottages - 3x3 grid
+const COTTAGE_W = 160, COTTAGE_H = 140;
+const GRID_START_X = 130, GRID_START_Y = 170;
+const GRID_SPACE_X = 200, GRID_SPACE_Y = 150;
+
+class Cottage {
+  constructor(x, y, idx) {
+    this.x = x;
+    this.y = y;
+    this.idx = idx;
+    this.peasant = null;
+    this.popTimer = 0;
+    this.nextPop = Math.random() * 3 + 1;
+  }
+}
+
+const PEASANT_TYPES = {
+  NORMAL: { color: '#D4A574', speed: 1, points: 1, hits: 1, name: 'normal' },
+  FAST: { color: '#FFD700', speed: 2.5, points: 3, hits: 1, name: 'fast' },
+  KNIGHT: { color: '#A0A0C0', speed: 0.7, points: 5, hits: 2, name: 'knight' },
+  TORCH: { color: '#FF6B35', speed: 1, points: -10, hits: 1, name: 'torch' },
+};
+
+class Peasant {
+  constructor(type, cottage) {
+    this.type = type;
+    this.cottage = cottage;
+    this.y = 0; // 0 = hidden, 1 = fully up
+    this.state = 'rising'; // rising, up, falling, hit, gone
+    this.hitsLeft = type.hits;
+    this.upTime = 0;
+    this.maxUpTime = type.name === 'fast' ? 0.6 : (type.name === 'knight' ? 2.5 : 1.5);
+    this.expression = Math.floor(Math.random() * 3); // 0=scared, 1=surprised, 2=determined
+    this.hitFlash = 0;
+    this.wobble = 0;
+  }
+}
+
+let cottages = [];
+
+function initCottages() {
+  cottages = [];
+  for (let row = 0; row < 3; row++) {
+    for (let col = 0; col < 3; col++) {
+      const x = GRID_START_X + col * GRID_SPACE_X;
+      const y = GRID_START_Y + row * GRID_SPACE_Y;
+      cottages.push(new Cottage(x, y, row * 3 + col));
+    }
+  }
+}
+
+function startGame() {
+  audioCtx.resume();
+  gameState = GAME_STATES.PLAYING;
+  score = 0;
+  displayScore = 0;
+  combo = 0;
+  maxCombo = 0;
+  timeLeft = 60;
+  currentTempo = 150;
+  peasantsSmashed = 0;
+  missedPeasants = 0;
+  torchPenalties = 0;
+  particles = [];
+  scorePopups = [];
+  initCottages();
+  startMusic();
+  lastTime = performance.now();
+}
+
+// ========== DRAWING ==========
+function drawPixelRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(Math.floor(x), Math.floor(y), Math.floor(w), Math.floor(h));
+}
+
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, BASE_H);
+  grad.addColorStop(0, '#87CEEB');
+  grad.addColorStop(0.4, '#B0E0FF');
+  grad.addColorStop(0.6, '#90D860');
+  grad.addColorStop(1, '#5A8830');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+  // Sun
+  ctx.fillStyle = '#FFE040';
+  ctx.beginPath();
+  ctx.arc(680, 60, 35, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#FFF080';
+  ctx.beginPath();
+  ctx.arc(680, 60, 25, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Clouds
+  const t = performance.now() / 3000;
+  for (let i = 0; i < 4; i++) {
+    const cx = ((i * 220 + t * 20) % 900) - 50;
+    const cy = 40 + i * 25;
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 20, 0, Math.PI * 2);
+    ctx.arc(cx + 20, cy - 8, 18, 0, Math.PI * 2);
+    ctx.arc(cx + 40, cy, 22, 0, Math.PI * 2);
+    ctx.arc(cx + 20, cy + 5, 15, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Rolling hills
+  ctx.fillStyle = '#6BA840';
+  ctx.beginPath();
+  ctx.moveTo(0, 200);
+  for (let x = 0; x <= BASE_W; x += 2) {
+    ctx.lineTo(x, 180 + Math.sin(x / 120) * 15 + Math.sin(x / 50) * 5);
+  }
+  ctx.lineTo(BASE_W, BASE_H);
+  ctx.lineTo(0, BASE_H);
+  ctx.fill();
+
+  // Darker grass patches
+  ctx.fillStyle = '#5A9830';
+  for (let i = 0; i < 10; i++) {
+    const gx = (i * 97 + 20) % BASE_W;
+    const gy = 350 + (i * 37) % 200;
+    ctx.fillRect(gx, gy, 20 + i * 3, 4);
+  }
+
+  // Fence in background
+  ctx.fillStyle = '#8B6914';
+  for (let x = 0; x < BASE_W; x += 40) {
+    ctx.fillRect(x + 5, 155, 4, 30);
+    ctx.fillRect(x, 160, 14, 3);
+    ctx.fillRect(x, 172, 14, 3);
+  }
+}
+
+function drawCottage(c) {
+  const x = c.x, y = c.y;
+
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(x - 5, y + COTTAGE_H - 10, COTTAGE_W + 10, 12);
+
+  // Cottage body (stone walls)
+  ctx.fillStyle = '#D4C4A8';
+  ctx.fillRect(x + 20, y + 50, COTTAGE_W - 40, COTTAGE_H - 50);
+
+  // Stone texture
+  ctx.fillStyle = '#C4B498';
+  for (let sy = 55; sy < COTTAGE_H - 5; sy += 12) {
+    for (let sx = 25; sx < COTTAGE_W - 25; sx += 18) {
+      const offset = (Math.floor(sy / 12) % 2) * 9;
+      ctx.fillRect(x + sx + offset, y + sy, 15, 10);
+      ctx.fillStyle = '#BBA888';
+      ctx.fillRect(x + sx + offset, y + sy, 15, 1);
+      ctx.fillRect(x + sx + offset, y + sy, 1, 10);
+      ctx.fillStyle = '#C4B498';
+    }
+  }
+
+  // Door (opening where peasant appears)
+  ctx.fillStyle = '#3A2510';
+  ctx.fillRect(x + 55, y + 65, 50, COTTAGE_H - 65);
+  ctx.fillStyle = '#2A1808';
+  ctx.fillRect(x + 57, y + 67, 46, COTTAGE_H - 69);
+
+  // Windows
+  ctx.fillStyle = '#4A3520';
+  ctx.fillRect(x + 28, y + 70, 20, 20);
+  ctx.fillRect(x + COTTAGE_W - 48, y + 70, 20, 20);
+  // Window panes
+  ctx.fillStyle = '#6BC0FF';
+  ctx.fillRect(x + 30, y + 72, 7, 7);
+  ctx.fillRect(x + 39, y + 72, 7, 7);
+  ctx.fillRect(x + 30, y + 81, 7, 7);
+  ctx.fillRect(x + 39, y + 81, 7, 7);
+  ctx.fillRect(x + COTTAGE_W - 46, y + 72, 7, 7);
+  ctx.fillRect(x + COTTAGE_W - 37, y + 72, 7, 7);
+  ctx.fillRect(x + COTTAGE_W - 46, y + 81, 7, 7);
+  ctx.fillRect(x + COTTAGE_W - 37, y + 81, 7, 7);
+
+  // Thatched roof
+  const roofColors = ['#C4A030', '#B89828', '#D4A838', '#A89020'];
+  for (let i = 0; i < 30; i++) {
+    const ry = y + 20 + i;
+    const rw = COTTAGE_W - 10 + i * 1.5;
+    const rx = x + (COTTAGE_W - rw) / 2 + 5;
+    ctx.fillStyle = roofColors[i % roofColors.length];
+    ctx.fillRect(rx, ry, rw, 2);
+  }
+  // Roof peak
+  ctx.fillStyle = '#A08020';
+  for (let i = 0; i < 20; i++) {
+    ctx.fillRect(x + COTTAGE_W/2 - 20 + i, y + 5 + i, 40 - i*2, 2);
+  }
+  // Roof ridge
+  ctx.fillStyle = '#8A7018';
+  ctx.fillRect(x + COTTAGE_W/2 - 15, y + 5, 30, 4);
+}
+
+function drawPeasant(p) {
+  const c = p.cottage;
+  const doorX = c.x + 57;
+  const doorY = c.y + 67;
+  const doorW = 46;
+  const doorH = c.y + COTTAGE_H - 67;
+
+  const popHeight = 50 * p.y;
+  const peasantY = c.y + COTTAGE_H - popHeight;
+
+  if (p.y <= 0) return;
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(doorX, doorY, doorW, doorH);
+  ctx.clip();
+
+  const px = doorX + doorW/2;
+  const py = peasantY;
+  const wobble = Math.sin(p.wobble) * (p.state === 'hit' ? 5 : 0);
+
+  // Flash on hit
+  if (p.hitFlash > 0) {
+    ctx.globalAlpha = 0.5 + Math.sin(p.hitFlash * 20) * 0.3;
+  }
+
+  // Body
+  ctx.fillStyle = p.type.color;
+  ctx.fillRect(px - 12 + wobble, py, 24, 30);
+
+  // Head
+  const headColor = p.type.name === 'knight' ? '#A0A0C0' : '#FFCC88';
+  ctx.fillStyle = headColor;
+  ctx.fillRect(px - 10 + wobble, py - 16, 20, 18);
+
+  // Eyes based on expression
+  ctx.fillStyle = '#000';
+  if (p.expression === 0) { // Scared - wide eyes
+    ctx.fillRect(px - 7 + wobble, py - 10, 5, 5);
+    ctx.fillRect(px + 2 + wobble, py - 10, 5, 5);
+    ctx.fillStyle = '#FFF';
+    ctx.fillRect(px - 6 + wobble, py - 9, 2, 2);
+    ctx.fillRect(px + 3 + wobble, py - 9, 2, 2);
+  } else if (p.expression === 1) { // Surprised - O mouth
+    ctx.fillRect(px - 6 + wobble, py - 10, 4, 3);
+    ctx.fillRect(px + 2 + wobble, py - 10, 4, 3);
+    ctx.fillStyle = '#000';
+    ctx.fillRect(px - 3 + wobble, py - 3, 6, 5);
+    ctx.fillStyle = '#800';
+    ctx.fillRect(px - 2 + wobble, py - 2, 4, 3);
+  } else { // Determined - angry brow
+    ctx.fillRect(px - 6 + wobble, py - 9, 4, 3);
+    ctx.fillRect(px + 2 + wobble, py - 9, 4, 3);
+    // Eyebrows
+    ctx.fillRect(px - 7 + wobble, py - 12, 5, 2);
+    ctx.fillRect(px + 2 + wobble, py - 12, 5, 2);
+  }
+
+  // Mouth (if not surprised)
+  if (p.expression !== 1) {
+    ctx.fillStyle = '#000';
+    if (p.state === 'hit') {
+      ctx.fillRect(px - 4 + wobble, py - 2, 8, 2);
+    } else {
+      ctx.fillRect(px - 3 + wobble, py - 3, 6, 2);
+    }
+  }
+
+  // Knight helmet
+  if (p.type.name === 'knight') {
+    ctx.fillStyle = '#808090';
+    ctx.fillRect(px - 12 + wobble, py - 20, 24, 6);
+    ctx.fillRect(px - 8 + wobble, py - 24, 16, 6);
+    // Visor
+    ctx.fillStyle = '#404050';
+    ctx.fillRect(px - 6 + wobble, py - 12, 12, 3);
+    // Plume
+    ctx.fillStyle = '#FF3030';
+    ctx.fillRect(px - 2 + wobble, py - 30, 4, 8);
+    ctx.fillRect(px + wobble, py - 33, 3, 5);
+  }
+
+  // Torch bearer
+  if (p.type.name === 'torch') {
+    // Torch stick
+    ctx.fillStyle = '#8B5E3C';
+    ctx.fillRect(px + 12 + wobble, py - 25, 4, 30);
+    // Flame
+    const flicker = Math.sin(performance.now() / 100) * 2;
+    ctx.fillStyle = '#FF4500';
+    ctx.fillRect(px + 10 + wobble + flicker, py - 35, 8, 10);
+    ctx.fillStyle = '#FF8C00';
+    ctx.fillRect(px + 11 + wobble - flicker, py - 33, 6, 7);
+    ctx.fillStyle = '#FFD700';
+    ctx.fillRect(px + 12 + wobble + flicker/2, py - 31, 4, 4);
+    // Exclamation (friendly indicator)
+    ctx.fillStyle = '#00FF00';
+    ctx.fillRect(px - 18 + wobble, py - 28, 4, 10);
+    ctx.fillRect(px - 18 + wobble, py - 15, 4, 4);
+  }
+
+  // Hit stars
+  if (p.state === 'hit') {
+    ctx.fillStyle = '#FFD700';
+    for (let i = 0; i < 3; i++) {
+      const sx = px + Math.cos(p.wobble + i * 2.1) * 20;
+      const sy = py - 10 + Math.sin(p.wobble + i * 2.1) * 10;
+      drawStar(sx, sy, 4);
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawStar(x, y, size) {
+  ctx.save();
+  ctx.fillStyle = '#FFD700';
+  ctx.translate(x, y);
+  ctx.beginPath();
+  for (let i = 0; i < 5; i++) {
+    const angle = (i * 4 * Math.PI / 5) - Math.PI / 2;
+    const method = i === 0 ? 'moveTo' : 'lineTo';
+    ctx[method](Math.cos(angle) * size, Math.sin(angle) * size);
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawTrogdorArm(x, y, smashing) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  const smashAngle = smashing ? 0.3 : 0;
+  const smashScale = smashing ? 1.2 : 1;
+  ctx.rotate(smashAngle);
+  ctx.scale(smashScale, smashScale);
+
+  // Arm shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.2)';
+  ctx.fillRect(-14, 2, 28, 50);
+
+  // Beefy arm - upper
+  ctx.fillStyle = '#CC8844';
+  ctx.fillRect(-12, -20, 24, 40);
+  // Muscles
+  ctx.fillStyle = '#BB7733';
+  ctx.fillRect(-14, -10, 4, 15); // left bicep bulge
+  ctx.fillRect(10, -10, 4, 15); // right bicep bulge
+  ctx.fillStyle = '#DD9955';
+  ctx.fillRect(-8, -15, 6, 8); // highlight
+  ctx.fillRect(4, -5, 5, 10); // muscle definition
+
+  // Forearm
+  ctx.fillStyle = '#CC8844';
+  ctx.fillRect(-10, 15, 20, 25);
+  ctx.fillStyle = '#BB7733';
+  ctx.fillRect(-12, 18, 3, 15);
+  ctx.fillRect(9, 18, 3, 15);
+
+  // Fist
+  ctx.fillStyle = '#DDAA66';
+  ctx.fillRect(-14, 36, 28, 18);
+  // Knuckles
+  ctx.fillStyle = '#CC9955';
+  ctx.fillRect(-12, 36, 6, 4);
+  ctx.fillRect(-4, 36, 6, 4);
+  ctx.fillRect(4, 36, 6, 4);
+  // Fist bottom
+  ctx.fillStyle = '#BB8844';
+  ctx.fillRect(-12, 50, 24, 4);
+
+  // Scales (Trogdor detail)
+  ctx.fillStyle = '#AA6622';
+  for (let i = 0; i < 4; i++) {
+    ctx.fillRect(-8 + i * 5, -18 + i * 8, 4, 3);
+  }
+
+  // Impact lines when smashing
+  if (smashing) {
+    ctx.strokeStyle = '#FFD700';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      const r1 = 30, r2 = 40;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(angle) * r1, 40 + Math.sin(angle) * r1);
+      ctx.lineTo(Math.cos(angle) * r2, 40 + Math.sin(angle) * r2);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawParticles() {
+  for (const p of particles) {
+    ctx.globalAlpha = p.life;
+    ctx.fillStyle = p.color;
+    if (p.type === 'star') {
+      drawStar(p.x, p.y, p.size);
+    } else {
+      ctx.fillRect(p.x - p.size/2, p.y - p.size/2, p.size, p.size);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawHUD() {
+  // Score
+  const scoreBounce = Math.sin(performance.now() / 200) * (displayScore !== score ? 3 : 0);
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 28px monospace';
+  ctx.textAlign = 'left';
+  ctx.fillText('SCORE', 20, 30);
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillText(Math.floor(displayScore).toString(), 20, 62 + scoreBounce);
+
+  // Timer
+  const timerColor = timeLeft <= 10 ? (Math.sin(performance.now()/150) > 0 ? '#FF2020' : '#FF8080') : '#FFF';
+  const timerScale = timeLeft <= 10 ? 1 + Math.sin(performance.now()/150) * 0.05 : 1;
+  ctx.save();
+  ctx.translate(BASE_W / 2, 35);
+  ctx.scale(timerScale, timerScale);
+  ctx.fillStyle = timerColor;
+  ctx.font = 'bold 40px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(Math.ceil(timeLeft).toString(), 0, 0);
+  ctx.font = '14px monospace';
+  ctx.fillStyle = '#FFF';
+  ctx.fillText('TIME', 0, -20);
+  ctx.restore();
+
+  // Combo
+  if (combo >= 2) {
+    const comboScale = 1 + Math.sin(performance.now()/100) * 0.1;
+    ctx.save();
+    ctx.translate(BASE_W - 100, 40);
+    ctx.scale(comboScale, comboScale);
+    ctx.fillStyle = '#FF6600';
+    ctx.font = 'bold 24px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('COMBO', 0, -10);
+    ctx.fillStyle = '#FFAA00';
+    ctx.font = 'bold 36px monospace';
+    ctx.fillText('x' + combo, 0, 20);
+    ctx.restore();
+  }
+
+  // Score popups
+  for (const sp of scorePopups) {
+    ctx.globalAlpha = sp.life;
+    ctx.fillStyle = sp.color;
+    ctx.font = `bold ${sp.size}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(sp.text, sp.x, sp.y);
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawMenu() {
+  drawBackground();
+
+  // Title
+  ctx.fillStyle = '#FF4400';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('TROGDOR', BASE_W/2, 120);
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 36px monospace';
+  ctx.fillText('PEASANT CRUSHER', BASE_W/2, 165);
+
+  // Subtitle
+  ctx.fillStyle = '#FFF';
+  ctx.font = '16px monospace';
+  ctx.fillText('A Whack-a-Mole Adventure in Peasantry', BASE_W/2, 200);
+
+  // Instructions
+  const instructions = [
+    'Smash peasants as they pop out!',
+    '',
+    'Normal peasant = 1 pt',
+    'Fast (gold) peasant = 3 pts',
+    'Armored knight = 5 pts (2 hits)',
+    '',
+    'DON\'T hit torch bearers!',
+    '(green ! mark = friend)',
+    '',
+    'Build combos for bonus points!'
+  ];
+  ctx.font = '14px monospace';
+  instructions.forEach((line, i) => {
+    ctx.fillStyle = i === 6 ? '#FF4040' : (i === 7 ? '#40FF40' : '#E0E0E0');
+    ctx.fillText(line, BASE_W/2, 260 + i * 22);
+  });
+
+  // Start button
+  const btnPulse = 1 + Math.sin(performance.now()/300) * 0.05;
+  ctx.save();
+  ctx.translate(BASE_W/2, 530);
+  ctx.scale(btnPulse, btnPulse);
+  ctx.fillStyle = '#FF4400';
+  ctx.fillRect(-120, -25, 240, 50);
+  ctx.fillStyle = '#FF6620';
+  ctx.fillRect(-118, -23, 236, 46);
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText('CLICK TO CRUSH!', 0, 8);
+  ctx.restore();
+
+  drawTrogdorArm(mouseX, mouseY, false);
+}
+
+function drawGameOver() {
+  drawBackground();
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)';
+  ctx.fillRect(0, 0, BASE_W, BASE_H);
+
+  ctx.fillStyle = '#FF4400';
+  ctx.font = 'bold 48px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('TIME\'S UP!', BASE_W/2, 140);
+
+  ctx.fillStyle = '#FFD700';
+  ctx.font = 'bold 60px monospace';
+  ctx.fillText(score.toString(), BASE_W/2, 220);
+  ctx.fillStyle = '#FFF';
+  ctx.font = '18px monospace';
+  ctx.fillText('FINAL SCORE', BASE_W/2, 250);
+
+  const stats = [
+    `Peasants Crushed: ${peasantsSmashed}`,
+    `Peasants Escaped: ${missedPeasants}`,
+    `Max Combo: x${maxCombo}`,
+    `Torch Penalties: ${torchPenalties}`,
+  ];
+  stats.forEach((s, i) => {
+    ctx.fillStyle = '#CCC';
+    ctx.font = '16px monospace';
+    ctx.fillText(s, BASE_W/2, 300 + i * 28);
+  });
+
+  // Rating
+  let rating = 'PEASANT';
+  let ratingColor = '#888';
+  if (score >= 200) { rating = 'BURNINATOR!'; ratingColor = '#FF4400'; }
+  else if (score >= 150) { rating = 'TROGDOR!'; ratingColor = '#FF8800'; }
+  else if (score >= 100) { rating = 'STRONG BAD'; ratingColor = '#FFD700'; }
+  else if (score >= 50) { rating = 'HOMESTAR'; ratingColor = '#88CCFF'; }
+  ctx.fillStyle = ratingColor;
+  ctx.font = 'bold 28px monospace';
+  ctx.fillText(rating, BASE_W/2, 440);
+
+  // Restart
+  const btnPulse = 1 + Math.sin(performance.now()/300) * 0.05;
+  ctx.save();
+  ctx.translate(BASE_W/2, 510);
+  ctx.scale(btnPulse, btnPulse);
+  ctx.fillStyle = '#FF4400';
+  ctx.fillRect(-120, -25, 240, 50);
+  ctx.fillStyle = '#FF6620';
+  ctx.fillRect(-118, -23, 236, 46);
+  ctx.fillStyle = '#FFF';
+  ctx.font = 'bold 22px monospace';
+  ctx.fillText('CRUSH AGAIN!', 0, 8);
+  ctx.restore();
+
+  drawTrogdorArm(mouseX, mouseY, false);
+}
+
+// ========== GAME LOGIC ==========
+function spawnPeasant(cottage) {
+  const r = Math.random();
+  let type;
+  const elapsed = 60 - timeLeft;
+  const torchChance = 0.12;
+  const knightChance = 0.1 + elapsed * 0.003;
+  const fastChance = 0.2 + elapsed * 0.004;
+
+  if (r < torchChance) type = PEASANT_TYPES.TORCH;
+  else if (r < torchChance + knightChance) type = PEASANT_TYPES.KNIGHT;
+  else if (r < torchChance + knightChance + fastChance) type = PEASANT_TYPES.FAST;
+  else type = PEASANT_TYPES.NORMAL;
+
+  cottage.peasant = new Peasant(type, cottage);
+}
+
+function updatePeasants(dt) {
+  for (const c of cottages) {
+    if (!c.peasant) {
+      c.nextPop -= dt;
+      if (c.nextPop <= 0) {
+        spawnPeasant(c);
+        const elapsed = 60 - timeLeft;
+        c.nextPop = Math.max(0.5, 2.5 - elapsed * 0.025) + Math.random() * 1.5;
+      }
+      continue;
+    }
+
+    const p = c.peasant;
+    const speed = p.type.speed * (1 + (60 - timeLeft) * 0.008);
+
+    switch (p.state) {
+      case 'rising':
+        p.y += dt * speed * 2.5;
+        if (p.y >= 1) { p.y = 1; p.state = 'up'; }
+        break;
+      case 'up':
+        p.upTime += dt;
+        p.wobble += dt * 5;
+        if (p.upTime >= p.maxUpTime) { p.state = 'falling'; }
+        break;
+      case 'falling':
+        p.y -= dt * speed * 3;
+        if (p.y <= 0) {
+          if (p.type.name !== 'torch') missedPeasants++;
+          combo = 0;
+          c.peasant = null;
+        }
+        break;
+      case 'hit':
+        p.hitFlash -= dt;
+        p.wobble += dt * 30;
+        p.y -= dt * 4;
+        if (p.y <= 0) {
+          c.peasant = null;
+        }
+        break;
+    }
+  }
+}
+
+function hitPeasant(cottage) {
+  const p = cottage.peasant;
+  if (!p || p.state === 'hit') return false;
+
+  if (p.type.name === 'torch') {
+    // Wrong target!
+    playBuzz();
+    score = Math.max(0, score + p.type.points);
+    torchPenalties++;
+    combo = 0;
+    p.state = 'hit';
+
+    spawnParticles(cottage.x + 80, cottage.y + 80, '#FF0000', 10);
+    scorePopups.push({
+      x: cottage.x + 80, y: cottage.y + 50,
+      text: p.type.points.toString(), color: '#FF0000',
+      life: 1, size: 28
+    });
+    screenShake = 0.3;
+    return true;
+  }
+
+  p.hitsLeft--;
+  playWhack();
+  playSqueal();
+
+  if (p.hitsLeft <= 0) {
+    p.state = 'hit';
+    combo++;
+    if (combo > maxCombo) maxCombo = combo;
+    comboTimer = 2;
+    peasantsSmashed++;
+
+    let points = p.type.points;
+    if (combo >= 2) {
+      points = Math.floor(points * (1 + combo * 0.2));
+      playComboDing(combo);
+    }
+    score += points;
+
+    spawnParticles(cottage.x + 80, cottage.y + 60, '#FFD700', 15);
+    spawnParticles(cottage.x + 80, cottage.y + 60, p.type.color, 8);
+
+    const comboText = combo >= 2 ? ` x${combo}` : '';
+    scorePopups.push({
+      x: cottage.x + 80, y: cottage.y + 40,
+      text: '+' + points + comboText,
+      color: combo >= 5 ? '#FF00FF' : (combo >= 3 ? '#FF6600' : '#FFD700'),
+      life: 1, size: combo >= 3 ? 32 : 24
+    });
+
+    screenShake = 0.2 + combo * 0.05;
+  } else {
+    // Knight took a hit but not dead
+    p.hitFlash = 0.3;
+    spawnParticles(cottage.x + 80, cottage.y + 60, '#AAAACC', 8);
+    scorePopups.push({
+      x: cottage.x + 80, y: cottage.y + 50,
+      text: 'CLANG!', color: '#AAAAFF',
+      life: 0.8, size: 20
+    });
+    screenShake = 0.1;
+  }
+
+  armSmashing = true;
+  armSmashTimer = 0.15;
+  return true;
+}
+
+function spawnParticles(x, y, color, count) {
+  for (let i = 0; i < count; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 200,
+      vy: -Math.random() * 250 - 50,
+      life: 1,
+      size: 3 + Math.random() * 5,
+      color,
+      type: Math.random() > 0.5 ? 'star' : 'square',
+      gravity: 300
+    });
+  }
+}
+
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt;
+    p.y += p.vy * dt;
+    p.vy += p.gravity * dt;
+    p.life -= dt * 1.5;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+
+function updateScorePopups(dt) {
+  for (let i = scorePopups.length - 1; i >= 0; i--) {
+    const sp = scorePopups[i];
+    sp.y -= 40 * dt;
+    sp.life -= dt;
+    if (sp.life <= 0) scorePopups.splice(i, 1);
+  }
+}
+
+// ========== MAIN LOOP ==========
+function update(now) {
+  const dt = Math.min((now - lastTime) / 1000, 0.05);
+  lastTime = now;
+
+  if (gameState === GAME_STATES.PLAYING) {
+    timeLeft -= dt;
+    if (timeLeft <= 0) {
+      timeLeft = 0;
+      gameState = GAME_STATES.GAMEOVER;
+      stopMusic();
+    }
+
+    // Increase tempo as time runs low
+    if (timeLeft <= 15) {
+      currentTempo = 150 + (15 - timeLeft) * 4;
+    }
+
+    updatePeasants(dt);
+    updateParticles(dt);
+    updateScorePopups(dt);
+
+    // Smooth score display
+    displayScore += (score - displayScore) * dt * 8;
+
+    // Screen shake decay
+    if (screenShake > 0) {
+      screenShake -= dt * 2;
+      screenShakeX = (Math.random() - 0.5) * screenShake * 20;
+      screenShakeY = (Math.random() - 0.5) * screenShake * 20;
+    } else {
+      screenShakeX = 0;
+      screenShakeY = 0;
+    }
+
+    // Smash timer
+    if (armSmashTimer > 0) {
+      armSmashTimer -= dt;
+      if (armSmashTimer <= 0) armSmashing = false;
+    }
+
+    // Combo decay
+    if (comboTimer > 0) {
+      comboTimer -= dt;
+      if (comboTimer <= 0 && combo > 0) {
+        // Reset combo if no hits for a while
+      }
+    }
+  }
+}
+
+function draw() {
+  ctx.save();
+  if (gameState === GAME_STATES.PLAYING) {
+    ctx.translate(screenShakeX, screenShakeY);
+  }
+
+  if (gameState === GAME_STATES.MENU) {
+    drawMenu();
+  } else if (gameState === GAME_STATES.PLAYING) {
+    drawBackground();
+
+    // Draw cottages and peasants
+    for (const c of cottages) {
+      // Draw peasant behind cottage
+      if (c.peasant) drawPeasant(c.peasant);
+      drawCottage(c);
+    }
+
+    drawParticles();
+    drawHUD();
+    drawTrogdorArm(mouseX, mouseY, armSmashing);
+  } else if (gameState === GAME_STATES.GAMEOVER) {
+    drawGameOver();
+  }
+
+  ctx.restore();
+  requestAnimationFrame(gameLoop);
+}
+
+function gameLoop(now) {
+  if (!lastTime) lastTime = now;
+  update(now);
+  draw();
+}
+
+// ========== INPUT ==========
+canvas.addEventListener('mousemove', (e) => {
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (e.clientX - rect.left) / scale;
+  mouseY = (e.clientY - rect.top) / scale;
+});
+
+canvas.addEventListener('click', (e) => {
+  audioCtx.resume();
+  const rect = canvas.getBoundingClientRect();
+  const cx = (e.clientX - rect.left) / scale;
+  const cy = (e.clientY - rect.top) / scale;
+
+  if (gameState === GAME_STATES.MENU) {
+    startGame();
+    return;
+  }
+
+  if (gameState === GAME_STATES.GAMEOVER) {
+    startGame();
+    return;
+  }
+
+  if (gameState === GAME_STATES.PLAYING) {
+    let hitSomething = false;
+    for (const c of cottages) {
+      if (c.peasant && c.peasant.state !== 'hit' && c.peasant.y > 0.2) {
+        const doorX = c.x + 55;
+        const doorY = c.y + 65;
+        const doorW = 50;
+        const popHeight = 50 * c.peasant.y;
+        const peasantTop = c.y + COTTAGE_H - popHeight;
+
+        if (cx >= doorX && cx <= doorX + doorW && cy >= peasantTop && cy <= c.y + COTTAGE_H) {
+          hitPeasant(c);
+          hitSomething = true;
+          break;
+        }
+      }
+    }
+
+    if (!hitSomething) {
+      playMiss();
+      combo = 0;
+      armSmashing = true;
+      armSmashTimer = 0.15;
+      // Small thud particles
+      spawnParticles(cx, cy, '#888', 4);
+    }
+  }
+});
+
+// Touch support
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (touch.clientX - rect.left) / scale;
+  mouseY = (touch.clientY - rect.top) / scale;
+  canvas.dispatchEvent(new MouseEvent('click', {
+    clientX: touch.clientX,
+    clientY: touch.clientY
+  }));
+});
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const rect = canvas.getBoundingClientRect();
+  mouseX = (touch.clientX - rect.left) / scale;
+  mouseY = (touch.clientY - rect.top) / scale;
+});
+
+// Start
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>

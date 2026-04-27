@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Elemental Realism II — The Reactor</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#080810;color:#c8d0e0;font-family:'Courier New',monospace;overflow:hidden;user-select:none}
+canvas{display:block;position:fixed;top:0;left:0;z-index:0}
+
+#ui{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10}
+#ui>*{pointer-events:auto}
+
+/* HUD */
+#hud{position:absolute;top:8px;left:8px;background:rgba(8,8,16,.9);border:1px solid #2a4a6a;padding:10px;border-radius:6px;width:260px;font-size:12px}
+#hud h3{color:#6af;font-size:14px;margin-bottom:4px}
+.stat{margin:2px 0}.stat span{color:#adf}
+.bar-bg{display:inline-block;width:90px;height:8px;background:#1a1a2a;border:1px solid #334;vertical-align:middle;margin-left:4px;border-radius:2px}
+.bar-fill{height:100%;border-radius:2px;transition:width .3s}
+
+/* Inventory */
+#inv{position:absolute;top:8px;right:8px;background:rgba(8,8,16,.9);border:1px solid #2a4a6a;padding:10px;border-radius:6px;width:280px;font-size:11px;max-height:45vh;overflow-y:auto}
+#inv h4{color:#fc4;margin-bottom:6px}
+.inv-item{display:inline-block;width:44px;height:44px;border:1px solid #334;background:rgba(20,30,50,.8);margin:2px;text-align:center;border-radius:4px;cursor:pointer;position:relative;vertical-align:top}
+.inv-item:hover{border-color:#6af;background:rgba(40,60,100,.6)}
+.inv-item .sym{font-size:16px;font-weight:bold;line-height:28px}
+.inv-item .cnt{position:absolute;bottom:1px;right:3px;font-size:9px;color:#fc4}
+.inv-item.selected{border-color:#4f4;box-shadow:0 0 6px #4f4}
+
+/* Reaction bench */
+#bench{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(8,8,16,.92);border:1px solid #2a4a6a;padding:12px 20px;border-radius:6px;text-align:center;min-width:500px}
+#bench h4{color:#6af;margin-bottom:8px;font-size:13px}
+#slots{display:flex;gap:8px;justify-content:center;align-items:center;margin-bottom:8px}
+.slot{width:56px;height:56px;border:2px dashed #334;background:rgba(15,20,35,.8);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:bold;color:#556;cursor:pointer}
+.slot.filled{border-style:solid;border-color:#6af;color:#adf}
+.slot.filled:hover{border-color:#f66}
+#react-btn{padding:8px 28px;background:linear-gradient(180deg,#2a6a3a,#1a4a2a);color:#afa;border:2px solid #4a8a5a;cursor:pointer;border-radius:4px;font-family:inherit;font-size:14px;margin-top:4px}
+#react-btn:hover{background:linear-gradient(180deg,#3a8a4a,#2a6a3a)}
+#react-btn:disabled{opacity:.4;cursor:default}
+
+/* Result popup */
+#result{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(6,8,18,.96);border:2px solid #fc4;padding:24px;border-radius:10px;z-index:50;display:none;text-align:center;max-width:550px;min-width:400px}
+#result h3{color:#fc4;font-size:18px;margin-bottom:8px}
+#result .eq{color:#adf;font-size:17px;margin:8px 0;font-weight:bold}
+#result .chem{color:#8bf;font-size:12px;margin:6px 0;line-height:1.5}
+#result .ir{color:#f84;font-size:12px;margin:8px 0;line-height:1.5;font-style:italic;border-left:3px solid #f84;padding-left:10px;text-align:left}
+#result .quote{color:#fc4;font-size:13px;margin:10px 0;line-height:1.5;border:1px solid #fc433;background:rgba(255,200,60,.06);padding:8px 12px;border-radius:4px;text-align:left}
+#result .quote .author{display:block;text-align:right;color:#889;font-size:11px;margin-top:4px}
+#result .rewards{color:#6f6;font-size:12px;margin:8px 0}
+#result button{margin-top:10px;padding:8px 30px;background:#2a5a8a;color:#adf;border:1px solid #4a8abf;cursor:pointer;border-radius:4px;font-family:inherit;font-size:13px}
+
+/* Log */
+#log{position:absolute;bottom:8px;right:8px;width:280px;background:rgba(8,8,16,.88);border:1px solid #2a4a6a;padding:8px;border-radius:6px;font-size:10px;max-height:140px;overflow-y:auto}
+.log-e{margin:2px 0;padding:2px 0;border-bottom:1px solid #111}.combat{color:#f66}.react{color:#fc4}.discover{color:#6f6}.diplo{color:#6af}.quote-log{color:#fc4}
+
+/* World drop labels */
+#drops{position:fixed;top:0;left:0;pointer-events:none;z-index:5}
+.drop-label{position:absolute;color:#adf;font-size:10px;text-align:center;pointer-events:none;transition:opacity .3s}
+
+/* Title */
+#title{position:fixed;top:0;left:0;width:100%;height:100%;background:radial-gradient(ellipse at center,#0d1a2a,#050510 70%);z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+#title h1{font-size:42px;color:#6af;text-shadow:0 0 30px #24a;margin-bottom:4px}
+#title h2{font-size:16px;color:#f84;margin-bottom:24px;font-weight:normal}
+#title .desc{color:#889;font-size:12px;max-width:520px;line-height:1.6;margin-bottom:20px}
+#title .quote-box{color:#fc4;font-size:13px;max-width:460px;margin-bottom:24px;border:1px solid #fc433;padding:12px;border-radius:6px;background:rgba(255,200,60,.04);line-height:1.5}
+#title .quote-box .author{display:block;text-align:right;color:#889;font-size:11px;margin-top:6px}
+#title button{padding:14px 44px;font-size:18px;background:linear-gradient(180deg,#2a5a8a,#1a3a5a);color:#adf;border:2px solid #4a8abf;cursor:pointer;border-radius:6px;font-family:inherit}
+#title button:hover{background:linear-gradient(180deg,#3a7aba,#2a5a7a);transform:scale(1.05)}
+
+/* Controls bar */
+#controls{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:rgba(8,8,16,.85);border:1px solid #2a4a6a;padding:5px 14px;border-radius:4px;font-size:10px;color:#667;white-space:nowrap}
+
+/* Periodic table overlay */
+#ptable{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(4,4,10,.94);z-index:60;display:none;overflow:auto}
+#ptable-inner{padding:20px;text-align:center}
+.pt-cell{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:48px;height:52px;border:1px solid #334;margin:1px;font-size:8px;cursor:pointer;border-radius:3px;vertical-align:top;background:rgba(15,20,35,.8)}
+.pt-cell:hover{border-color:#6af;background:rgba(40,60,100,.5)}
+.pt-cell .z{font-size:7px;color:#fc4}.pt-cell .s{font-size:15px;font-weight:bold}.pt-cell .n{font-size:6px;color:#667}
+.pt-cell.owned{border-color:#4f4;background:rgba(40,100,40,.2)}
+
+/* Score / progress */
+#progress{position:absolute;top:8px;left:280px;background:rgba(8,8,16,.9);border:1px solid #2a4a6a;padding:8px 12px;border-radius:6px;font-size:11px}
+#progress .label{color:#889}
+#progress .val{color:#6af;font-weight:bold}
+</style>
+</head>
+<body>
+
+<div id="title">
+  <h1>ELEMENTAL REALISM II</h1>
+  <h2>The Reactor — Chemistry Through Power Politics</h2>
+  <p class="desc">
+    Explore a world of scattered elements. Collect them. Combine them on the Reaction Bench.
+    Every reaction teaches chemistry — electron transfer, bonding, proton counts — and reveals
+    parallels to international relations realism: alliances, power transitions, security dilemmas, and hegemonic stability.
+  </p>
+  <div class="quote-box">
+    "The strong do what they can, and the weak suffer what they must."
+    <span class="author">— Thucydides, The Melian Dialogue</span>
+  </div>
+  <button onclick="startGame()">Enter the System</button>
+</div>
+
+<canvas id="game"></canvas>
+
+<div id="ui" style="display:none">
+  <div id="hud"></div>
+  <div id="progress"></div>
+  <div id="controls">WASD: Move | SPACE/Click: Collect | Drag elements to bench slots | R: React | TAB: Periodic Table | Hold E: Inspect</div>
+  <div id="inv"></div>
+  <div id="bench">
+    <h4>REACTION BENCH — Combine elements to trigger reactions</h4>
+    <div id="slots"></div>
+    <button id="react-btn" onclick="tryReact()" disabled>REACT (R)</button>
+  </div>
+  <div id="log"></div>
+</div>
+
+<div id="result">
+  <h3 id="res-title"></h3>
+  <div class="eq" id="res-eq"></div>
+  <div class="chem" id="res-chem"></div>
+  <div class="ir" id="res-ir"></div>
+  <div class="quote" id="res-quote"></div>
+  <div class="rewards" id="res-rewards"></div>
+  <button onclick="closeResult()">Continue</button>
+</div>
+
+<div id="ptable"><div id="ptable-inner"></div></div>
+
+<script>
+// ===================== ELEMENT DATA =====================
+const EL=[null,
+{sym:'H',name:'Hydrogen',z:1,mass:1.008,el:[1],g:1,p:1,cat:'nonmetal',en:2.20,col:'#88ccff'},
+{sym:'He',name:'Helium',z:2,mass:4.003,el:[2],g:18,p:1,cat:'noble',en:0,col:'#ffee88'},
+{sym:'Li',name:'Lithium',z:3,mass:6.941,el:[2,1],g:1,p:2,cat:'alkali',en:0.98,col:'#ff6666'},
+{sym:'Be',name:'Beryllium',z:4,mass:9.012,el:[2,2],g:2,p:2,cat:'alkaline',en:1.57,col:'#ffaa44'},
+{sym:'B',name:'Boron',z:5,mass:10.81,el:[2,3],g:13,p:2,cat:'metalloid',en:2.04,col:'#cc88ff'},
+{sym:'C',name:'Carbon',z:6,mass:12.01,el:[2,4],g:14,p:2,cat:'nonmetal',en:2.55,col:'#aaaaaa'},
+{sym:'N',name:'Nitrogen',z:7,mass:14.01,el:[2,5],g:15,p:2,cat:'nonmetal',en:3.04,col:'#4488ff'},
+{sym:'O',name:'Oxygen',z:8,mass:16.00,el:[2,6],g:16,p:2,cat:'nonmetal',en:3.44,col:'#ff4444'},
+{sym:'F',name:'Fluorine',z:9,mass:19.00,el:[2,7],g:17,p:2,cat:'halogen',en:3.98,col:'#44ff88'},
+{sym:'Ne',name:'Neon',z:10,mass:20.18,el:[2,8],g:18,p:2,cat:'noble',en:0,col:'#ffcc44'},
+{sym:'Na',name:'Sodium',z:11,mass:22.99,el:[2,8,1],g:1,p:3,cat:'alkali',en:0.93,col:'#ff6666'},
+{sym:'Mg',name:'Magnesium',z:12,mass:24.31,el:[2,8,2],g:2,p:3,cat:'alkaline',en:1.31,col:'#ffaa44'},
+{sym:'Al',name:'Aluminium',z:13,mass:26.98,el:[2,8,3],g:13,p:3,cat:'metal',en:1.61,col:'#cccccc'},
+{sym:'Si',name:'Silicon',z:14,mass:28.09,el:[2,8,4],g:14,p:3,cat:'metalloid',en:1.90,col:'#cc88ff'},
+{sym:'P',name:'Phosphorus',z:15,mass:30.97,el:[2,8,5],g:15,p:3,cat:'nonmetal',en:2.19,col:'#ff88cc'},
+{sym:'S',name:'Sulfur',z:16,mass:32.07,el:[2,8,6],g:16,p:3,cat:'nonmetal',en:2.58,col:'#ffff44'},
+{sym:'Cl',name:'Chlorine',z:17,mass:35.45,el:[2,8,7],g:17,p:3,cat:'halogen',en:3.16,col:'#44ff88'},
+{sym:'Ar',name:'Argon',z:18,mass:39.95,el:[2,8,8],g:18,p:3,cat:'noble',en:0,col:'#ffcc44'},
+{sym:'K',name:'Potassium',z:19,mass:39.10,el:[2,8,8,1],g:1,p:4,cat:'alkali',en:0.82,col:'#ff6666'},
+{sym:'Ca',name:'Calcium',z:20,mass:40.08,el:[2,8,8,2],g:2,p:4,cat:'alkaline',en:1.00,col:'#ffaa44'},
+{sym:'Fe',name:'Iron',z:26,mass:55.85,el:[2,8,14,2],g:8,p:4,cat:'transition',en:1.83,col:'#6688ff'},
+{sym:'Cu',name:'Copper',z:29,mass:63.55,el:[2,8,18,1],g:11,p:4,cat:'transition',en:1.90,col:'#dd8844'},
+{sym:'Zn',name:'Zinc',z:30,mass:65.38,el:[2,8,18,2],g:12,p:4,cat:'transition',en:1.65,col:'#88aacc'},
+{sym:'Ag',name:'Silver',z:47,mass:107.87,el:[2,8,18,18,1],g:11,p:5,cat:'transition',en:1.93,col:'#ccddee'},
+{sym:'Au',name:'Gold',z:79,mass:196.97,el:[2,8,18,32,18,1],g:11,p:6,cat:'transition',en:2.54,col:'#ffdd44'},
+{sym:'Pt',name:'Platinum',z:78,mass:195.08,el:[2,8,18,32,17,1],g:10,p:6,cat:'transition',en:2.28,col:'#ccccdd'},
+{sym:'Br',name:'Bromine',z:35,mass:79.90,el:[2,8,18,7],g:17,p:4,cat:'halogen',en:2.96,col:'#884422'},
+{sym:'I',name:'Iodine',z:53,mass:126.90,el:[2,8,18,18,7],g:17,p:5,cat:'halogen',en:2.66,col:'#8844aa'},
+{sym:'Kr',name:'Krypton',z:36,mass:83.80,el:[2,8,18,8],g:18,p:4,cat:'noble',en:3.00,col:'#aaddff'},
+{sym:'Mn',name:'Manganese',z:25,mass:54.94,el:[2,8,13,2],g:7,p:4,cat:'transition',en:1.55,col:'#8888aa'},
+{sym:'Ti',name:'Titanium',z:22,mass:47.87,el:[2,8,10,2],g:4,p:4,cat:'transition',en:1.54,col:'#88bbdd'},
+{sym:'Cr',name:'Chromium',z:24,mass:52.00,el:[2,8,13,1],g:6,p:4,cat:'transition',en:1.66,col:'#88aaaa'},
+{sym:'Sn',name:'Tin',z:50,mass:118.71,el:[2,8,18,18,4],g:14,p:5,cat:'metal',en:1.96,col:'#99aabb'},
+{sym:'Pb',name:'Lead',z:82,mass:207.2,el:[2,8,18,32,18,4],g:14,p:6,cat:'metal',en:2.33,col:'#667788'},
+{sym:'W',name:'Tungsten',z:74,mass:183.84,el:[2,8,18,32,12,2],g:6,p:6,cat:'transition',en:2.36,col:'#8899bb'},
+{sym:'U',name:'Uranium',z:92,mass:238.03,el:[2,8,18,32,21,9,2],g:3,p:7,cat:'actinide',en:1.38,col:'#44ff66'},
+];
+
+// Build lookup
+const EL_BY_Z={};
+EL.forEach((e,i)=>{if(e)EL_BY_Z[e.z]=i;});
+function elIdx(z){return EL_BY_Z[z]||null;}
+
+function ve(e){return e.el[e.el.length-1]}
+function elConf(e){return e.el.join('-')}
+function catCol(c){return{noble:'#ffcc44',alkali:'#ff4444',halogen:'#44ff88',alkaline:'#ff8844',transition:'#4488ff',nonmetal:'#88ccff',metalloid:'#cc88ff',metal:'#cccccc',actinide:'#44ff66'}[c]||'#888'}
+function irRole(e){return{noble:'Status Quo Power',alkali:'Revisionist State',halogen:'Aggressive Power',alkaline:'Rising Power',transition:'Great Power',nonmetal:'Middle Power',metalloid:'Swing State',metal:'Industrial Power',actinide:'Nuclear State'}[e.cat]||'State'}
+
+// ===================== IR QUOTES =====================
+const QUOTES=[
+  {q:"The strong do what they can, and the weak suffer what they must.",a:"Thucydides",c:"The original statement of power politics — might makes right in an anarchic system."},
+  {q:"If you want peace, prepare for war.",a:"Vegetius (Si vis pacem, para bellum)",c:"States must arm to deter — the security dilemma in its purest form."},
+  {q:"The supreme art of war is to subdue the enemy without fighting.",a:"Sun Tzu, The Art of War",c:"Deterrence and coercive diplomacy — winning without kinetic conflict."},
+  {q:"In international politics, there is no night watchman to call.",a:"Kenneth Waltz",c:"Anarchy means self-help. No 911 for states — like noble gases, you must be self-sufficient."},
+  {q:"Great powers are always sensitive to potential shifts in the balance of power.",a:"John Mearsheimer, The Tragedy of Great Power Politics",c:"Offensive realism: states never feel secure enough and always seek more power."},
+  {q:"The history of international relations is the history of the rise and fall of great powers.",a:"Paul Kennedy",c:"Power transitions — like elements evolving through reactions — reshape the system."},
+  {q:"Alliances are held together by fear, not by love.",a:"Harold Macmillan",c:"Ionic bonds: the weaker element doesn't bond by choice but by necessity."},
+  {q:"The enemy of my enemy is my friend.",a:"Ancient proverb, formalized in IR balance-of-threat theory",c:"States align against common threats — reactive elements finding stability through bonding."},
+  {q:"Uneasy lies the head that wears a crown.",a:"Shakespeare, Henry IV — applied to hegemonic stability theory",c:"The hegemon bears the cost of system maintenance, like oxygen sustaining reactions."},
+  {q:"States are like billiard balls — their internal composition doesn't matter, only their interactions.",a:"Kenneth Waltz, neorealism",c:"Like atoms, states are defined by their position in the system and relative power."},
+  {q:"Power tends to corrupt, and absolute power corrupts absolutely.",a:"Lord Acton",c:"Even stable hegemons face entropy — like iron rusting under oxygen's influence."},
+  {q:"A prince must learn how not to be good.",a:"Niccolò Machiavelli, The Prince",c:"Survival demands pragmatism. Alkali metals must give up electrons to survive."},
+  {q:"War is merely the continuation of politics by other means.",a:"Carl von Clausewitz, On War",c:"Reactions are just diplomacy at higher energy levels."},
+  {q:"It is impossible to suffer without making someone pay for it; every complaint already contains revenge.",a:"Friedrich Nietzsche — applied to the security dilemma",c:"Defensive moves are perceived as offensive — the spiral model of conflict."},
+  {q:"Hegemony is as old as mankind.",a:"Antonio Gramsci, adapted for IR",c:"Dominant elements shape the system — oxygen's electronegativity controls most reactions."},
+  {q:"The anarchical society has no sovereign, yet order exists through the balance of power.",a:"Hedley Bull, The Anarchical Society",c:"No world government, but patterns emerge — like the periodic table's structure from quantum mechanics."},
+  {q:"Fear, honor, and interest — the three drivers of state behavior.",a:"Thucydides",c:"States react for security (fear), prestige (honor), and resources (interest)."},
+  {q:"There is no institution above the sovereign state that can enforce agreements.",a:"Hans Morgenthau",c:"Like atoms in a gas, each state moves according to its own forces."},
+  {q:"Capabilities, not intentions, matter in international politics.",a:"Structural realism principle",c:"A state's proton count (power) matters more than what it says — electronegativity reveals true nature."},
+  {q:"Bipolarity is more stable than multipolarity.",a:"Kenneth Waltz",c:"Two great powers balance each other cleanly — like diatomic molecules (O₂, N₂, Cl₂)."},
+];
+
+// ===================== REACTIONS DATABASE =====================
+const REACTIONS=[
+// Key reactions with rich chemistry + IR content
+{inputs:[1,1,8],eq:'2H₂ + O₂ → 2H₂O',product:'Water',bond:'covalent',
+ chem:'Two hydrogen atoms share electrons with oxygen. Oxygen has 6 valence electrons and needs 2 more for a stable octet. Each hydrogen contributes 1. The bent molecular geometry (104.5°) creates a polar molecule. Exothermic: releases 286 kJ/mol.',
+ ir:'BALANCE OF POWER: Two small states (H, Z=1) ally with a middle power (O, Z=8) through shared sovereignty. The unequal electronegativity (H:2.20 vs O:3.44) means oxygen dominates — a hegemon in an asymmetric alliance, like the US in NATO.',
+ quote:5},
+
+{inputs:[11,17],eq:'2Na + Cl₂ → 2NaCl',product:'Sodium Chloride (Salt)',bond:'ionic',
+ chem:'Sodium (1 valence e⁻) transfers its outer electron to Chlorine (7 valence e⁻, needs 1). Na becomes Na⁺ (cation), Cl becomes Cl⁻ (anion). The electrostatic attraction forms a crystal lattice. Electronegativity difference: 2.23 — strongly ionic.',
+ ir:'BANDWAGONING: Sodium (a weak, revisionist alkali state with low electronegativity 0.93) surrenders sovereignty (its electron) to Chlorine (an aggressive halogen power, EN 3.16). The result is stability through submission — like a small state joining a great power\'s sphere of influence.',
+ quote:6},
+
+{inputs:[6,8,8],eq:'C + O₂ → CO₂',product:'Carbon Dioxide',bond:'covalent',
+ chem:'Carbon (4 valence e⁻) forms two double bonds with two oxygen atoms. Each O shares 2 electron pairs with C. Linear geometry (180°). Carbon achieves octet through 4 shared pairs. Highly exothermic combustion: 393 kJ/mol released.',
+ ir:'HEGEMONIC WAR: Carbon (a great power with 4 alliance slots) is overwhelmed by Oxygen\'s aggression. The resulting CO₂ represents a new order — Carbon subordinated within Oxygen\'s framework. Like a power transition war that reshapes the international system.',
+ quote:4},
+
+{inputs:[26,8],eq:'4Fe + 3O₂ → 2Fe₂O₃',product:'Iron Oxide (Rust)',bond:'ionic',
+ chem:'Iron loses 3 electrons to become Fe³⁺. Oxygen gains 2 electrons to become O²⁻. Iron has 2 valence electrons in its outer shell but can also lose d-electrons (transition metal flexibility). Slow reaction at room temperature — speeds with water catalyst.',
+ ir:'IMPERIAL OVERSTRETCH: Iron (a great power, Z=26) gradually loses capacity to Oxygen through slow oxidation — like imperial decline. Paul Kennedy\'s thesis: the hegemon overextends, its power corrodes. The rust is entropy eating at empire.',
+ quote:10},
+
+{inputs:[1,17],eq:'H₂ + Cl₂ → 2HCl',product:'Hydrochloric Acid',bond:'covalent',
+ chem:'H (EN 2.20) and Cl (EN 3.16) share electrons unequally — polar covalent bond. Chlorine\'s 7 valence electrons pull the shared pair closer. Dissolves in water to form H⁺ and Cl⁻ ions (strong acid). Triggered by UV light (photolysis).',
+ ir:'SECURITY DILEMMA: Both states arm defensively (fill electron shells), but Chlorine\'s greater electronegativity makes the bond inherently unequal. The alliance is tense — H is perpetually insecure as Cl dominates the shared resources.',
+ quote:1},
+
+{inputs:[19,8],eq:'4K + O₂ → 2K₂O',product:'Potassium Oxide',bond:'ionic',
+ chem:'Potassium (1 valence e⁻, very low EN 0.82) is the most reactive common metal. It violently transfers its electron to Oxygen. Burns with a lilac flame. So reactive it must be stored under oil — cannot exist free in nature.',
+ ir:'REVISIONIST AGGRESSION: Potassium is a deeply dissatisfied state (1 lonely valence electron, huge gap to stability). It reacts explosively with the status quo — like a revisionist power launching a preemptive strike to restructure the system.',
+ quote:11},
+
+{inputs:[6,1,1],eq:'C + 2H₂ → CH₄',product:'Methane',bond:'covalent',
+ chem:'Carbon\'s 4 valence electrons each form a single covalent bond with a hydrogen atom. Tetrahedral geometry (109.5°). All bonds are nonpolar (similar EN). The simplest organic molecule — building block of life chemistry.',
+ ir:'MULTILATERAL ALLIANCE (NATO model): Carbon\'s 4 diplomatic slots (valence electrons) create a stable bloc with 4 Hydrogen states. Equal power-sharing (nonpolar bonds) produces the most stable arrangement — collective security through symmetric obligations.',
+ quote:15},
+
+{inputs:[3,8],eq:'4Li + O₂ → 2Li₂O',product:'Lithium Oxide',bond:'ionic',
+ chem:'Lithium (Z=3, 1 valence e⁻, EN 0.98) loses its outer electron to Oxygen. Li⁺ is tiny — highest charge density of any alkali cation. This makes Li₂O a very stable compound with high lattice energy.',
+ ir:'SPHERE OF INFLUENCE: Small Lithium states fall into Oxygen\'s orbit. Their tiny size (low Z) means they have no choice — sovereignty is traded for security. Like Finland during the Cold War — Finlandization.',
+ quote:17},
+
+{inputs:[12,7],eq:'3Mg + N₂ → Mg₃N₂',product:'Magnesium Nitride',bond:'ionic',
+ chem:'Magnesium (2 valence e⁻, EN 1.31) reacts with Nitrogen (5 valence e⁻, EN 3.04). Mg loses 2 electrons → Mg²⁺. N gains 3 electrons → N³⁻. Only happens at high temperature — requires activation energy. Unusual because N₂ triple bond (945 kJ/mol) is very strong.',
+ ir:'ALLIANCE OF CONVENIENCE: Magnesium and Nitrogen aren\'t natural partners — it takes extreme pressure (high activation energy) to force this bond. Like the Nazi-Soviet Pact or US-Saudi alliance: marriages of convenience forged by circumstance, not affinity.',
+ quote:7},
+
+{inputs:[11,1,8],eq:'2Na + 2H₂O → 2NaOH + H₂↑',product:'Sodium Hydroxide + Hydrogen Gas',bond:'ionic',
+ chem:'Sodium reacts violently with water. Na donates its electron to water\'s H, displacing it as H₂ gas. Produces NaOH (strong base). Exothermic — can ignite the H₂ produced. Demonstrates alkali metals\' extreme reactivity with water.',
+ ir:'REGIME CHANGE: Sodium (revisionist state) destabilizes the existing Water order, displacing Hydrogen and creating a new alkaline regime. The violence of the reaction mirrors revolutionary upheaval — the old order literally goes up in flames.',
+ quote:12},
+
+{inputs:[8,8],eq:'O₂ ⇌ O₂ (diatomic equilibrium)',product:'Molecular Oxygen',bond:'covalent',
+ chem:'Two oxygen atoms share 2 electron pairs (double bond). Each O has 6 valence electrons; sharing 2 pairs gives each a stable octet. Paramagnetic (unpaired electrons). Bond energy: 498 kJ/mol. Essential for combustion and respiration.',
+ ir:'BIPOLAR STABILITY: Two equal great powers in equilibrium — Waltz\'s argument that bipolarity is the most stable configuration. Like the US-USSR Cold War balance: two powers of equal electronegativity maintaining deterrence through mutual assured destruction.',
+ quote:19},
+
+{inputs:[7,7],eq:'N₂ ⇌ N₂ (triple bond)',product:'Molecular Nitrogen',bond:'covalent',
+ chem:'Two nitrogen atoms share 3 electron pairs (triple bond — one of the strongest bonds in chemistry at 945 kJ/mol). Each N has 5 valence electrons. The triple bond makes N₂ extraordinarily stable and chemically inert under normal conditions.',
+ ir:'DETERRENCE THROUGH STRENGTH: N₂\'s triple bond is the chemical equivalent of nuclear deterrence — so strong that breaking it requires extreme energy (like the Haber process at 450°C, 200 atm). Peace through overwhelming defensive capability.',
+ quote:1},
+
+{inputs:[1,9],eq:'H₂ + F₂ → 2HF',product:'Hydrofluoric Acid',bond:'covalent',
+ chem:'Fluorine (EN 3.98 — highest of ALL elements) aggressively seizes electron density from Hydrogen. The H-F bond is extremely polar. HF can dissolve glass. F has 7 valence electrons and is the most reactive nonmetal — reacts with almost everything.',
+ ir:'UNIPOLAR DOMINATION: Fluorine is the unipolar hegemon — the highest electronegativity means it dominates every relationship. No state can resist its pull. Like American unipolarity post-1991: even strong states must accommodate the hyperpower.',
+ quote:4},
+
+{inputs:[20,6,8],eq:'CaCO₃ → CaO + CO₂ (thermal)',product:'Calcium Oxide (Quickite)',bond:'ionic/covalent',
+ chem:'Calcium carbonate decomposes when heated above 840°C. The ionic Ca²⁺ separates from the covalent CO₃²⁻ group. Industrially vital (cement, steel production). Demonstrates how compounds with mixed bond types can fragment under stress.',
+ ir:'ALLIANCE DISSOLUTION: Under pressure (high temperature = crisis), the multilateral arrangement fractures. Calcium breaks from the Carbonate bloc — like the Sino-Soviet split. Mixed-bond alliances (part ionic, part covalent — part coercion, part shared interest) are inherently fragile.',
+ quote:16},
+
+{inputs:[26,16],eq:'Fe + S → FeS',product:'Iron Sulfide',bond:'ionic',
+ chem:'Iron (2 valence e⁻, transition metal) transfers electrons to Sulfur (6 valence e⁻). Iron loses 2e⁻ → Fe²⁺, Sulfur gains 2e⁻ → S²⁻. Moderate EN difference (1.83 vs 2.58). Produces a bronze-colored compound. Mildly exothermic.',
+ ir:'STRATEGIC PARTNERSHIP: Two medium-to-great powers form a pragmatic bond — not as dramatic as Na+Cl (full bandwagoning) nor as equal as C+H (symmetric alliance). Like the China-Russia partnership: significant but not total alignment. Each retains some autonomy.',
+ quote:18},
+
+{inputs:[13,8],eq:'4Al + 3O₂ → 2Al₂O₃',product:'Aluminium Oxide',bond:'ionic',
+ chem:'Aluminium (3 valence e⁻, EN 1.61) loses all 3 outer electrons → Al³⁺. Forms an extremely hard, high-melting compound (corundum, sapphire, ruby). The oxide layer actually protects Al from further corrosion — passivation.',
+ ir:'DEFENSIVE REALISM: Aluminium\'s oxide layer is a defensive perimeter — it stops further aggression by Oxygen. Like a state that makes a limited territorial concession to establish a defensible border. The sacrifice of the surface protects the core — strategic depth.',
+ quote:2},
+
+{inputs:[1,7],eq:'3H₂ + N₂ → 2NH₃ (Haber process)',product:'Ammonia',bond:'covalent',
+ chem:'Nitrogen\'s triple bond (945 kJ/mol) must be broken — requires 450°C, 200 atm, and iron catalyst. N (5 valence e⁻) bonds with three H atoms. Pyramidal geometry. The Haber process feeds half the world — industrial fixation of atmospheric N₂.',
+ ir:'TOTAL WAR MOBILIZATION: Breaking N₂\'s deterrent (triple bond) requires unprecedented industrial effort — like WWI/WWII total war mobilization. Fritz Haber literally developed this process for German munitions in WWI. Chemistry as geopolitics: the Haber process extended the war by years.',
+ quote:12},
+
+{inputs:[29,16],eq:'2Cu + S → Cu₂S',product:'Copper Sulfide',bond:'ionic',
+ chem:'Copper (1 valence e⁻ in 4s, EN 1.90) reacts with Sulfur (6 valence e⁻, EN 2.58). Each Cu donates 1 electron. Cu₂S is an important copper ore (chalcocite). Copper\'s d-electrons give it variable oxidation states (+1, +2).',
+ ir:'RESOURCE COMPETITION: Copper has historically been a strategic resource — the Copper Age, Bronze Age. States fight over resources (electrons) just as great powers compete for access to critical materials. The bond represents economic dependency.',
+ quote:16},
+
+{inputs:[26,6],eq:'Fe + C → Steel (Fe₃C alloy)',product:'Steel (Iron Carbide)',bond:'metallic/covalent',
+ chem:'Carbon atoms insert into iron\'s crystal lattice, forming iron carbide (cementite). Carbon\'s small atomic radius lets it fit between Fe atoms. This distorts the lattice, making it harder and stronger. Steel contains 0.2-2% carbon.',
+ ir:'INTERNAL BALANCING: Iron improves itself not through external alliances but by incorporating a smaller power (Carbon) internally — like a state investing in domestic industry and technology. Self-strengthening through internal reform rather than external expansion.',
+ quote:18},
+
+{inputs:[92],eq:'²³⁵U → ⁹⁰Sr + ¹⁴³Xe + 3n + Energy',product:'Nuclear Fission',bond:'nuclear',
+ chem:'Uranium-235 absorbs a neutron and splits into lighter elements, releasing ~200 MeV per fission and 3 more neutrons (chain reaction). Uranium has 92 protons — its massive nucleus is barely stable. The strong nuclear force can\'t hold it together against proton-proton repulsion.',
+ ir:'NUCLEAR DETERRENCE: Uranium represents the ultimate security guarantee. A state with nuclear capability (Z=92, massive power) can split the entire international order. The chain reaction = escalation dynamics. MAD (Mutually Assured Destruction) keeps the peace through terror.',
+ quote:1},
+
+{inputs:[1,1],eq:'H₂ (diatomic hydrogen)',product:'Hydrogen Gas',bond:'covalent',
+ chem:'Two hydrogen atoms, each with 1 electron, share them to form a single covalent bond. Both achieve the stable helium configuration (2 electrons). Bond energy: 436 kJ/mol. The simplest molecule. Perfectly nonpolar — equal electronegativity.',
+ ir:'DEFENSIVE ALLIANCE BETWEEN EQUALS: Two weak states (Z=1) pool their meager resources equally. Neither dominates. Like a small-state alliance (e.g., Benelux) — equal partners achieving collective stability they couldn\'t find alone.',
+ quote:7},
+
+{inputs:[12,8],eq:'2Mg + O₂ → 2MgO',product:'Magnesium Oxide',bond:'ionic',
+ chem:'Magnesium (2 valence e⁻, EN 1.31) burns with an intense white flame, transferring both electrons to Oxygen (6 valence e⁻, EN 3.44). EN difference: 2.13 — strongly ionic. MgO has an extremely high melting point (2852°C) due to strong lattice energy.',
+ ir:'BLINDING CONFLICT: The brilliance of Mg combustion represents wars that reshape the world order — visible, dramatic, irreversible. Like the World Wars: great powers (Mg) consumed by an even greater force (O), producing a new, extremely rigid order (high melting point = frozen conflict).',
+ quote:12},
+
+{inputs:[19,17],eq:'2K + Cl₂ → 2KCl',product:'Potassium Chloride',bond:'ionic',
+ chem:'Potassium (1 valence e⁻, EN 0.82 — lowest of common metals) violently reacts with Chlorine (7 valence e⁻, EN 3.16). EN difference: 2.34 — extremely ionic. K burns with a lilac flame. KCl is used as a salt substitute and in fertilizers.',
+ ir:'CAPITULATION TO SUPERIOR FORCE: Potassium\'s extremely low electronegativity means it has no bargaining power. Like an unconditional surrender — the weak state (K) is entirely absorbed into the strong state\'s (Cl) order. The lilac flame is the death of sovereignty.',
+ quote:0},
+
+{inputs:[16,8],eq:'S + O₂ → SO₂',product:'Sulfur Dioxide',bond:'covalent',
+ chem:'Sulfur (6 valence e⁻, EN 2.58) reacts with Oxygen (6 valence e⁻, EN 3.44). S forms a double bond with each O. Bent geometry. SO₂ is a major pollutant — causes acid rain. Both are in Group 16 but O dominates due to higher electronegativity.',
+ ir:'INTRA-GROUP RIVALRY: Sulfur and Oxygen are in the same group — like regional rivals with similar capabilities. But Oxygen\'s higher electronegativity (greater power) means it dominates. Like Saudi-Iran rivalry: same region (group), but one is stronger. The product (acid rain) harms the whole system.',
+ quote:4},
+
+// === ADDITIONAL REACTIONS ===
+
+{inputs:[6,8],eq:'2C + O₂ → 2CO',product:'Carbon Monoxide',bond:'covalent',
+ chem:'Carbon (4 valence e⁻) forms a triple bond with Oxygen (6 valence e⁻) — one σ bond, two π bonds. This is incomplete combustion: not enough O₂ to fully oxidize C. CO is a colorless, odorless poison — it binds hemoglobin 200x stronger than O₂, suffocating from within.',
+ ir:'INCOMPLETE HEGEMONY: When the dominant power (O) lacks sufficient resources for total conquest, the result is a dangerous half-measure. CO is deadlier than CO₂ — like a failed regime change that creates a rogue state. Partial interventions produce the most toxic outcomes. Kissinger warned: "The absence of alternatives clears the mind marvelously."',
+ quote:11},
+
+{inputs:[11,8],eq:'4Na + O₂ → 2Na₂O',product:'Sodium Oxide',bond:'ionic',
+ chem:'Sodium (1 valence e⁻, EN 0.93) rapidly oxidizes in air. Each Na loses its single outer electron to become Na⁺. Two Na atoms donate to each O atom. Extremely exothermic — Na burns with a bright yellow flame. Na₂O is a strong base, reacting violently with water.',
+ ir:'RAPID CAPITULATION: Sodium\'s desperation to shed its lone electron mirrors a weak state seeking any patron. It burns brightly but briefly — like revolutionary states that flare up then submit to the existing order. The strong base product shows the new order is aggressive and unstable.',
+ quote:0},
+
+{inputs:[1,8],eq:'2H₂ + O₂ → 2H₂O (partial)',product:'Water (limited O₂)',bond:'covalent',
+ chem:'Even with just one H and one O in the bench, hydrogen still reacts with oxygen. In practice, H₂ and O₂ react explosively — the Hindenburg disaster. Oxygen\'s 6 valence e⁻ draw in hydrogen\'s single electron through polar covalent sharing. The O-H bond is among the strongest in chemistry (459 kJ/mol).',
+ ir:'ASYMMETRIC ALLIANCE: A minimal coalition — one weak state (H) subordinated to a stronger one (O). Like a bilateral security pact where the junior partner trades autonomy for protection. The polarity of the bond reflects the power asymmetry inherent in all alliances.',
+ quote:6},
+
+{inputs:[7,8],eq:'N₂ + O₂ → 2NO',product:'Nitric Oxide',bond:'covalent',
+ chem:'Nitrogen (5 valence e⁻, triple bond in N₂: 945 kJ/mol) and Oxygen (6 valence e⁻, double bond in O₂: 498 kJ/mol) react only at extreme temperatures (>2000°C, e.g., lightning bolts or engines). NO has an unpaired electron — it\'s a free radical, highly reactive.',
+ ir:'CLASH OF GREAT POWERS: Both N₂ and O₂ are internally stable great powers (strong bonds). They only react under extreme pressure — like great power wars requiring massive triggering events (assassination of an archduke, etc.). The radical product (NO) destabilizes everything around it, just as great power wars create power vacuums.',
+ quote:12},
+
+{inputs:[11,1,8],eq:'NaOH → Na⁺ + OH⁻',product:'Sodium Hydroxide (Lye)',bond:'ionic/covalent',
+ chem:'Na donates its 1 valence e⁻ ionically. O and H share electrons covalently in the hydroxide ion (OH⁻). NaOH is a strong base — fully dissociates in water. Extremely caustic. Used in soap-making, paper production, and drain cleaning. pH ~14 in solution.',
+ ir:'TRILATERAL ALLIANCE: Three states of vastly different power form a compound arrangement. Na (weak) provides resources (electrons) to the O-H partnership (a pre-existing covalent alliance). Like a great power subsidizing a regional alliance — the US funding NATO, with each member playing a different structural role.',
+ quote:8},
+
+{inputs:[6,6],eq:'C + C → Diamond/Graphite (allotropes)',product:'Carbon Allotropes',bond:'covalent network',
+ chem:'Carbon-carbon bonds are among the strongest in nature (346 kJ/mol single, 614 double, 839 triple). Carbon\'s 4 valence electrons allow tetrahedral bonding (diamond, sp³) or planar sheets (graphite, sp²). This versatility makes C the backbone of organic chemistry and all life.',
+ ir:'FEDERALISM AMONG EQUALS: Two identical powers (same Z, same EN) form a perfectly balanced bond. No hierarchy, no exploitation — pure structural cooperation. Like the EU\'s founding vision: equal sovereign states building something greater. Diamond = rigid hierarchy, Graphite = flexible layers — two models of equal-power integration.',
+ quote:19},
+
+{inputs:[14,8],eq:'Si + O₂ → SiO₂',product:'Silicon Dioxide (Quartz)',bond:'covalent network',
+ chem:'Silicon (4 valence e⁻, same group as Carbon) bonds with Oxygen in a giant covalent network. Each Si bonds to 4 O atoms, each O bridges 2 Si atoms — extending infinitely. SiO₂ has an extremely high melting point (1713°C). Makes up 59% of Earth\'s crust.',
+ ir:'INSTITUTIONAL ARCHITECTURE: SiO₂\'s endless network structure mirrors the international institutional order — UN, WTO, IMF — a web of overlapping commitments that is incredibly hard to break. Once established, the lattice persists. Like the liberal institutional order: even realists admit institutions constrain state behavior once embedded.',
+ quote:15},
+
+{inputs:[15,8],eq:'P₄ + 5O₂ → P₄O₁₀',product:'Phosphorus Pentoxide',bond:'covalent',
+ chem:'Phosphorus (5 valence e⁻) burns brilliantly white in air. White phosphorus (P₄) is tetrahedral and extremely reactive — it spontaneously ignites. P uses its d-orbitals to expand beyond the octet, bonding with 5 oxygen atoms. P₄O₁₀ is a powerful desiccant.',
+ ir:'REVISIONIST POWER: Phosphorus is unstable in its natural state (P₄) — like a revisionist power that cannot accept the status quo. It spontaneously ignites: aggression without provocation. Its ability to exceed the octet (expand beyond normal power limits) mirrors states that break international norms to expand their influence.',
+ quote:4},
+
+{inputs:[3,8],eq:'4Li + O₂ → 2Li₂O',product:'Lithium Oxide',bond:'ionic',
+ chem:'Lithium (1 valence e⁻, EN 0.98) is the lightest metal. Unlike other alkali metals, Li reacts with O₂ to form a simple oxide (not peroxide or superoxide). Li₂O is used in ceramics and as a CO₂ scrubber in spacecraft. Li has the highest electronegativity of alkali metals.',
+ ir:'SMALL STATE PRAGMATISM: Lithium is the least reactive alkali metal — the small state that carefully manages its one asset (1 e⁻) rather than giving it away recklessly like Na or K. Like Singapore or Switzerland: small, vulnerable, but strategically prudent. Even in anarchy, the smallest can survive through careful alignment.',
+ quote:3},
+
+{inputs:[20,8],eq:'2Ca + O₂ → 2CaO',product:'Calcium Oxide (Quicklime)',bond:'ionic',
+ chem:'Calcium (2 valence e⁻, EN 1.00) loses both outer electrons to oxygen. CaO (quicklime) reacts violently and exothermically with water to produce Ca(OH)₂ (slaked lime). Used in cement, steel-making, and water treatment. Melting point: 2613°C.',
+ ir:'INFRASTRUCTURE OF EMPIRE: Calcium oxide is literally the foundation of civilization — cement, mortar, construction. Like the unglamorous infrastructure of hegemony: roads, institutions, trade networks. The hegemon doesn\'t just fight wars, it builds the physical and institutional architecture that sustains the order.',
+ quote:14},
+
+{inputs:[5,8],eq:'4B + 3O₂ → 2B₂O₃',product:'Boron Trioxide',bond:'covalent',
+ chem:'Boron (3 valence e⁻, EN 2.04) is electron-deficient — it forms only 3 bonds and lacks a full octet. B₂O₃ is a glass-forming oxide used in borosilicate glass (Pyrex). Boron is a metalloid — properties between metals and nonmetals. Very hard, very high melting point.',
+ ir:'THE MIDDLE POWER TRAP: Boron is a metalloid — neither fully metal nor nonmetal, like a middle power caught between blocs. It can\'t fill its octet (can\'t achieve great power status) but is too strong to be a client state. Turkey, India, Brazil — structurally unable to fully commit to either side.',
+ quote:17},
+
+{inputs:[1,9],eq:'H₂ + F₂ → 2HF',product:'Hydrofluoric Acid',bond:'covalent',
+ chem:'Fluorine (7 valence e⁻, EN 3.98 — the highest of any element) rips electrons from virtually everything. H-F bond is extremely polar. HF dissolves glass, penetrates skin, and disrupts calcium metabolism. Despite being a "weak acid" by dissociation, it\'s one of the most dangerous substances in chemistry.',
+ ir:'HYPERPUISSANCE: Fluorine is the unipolar hegemon — the highest electronegativity means nothing can resist its pull. Like post-Cold War America as described by Hubert Védrine: a "hyperpower" so dominant it distorts all relationships around it. Even weak H is dragged into an inescapable bond.',
+ quote:4},
+
+{inputs:[26,17],eq:'2Fe + 3Cl₂ → 2FeCl₃',product:'Iron(III) Chloride',bond:'ionic',
+ chem:'Iron\'s transition metal flexibility allows it to lose 3 electrons (using both 4s and one 3d). Chlorine (7 valence e⁻) is aggressive enough to force Fe into the +3 state. FeCl₃ is used in water purification and circuit board etching. It dissolves in water to form an acidic solution.',
+ ir:'COERCIVE DIPLOMACY: Chlorine\'s high electronegativity forces Iron into a higher oxidation state than usual — compelled to give more than it normally would. Like economic sanctions or military pressure forcing a great power to make concessions it would never make voluntarily. The strong extract maximum concessions.',
+ quote:0},
+
+{inputs:[13,17],eq:'2Al + 3Cl₂ → 2AlCl₃',product:'Aluminium Chloride',bond:'ionic/covalent',
+ chem:'Aluminium (3 valence e⁻, EN 1.61) loses all 3 outer electrons to Chlorine. But AlCl₃ has significant covalent character — Al³⁺ is small and highly charged, polarizing the Cl⁻ ions. AlCl₃ actually dimerizes to Al₂Cl₆. Used as a catalyst in Friedel-Crafts reactions.',
+ ir:'HYBRID REGIME: The bond is neither purely ionic nor covalent — like states that are neither fully democratic nor authoritarian. Hybrid regimes (competitive authoritarianism) combine elements of both systems. Al\'s high charge density distorts the "rules" — like a powerful leader who bends institutional norms without fully breaking them.',
+ quote:17},
+];
+
+// ===================== GAME STATE =====================
+let canvas,ctx,W,H;
+let running=false, paused=false, gameTime=0, lastFrameTime=0;
+let camera={x:0,y:0};
+let keys={};
+let showPeriodicTable=false;
+const WORLD=2400;
+
+// Player
+let player={x:WORLD/2,y:WORLD/2,vx:0,vy:0,speed:4,radius:14,collecting:false,collectTimer:0};
+
+// Inventory: { z: count }
+let inventory={};
+let discoveredReactions=new Set();
+let discoveredElements=new Set();
+let totalReactionsTriggered=0;
+let score=0;
+
+// Bench slots
+const MAX_SLOTS=3;
+let benchSlots=[null,null,null]; // element z values or null
+let selectedInvElement=null;
+
+// World drops
+let drops=[];
+let particles=[];
+let floatingTexts=[];
+
+// ===================== WORLD GEN =====================
+function spawnDrops(){
+  drops=[];
+  // Spawn clusters by element type
+  const spawnSet=[1,1,1,1,8,8,8,7,7,6,6,6,17,17,11,11,3,9,12,12,16,16,19,20,26,26,13,14,15,29,35,1,1,8,8,6,7,11,17,26,8,1,16,19,20,4,5,12,92];
+  for(let i=0;i<120;i++){
+    const z=spawnSet[i%spawnSet.length];
+    const idx=elIdx(z);
+    if(!idx)continue;
+    drops.push({
+      z, x:80+Math.random()*(WORLD-160), y:80+Math.random()*(WORLD-160),
+      bobPhase:Math.random()*Math.PI*2, collected:false
+    });
+  }
+}
+
+function respawnDrop(){
+  const spawnSet=[1,8,6,7,17,11,3,12,16,19,20,26,13,9,29,14,15,35,92,1,1,8,8,6];
+  const z=spawnSet[Math.floor(Math.random()*spawnSet.length)];
+  const idx=elIdx(z);
+  if(!idx)return;
+  let x,y;
+  do{
+    x=80+Math.random()*(WORLD-160);
+    y=80+Math.random()*(WORLD-160);
+  }while(Math.hypot(x-player.x,y-player.y)<400);
+  drops.push({z,x,y,bobPhase:Math.random()*Math.PI*2,collected:false});
+}
+
+// ===================== INVENTORY / BENCH =====================
+function addToInventory(z){
+  inventory[z]=(inventory[z]||0)+1;
+  if(!discoveredElements.has(z)){
+    discoveredElements.add(z);
+    const e=EL[elIdx(z)];
+    addLog(`DISCOVERED: ${e.sym} (${e.name}) — Z=${e.z}, ${ve(e)} valence e⁻, ${irRole(e)}`,'discover');
+    score+=10;
+  }
+}
+
+function removeFromInventory(z){
+  if(inventory[z]>0){inventory[z]--;if(inventory[z]===0)delete inventory[z];}
+}
+
+function renderInventory(){
+  const div=document.getElementById('inv');
+  let html='<h4>INVENTORY (click to select, then click bench slot)</h4>';
+  const sorted=Object.keys(inventory).map(Number).sort((a,b)=>a-b);
+  if(sorted.length===0){html+='<div style="color:#556">Collect elements from the world...</div>';}
+  sorted.forEach(z=>{
+    const idx=elIdx(z);if(!idx)return;
+    const e=EL[idx];
+    const sel=selectedInvElement===z?'selected':'';
+    html+=`<div class="inv-item ${sel}" onclick="selectInvItem(${z})" style="border-color:${catCol(e.cat)}" title="${e.name} (Z=${e.z})\nValence e⁻: ${ve(e)}\nEN: ${e.en}\n${irRole(e)}">
+      <span class="sym" style="color:${e.col}">${e.sym}</span>
+      <span class="cnt">x${inventory[z]}</span>
+    </div>`;
+  });
+  div.innerHTML=html;
+}
+
+function selectInvItem(z){
+  selectedInvElement=(selectedInvElement===z)?null:z;
+  renderInventory();
+  document.activeElement?.blur();
+}
+
+function renderBench(){
+  const div=document.getElementById('slots');
+  div.innerHTML='';
+  benchSlots.forEach((z,i)=>{
+    const slot=document.createElement('div');
+    slot.className='slot'+(z!==null?' filled':'');
+    if(z!==null){
+      const idx=elIdx(z);
+      const e=EL[idx];
+      slot.innerHTML=`<span style="color:${e.col}">${e.sym}</span>`;
+      slot.title=`${e.name} (Z=${e.z}) — Click to remove`;
+      slot.onclick=()=>removeFromBench(i);
+    } else {
+      slot.textContent='+';
+      slot.title='Click to place selected element';
+      slot.onclick=()=>addToBench(i);
+    }
+    div.appendChild(slot);
+  });
+  // Plus sign between slots
+  const arrows=div.querySelectorAll('.slot');
+  // Enable/disable react button
+  const filled=benchSlots.filter(s=>s!==null).length;
+  document.getElementById('react-btn').disabled=filled<1;
+}
+
+function addToBench(slotIdx){
+  if(selectedInvElement===null)return;
+  if(benchSlots[slotIdx]!==null)return;
+  if(!inventory[selectedInvElement]||inventory[selectedInvElement]<1)return;
+  benchSlots[slotIdx]=selectedInvElement;
+  removeFromInventory(selectedInvElement);
+  if(!inventory[selectedInvElement])selectedInvElement=null;
+  renderInventory();renderBench();
+  document.activeElement?.blur();
+}
+
+function removeFromBench(slotIdx){
+  const z=benchSlots[slotIdx];
+  if(z===null)return;
+  addToInventory(z);
+  benchSlots[slotIdx]=null;
+  renderInventory();renderBench();
+  document.activeElement?.blur();
+}
+
+// ===================== REACTIONS =====================
+function tryReact(){
+  const placed=benchSlots.filter(s=>s!==null).sort((a,b)=>a-b);
+  if(placed.length<1)return;
+
+  // Find matching reaction
+  let match=null;
+  for(const rx of REACTIONS){
+    const need=[...rx.inputs].sort((a,b)=>a-b);
+    if(arraysMatch(placed,need)){match=rx;break;}
+  }
+
+  if(match){
+    // Consume elements
+    benchSlots=[null,null,null];
+    showResult(match);
+    if(!discoveredReactions.has(match.eq)){
+      discoveredReactions.add(match.eq);
+      score+=50;
+    }
+    totalReactionsTriggered++;
+    score+=20;
+    // Grant product elements or bonus
+    for(let i=0;i<3;i++)respawnDrop();
+  } else {
+    // No known reaction — give chemistry feedback
+    const elems=placed.map(z=>{const idx=elIdx(z);return EL[idx]});
+    const names=elems.map(e=>e.sym).join(' + ');
+    let feedback=`No known reaction for ${names}. `;
+
+    // Teach why
+    const ves=elems.map(e=>ve(e));
+    const veSum=ves.reduce((a,b)=>a+b,0);
+    const ens=elems.map(e=>e.en);
+
+    if(elems.some(e=>e.cat==='noble')){
+      feedback+=`Noble gases (full octet) don't react — they're satisfied status-quo powers.`;
+      showGenericResult(names, feedback, 'STATUS QUO STABILITY: Noble gases have full electron shells (stable octets). Like a satisfied hegemon with no revisionist ambitions, they have no incentive to form bonds.', 15);
+    } else {
+      feedback+=`Try combining elements whose valence electrons sum to 8 (octet rule), or pair alkali metals with halogens.`;
+      showGenericResult(names, feedback, `FAILED DIPLOMACY: These elements lack complementary interests. In IR, alliances form when states have compatible security needs — just as bonds form when electron shells can achieve stability together. Valence electrons: ${elems.map(e=>e.sym+'='+ve(e)).join(', ')}.`, 9);
+    }
+
+    // Return elements to inventory
+    placed.forEach(z=>addToInventory(z));
+    benchSlots=[null,null,null];
+  }
+
+  renderInventory();renderBench();
+}
+
+function arraysMatch(a,b){
+  if(a.length!==b.length)return false;
+  for(let i=0;i<a.length;i++)if(a[i]!==b[i])return false;
+  return true;
+}
+
+function showResult(rx){
+  paused=true;
+  const popup=document.getElementById('result');
+  const q=QUOTES[rx.quote];
+  document.getElementById('res-title').textContent=rx.bond.toUpperCase()+' REACTION — '+rx.product;
+  document.getElementById('res-eq').textContent=rx.eq;
+  document.getElementById('res-chem').innerHTML=rx.chem;
+  document.getElementById('res-ir').innerHTML=rx.ir;
+  document.getElementById('res-quote').innerHTML=`"${q.q}"<span class="author">— ${q.a}</span><br><span style="font-size:11px;color:#889">${q.c}</span>`;
+  const isNew=!discoveredReactions.has(rx.eq);
+  document.getElementById('res-rewards').textContent=isNew?'NEW REACTION DISCOVERED! +50 Knowledge':'Reaction confirmed. +20 Knowledge';
+  popup.style.display='block';
+  addLog(`REACTION: ${rx.eq}`,'react');
+}
+
+function showGenericResult(names,chem,ir,quoteIdx){
+  paused=true;
+  const popup=document.getElementById('result');
+  const q=QUOTES[quoteIdx];
+  document.getElementById('res-title').textContent='NO REACTION';
+  document.getElementById('res-eq').textContent=names+' → ?';
+  document.getElementById('res-chem').innerHTML=chem;
+  document.getElementById('res-ir').innerHTML=ir;
+  document.getElementById('res-quote').innerHTML=`"${q.q}"<span class="author">— ${q.a}</span><br><span style="font-size:11px;color:#889">${q.c}</span>`;
+  document.getElementById('res-rewards').textContent='';
+  popup.style.display='block';
+}
+
+function closeResult(){
+  document.getElementById('result').style.display='none';
+  paused=false;
+}
+
+// ===================== LOGGING =====================
+let logEntries=[];
+function addLog(msg,type='info'){
+  logEntries.unshift({msg,type,t:gameTime});
+  if(logEntries.length>30)logEntries.pop();
+  document.getElementById('log').innerHTML=logEntries.slice(0,15).map(e=>
+    `<div class="log-e ${e.type}">${e.msg}</div>`
+  ).join('');
+}
+
+// ===================== UPDATE =====================
+function update(dt){
+  gameTime+=dt;
+
+  // Player movement
+  let mx=0,my=0;
+  if(keys['w']||keys['W']||keys['ArrowUp'])my=-1;
+  if(keys['s']||keys['S']||keys['ArrowDown'])my=1;
+  if(keys['a']||keys['A']||keys['ArrowLeft'])mx=-1;
+  if(keys['d']||keys['D']||keys['ArrowRight'])mx=1;
+  if(mx||my){const m=Math.hypot(mx,my);mx/=m;my/=m;}
+  player.vx+=(mx*player.speed-player.vx)*0.15;
+  player.vy+=(my*player.speed-player.vy)*0.15;
+  player.x+=player.vx*dt*60;
+  player.y+=player.vy*dt*60;
+  player.x=Math.max(20,Math.min(WORLD-20,player.x));
+  player.y=Math.max(20,Math.min(WORLD-20,player.y));
+
+  camera.x=player.x-W/2;
+  camera.y=player.y-H/2;
+
+  // Collect nearby drops
+  drops.forEach(d=>{
+    if(d.collected)return;
+    const dist=Math.hypot(d.x-player.x,d.y-player.y);
+    if(dist<40){
+      d.collected=true;
+      const idx=elIdx(d.z);
+      const e=EL[idx];
+      addToInventory(d.z);
+      // Floating text
+      floatingTexts.push({x:d.x,y:d.y,text:`+${e.sym}`,color:e.col,life:1.2});
+      // Particles
+      for(let i=0;i<8;i++){
+        particles.push({x:d.x,y:d.y,vx:(Math.random()-.5)*3,vy:(Math.random()-.5)*3,life:.6,color:e.col,size:3});
+      }
+      renderInventory();
+    }
+  });
+  drops=drops.filter(d=>!d.collected);
+
+  // Respawn drops
+  if(drops.length<60&&Math.random()<0.03)respawnDrop();
+
+  // Particles
+  particles.forEach(p=>{p.x+=p.vx;p.y+=p.vy;p.life-=dt;p.vx*=.96;p.vy*=.96;});
+  particles=particles.filter(p=>p.life>0);
+
+  // Floating texts
+  floatingTexts.forEach(f=>{f.y-=30*dt;f.life-=dt;});
+  floatingTexts=floatingTexts.filter(f=>f.life>0);
+
+  // Update progress
+  const prog=document.getElementById('progress');
+  prog.innerHTML=`
+    <div><span class="label">Knowledge:</span> <span class="val">${score}</span></div>
+    <div><span class="label">Reactions:</span> <span class="val">${discoveredReactions.size}/${REACTIONS.length}</span></div>
+    <div><span class="label">Elements:</span> <span class="val">${discoveredElements.size}/${EL.length-1}</span></div>
+  `;
+}
+
+// ===================== DRAW =====================
+function draw(){
+  ctx.fillStyle='#060610';
+  ctx.fillRect(0,0,W,H);
+
+  // Grid
+  ctx.strokeStyle='#0e0e1a';
+  ctx.lineWidth=1;
+  const gs=80;
+  for(let x=-(camera.x%gs);x<W;x+=gs){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+  for(let y=-(camera.y%gs);y<H;y+=gs){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+  // World border
+  ctx.strokeStyle='#2a1a1a';ctx.lineWidth=2;
+  ctx.strokeRect(-camera.x,-camera.y,WORLD,WORLD);
+
+  // Zone labels (faint territorial hints)
+  const zones=[
+    {name:'Alkali Territories',x:200,y:200,col:'#331111'},
+    {name:'Halogen Frontier',x:1800,y:200,col:'#113322'},
+    {name:'Transition Heartlands',x:1000,y:1000,col:'#111133'},
+    {name:'Nonmetal Expanse',x:400,y:1600,col:'#112233'},
+    {name:'Noble Sanctuary',x:1800,y:1800,col:'#332211'},
+  ];
+  zones.forEach(z=>{
+    const sx=z.x-camera.x, sy=z.y-camera.y;
+    if(sx>-300&&sx<W+300&&sy>-300&&sy<H+300){
+      ctx.fillStyle=z.col+'22';
+      ctx.beginPath();ctx.arc(sx,sy,250,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle='#334';
+      ctx.font='11px Courier New';ctx.textAlign='center';
+      ctx.fillText(z.name,sx,sy-240);
+    }
+  });
+
+  // Drops
+  drops.forEach(d=>{
+    const sx=d.x-camera.x, sy=d.y-camera.y;
+    if(sx<-30||sx>W+30||sy<-30||sy>H+30)return;
+    const idx=elIdx(d.z);if(!idx)return;
+    const e=EL[idx];
+    const bob=Math.sin(gameTime*3+d.bobPhase)*4;
+
+    // Glow
+    const grd=ctx.createRadialGradient(sx,sy+bob,3,sx,sy+bob,22);
+    grd.addColorStop(0,e.col+'44');grd.addColorStop(1,'transparent');
+    ctx.fillStyle=grd;
+    ctx.beginPath();ctx.arc(sx,sy+bob,22,0,Math.PI*2);ctx.fill();
+
+    // Element orb
+    ctx.fillStyle=e.col+'cc';
+    ctx.strokeStyle=catCol(e.cat);ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.arc(sx,sy+bob,12,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+    // Symbol
+    ctx.fillStyle='#fff';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(e.sym,sx,sy+bob);
+
+    // Proton count
+    ctx.fillStyle='#fc4';ctx.font='7px Courier New';
+    ctx.fillText('Z='+e.z,sx,sy+bob-16);
+  });
+
+  // Particles
+  particles.forEach(p=>{
+    const sx=p.x-camera.x, sy=p.y-camera.y;
+    ctx.globalAlpha=Math.max(0,p.life);
+    ctx.fillStyle=p.color;
+    ctx.beginPath();ctx.arc(sx,sy,p.size*p.life,0,Math.PI*2);ctx.fill();
+  });
+  ctx.globalAlpha=1;
+
+  // Floating texts
+  floatingTexts.forEach(f=>{
+    const sx=f.x-camera.x, sy=f.y-camera.y;
+    ctx.globalAlpha=Math.max(0,f.life);
+    ctx.fillStyle=f.color;ctx.font='bold 14px Courier New';ctx.textAlign='center';
+    ctx.fillText(f.text,sx,sy);
+  });
+  ctx.globalAlpha=1;
+
+  // Player
+  const px=player.x-camera.x, py=player.y-camera.y;
+  // Collection radius indicator
+  ctx.strokeStyle='#6af22';ctx.lineWidth=1;
+  ctx.beginPath();ctx.arc(px,py,40,0,Math.PI*2);ctx.stroke();
+
+  ctx.fillStyle='#6af';ctx.strokeStyle='#fff';ctx.lineWidth=2;
+  ctx.beginPath();ctx.arc(px,py,player.radius,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle='#fff';ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillText('YOU',px,py);
+
+  // Inspect mode
+  if(keys['e']||keys['E'])drawInspect();
+
+  // Periodic table
+  if(showPeriodicTable)drawPeriodicTable();
+
+  // HUD
+  updateHUD();
+}
+
+function updateHUD(){
+  // Show a random IR quote periodically
+  const div=document.getElementById('hud');
+  const qi=Math.floor(gameTime/15)%QUOTES.length;
+  const q=QUOTES[qi];
+  div.innerHTML=`
+    <h3>REALISM BRIEFING</h3>
+    <div style="color:#fc4;font-size:11px;line-height:1.4;margin-bottom:6px">"${q.q}"</div>
+    <div style="color:#889;font-size:10px;text-align:right">— ${q.a}</div>
+    <div style="color:#667;font-size:10px;margin-top:4px;line-height:1.3">${q.c}</div>
+    <div style="margin-top:8px;border-top:1px solid #223;padding-top:4px">
+    <div class="stat" style="font-size:10px;color:#889">Hint: Combine Na+Cl, H+H+O, C+O+O, Fe+O, Fe+S, H+N, or check TAB for ideas</div>
+    </div>
+  `;
+}
+
+function drawInspect(){
+  let nearest=null, nd=120;
+  drops.forEach(d=>{
+    const dist=Math.hypot(d.x-player.x,d.y-player.y);
+    if(dist<nd){nd=dist;nearest=d;}
+  });
+  if(!nearest)return;
+  const idx=elIdx(nearest.z);if(!idx)return;
+  const e=EL[idx];
+  const sx=nearest.x-camera.x, sy=nearest.y-camera.y;
+
+  // Info box
+  const bx=sx+30, by=sy-60;
+  ctx.fillStyle='rgba(8,10,20,.92)';
+  ctx.strokeStyle='#2a4a6a';ctx.lineWidth=1;
+  ctx.fillRect(bx,by,220,120);ctx.strokeRect(bx,by,220,120);
+
+  ctx.textAlign='left';ctx.textBaseline='top';
+  ctx.fillStyle='#adf';ctx.font='bold 12px Courier New';
+  ctx.fillText(`${e.sym} — ${e.name}`,bx+6,by+4);
+  ctx.fillStyle='#8bf';ctx.font='10px Courier New';
+  ctx.fillText(`Protons: ${e.z} | Mass: ${e.mass} amu`,bx+6,by+20);
+  ctx.fillText(`Electrons: [${elConf(e)}]`,bx+6,by+32);
+  ctx.fillText(`Valence e⁻: ${ve(e)} | EN: ${e.en}`,bx+6,by+44);
+  ctx.fillText(`Group: ${e.g} | Period: ${e.p} | ${e.cat}`,bx+6,by+56);
+  ctx.fillStyle='#f84';
+  ctx.fillText(`IR: ${irRole(e)}`,bx+6,by+72);
+  ctx.fillStyle='#889';ctx.font='9px Courier New';
+  const irDesc=e.cat==='noble'?'Satisfied, no alliances needed':
+    e.cat==='alkali'?'Desperate to bond — 1 e⁻ to give':
+    e.cat==='halogen'?'Aggressively seeks 1 e⁻':
+    e.cat==='alkaline'?'Rising power — 2 e⁻ to offer':
+    e.cat==='transition'?`Flexible great power — ${ve(e)} valence e⁻`:
+    `${ve(e)} valence e⁻ available for bonding`;
+  ctx.fillText(irDesc,bx+6,by+86);
+  ctx.fillText(`Needs ${8-ve(e)} more e⁻ for stable octet`,bx+6,by+98);
+}
+
+function drawPeriodicTable(){
+  ctx.fillStyle='rgba(4,4,10,.95)';
+  ctx.fillRect(0,0,W,H);
+
+  ctx.fillStyle='#6af';ctx.font='bold 18px Courier New';ctx.textAlign='center';
+  ctx.fillText('PERIODIC TABLE OF POWER',W/2,24);
+  ctx.fillStyle='#f84';ctx.font='11px Courier New';
+  ctx.fillText('Elements you\'ve collected are highlighted. Press TAB to close.',W/2,42);
+
+  // Simplified table for our elements
+  const cw=54,ch=50;
+  const ox=(W-18*cw)/2;
+  const oy=60;
+
+  EL.forEach((e,i)=>{
+    if(!e)return;
+    let col=e.g-1,row=e.p-1;
+    // Handle actinides
+    if(e.cat==='actinide'){row=8;col=3;}
+    const x=ox+col*cw, y=oy+row*ch;
+
+    const owned=discoveredElements.has(e.z);
+    ctx.fillStyle=owned?'rgba(40,80,40,.5)':'rgba(15,20,35,.7)';
+    ctx.strokeStyle=owned?'#4f4':catCol(e.cat)+'88';
+    ctx.lineWidth=owned?2:1;
+    ctx.fillRect(x,y,cw-2,ch-2);ctx.strokeRect(x,y,cw-2,ch-2);
+
+    ctx.fillStyle='#fc4';ctx.font='7px Courier New';ctx.textAlign='left';
+    ctx.fillText(e.z,x+3,y+9);
+
+    ctx.fillStyle=e.col;ctx.font='bold 14px Courier New';ctx.textAlign='center';
+    ctx.fillText(e.sym,x+cw/2-1,y+24);
+
+    ctx.fillStyle='#667';ctx.font='6px Courier New';
+    ctx.fillText(e.name.substring(0,7),x+cw/2-1,y+35);
+    ctx.fillStyle='#889';
+    ctx.fillText(`v:${ve(e)} en:${e.en}`,x+cw/2-1,y+44);
+  });
+
+  // Reaction hints
+  ctx.fillStyle='#fc4';ctx.font='12px Courier New';ctx.textAlign='left';
+  const hy=oy+10*ch+10;
+  ctx.fillText('KNOWN REACTION RECIPES:',ox,hy);
+  ctx.font='10px Courier New';ctx.fillStyle='#8bf';
+  REACTIONS.forEach((rx,i)=>{
+    const found=discoveredReactions.has(rx.eq);
+    ctx.fillStyle=found?'#4f4':'#556';
+    const col=i<12?0:1;
+    const row=i<12?i:i-12;
+    ctx.fillText(`${found?'[x]':'[ ]'} ${rx.inputs.map(z=>{const idx=elIdx(z);return EL[idx].sym}).join('+')} → ${rx.product}`,
+      ox+col*480, hy+14+row*14);
+  });
+}
+
+// ===================== INPUT =====================
+window.addEventListener('keydown',e=>{
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab'].includes(e.code))e.preventDefault();
+  keys[e.key]=true;
+  if(e.key==='Tab')showPeriodicTable=!showPeriodicTable;
+  if((e.key==='r'||e.key==='R')&&!paused)tryReact();
+},true);
+window.addEventListener('keyup',e=>{
+  keys[e.key]=false;
+},true);
+// Clear keys when window loses focus to prevent stuck keys
+window.addEventListener('blur',()=>{keys={};});
+// Prevent UI elements from stealing focus so keyboard always works
+document.addEventListener('mousedown',e=>{
+  if(e.target.tagName==='BUTTON')return; // allow button clicks
+  if(e.target.closest('#inv')||e.target.closest('#bench')||e.target.closest('#slots'))return; // allow inv/bench clicks
+  // For all other UI, prevent focus steal
+},{passive:true});
+// Handle tab visibility — reset timing so we don't get huge dt
+document.addEventListener('visibilitychange',()=>{
+  if(!document.hidden&&running){lastFrameTime=performance.now();}
+});
+
+// ===================== START =====================
+function startGame(){
+  document.getElementById('title').style.display='none';
+  document.getElementById('ui').style.display='block';
+  canvas=document.getElementById('game');
+  ctx=canvas.getContext('2d');
+  W=canvas.width=window.innerWidth;
+  H=canvas.height=window.innerHeight;
+
+  spawnDrops();
+  renderInventory();
+  renderBench();
+
+  addLog('Welcome to the anarchic international system.','diplo');
+  addLog('Collect elements. Combine them on the Reaction Bench.','info');
+  addLog('Every reaction reveals chemistry AND IR realism lessons.','info');
+
+  // Opening quote
+  const q=QUOTES[3]; // Waltz
+  addLog(`"${q.q}" — ${q.a}`,'quote-log');
+
+  running=true;
+  lastFrameTime=performance.now();
+  function loop(now){
+    if(!running)return;
+    // Recalc canvas size every frame to handle tab switches / resizes
+    if(canvas.width!==window.innerWidth||canvas.height!==window.innerHeight){
+      W=canvas.width=window.innerWidth;
+      H=canvas.height=window.innerHeight;
+    }
+    const dt=Math.min(.05,(now-lastFrameTime)/1000);
+    lastFrameTime=now;
+    if(!paused&&dt>0)update(dt);
+    draw();
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html>
